@@ -1,0 +1,19 @@
+{
+  "name": "platform-football",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "1v1 real-time arcade football with a depth axis — Pixel Cup Soccer look, Smash-Bros-like character abilities.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.87.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
