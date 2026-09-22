@@ -8,9 +8,9 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 - [x] `src/config/arena.ts` ile ölçü sabitleri
 - [x] Placeholder saha, iki kale, orta çizgi, sabit kamera
 - [x] GitHub Pages deploy pipeline'ı kur (`.github/workflows/deploy.yml`)
-- [ ] **İlk deploy'u yap** — bloklu: repo GitHub'a açılamadı, bkz. docs/PROGRESS.md
+- [x] **İlk deploy'u yap** — https://samiboran.github.io/platform-football/
 
-**Doğrulama:** Build hatasız geçiyor, deploy edilen linkte saha ve iki kale görünüyor, ekran hiç kaymıyor.
+**Doğrulama:** Build hatasız geçiyor ✅. Deploy edilen linkte saha ve iki kale görünüyor mü — Sami'nin kendi tarayıcısında teyit etmesi lazım (bu sandbox github.io'ya erişemiyor).
 
 ## M1 — Hareket
 - [ ] Joystick: x ekseni + z (derinlik) hareketi

@@ -34,6 +34,19 @@ sadece DragonKick'e döndü.
   olmadığı doğrulanmalı, ardından ilk deploy'un gerçekten yeşile döndüğü
   kontrol edilmeli.
 
+## Oturum 3 — Pages açıldı, ilk deploy yeşil
+
+İlk deploy denemesi "Ensure GitHub Pages has been enabled" hatasıyla düştü —
+Sami Settings → Pages → Source: GitHub Actions'ı elle açtı. Ardından
+`rerun_failed_jobs` ile aynı run yeniden tetiklendi ve **success** ile bitti.
+
+- **Canlı link:** https://samiboran.github.io/platform-football/
+- Bu sandbox `github.io`'ya egress policy yüzünden erişemediği için sayfayı
+  görsel olarak ben doğrulayamadım — GitHub Actions tarafı tamamen yeşil,
+  ama Sami'nin linki bir kere açıp saha/iki kale/orta çizgi göründüğünü
+  teyit etmesi gerekiyor.
+- M0 artık tamamen kapandı.
+
 ## Sıradaki oturum
-- Pages/Actions deploy'unu doğrula, linki test et, M0'ı gerçekten kapat.
-- M1: joystick hareketi (x + z), low-gravity zıplama, gölge sistemi, depth sort.
+- Sami linki teyit ettikten sonra M1'e başla: joystick hareketi (x + z),
+  low-gravity zıplama, gölge sistemi, depth sort.
