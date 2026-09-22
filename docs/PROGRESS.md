@@ -16,6 +16,24 @@
 - Sonuç olarak GitHub Pages deploy'u da yapılamadı (M0'ın son maddesi teknik olarak tamamlanmadı — workflow dosyası hazır ama hiç çalışmadı).
 - Devam etmek için: (a) Sami repoyu kendi hesabında elle oluşturup remote'u eklerse ben push ederim, veya (b) GitHub App'e repo oluşturma izni verilirse ben de açıp push edebilirim.
 
+## Oturum 2 — Repo açıldı, push tamamlandı
+
+Sami `github.com/samiboran/platform-football` reposunu kendi hesabından elle
+açtı (boş, hiç commit yok). Yol arada kısa bir sapma yaptı: repo hâlâ
+açılamadığı sanılarak proje geçici olarak `Botan/platform-football/` altına
+taşınmıştı — repo linki gelince o taşıma tamamen geri alındı, Botan tekrar
+sadece DragonKick'e döndü.
+
+**Yapıldı:**
+- Yeni repo `origin` olarak eklendi, mevcut local git geçmişi (`ac2f2f5`,
+  `8dd012f`) direkt push edildi — `main` branch'i artık GitHub'da.
+- Botan reposundaki geçici kopya ve birleşik deploy workflow'u geri alındı.
+
+**Kalan:**
+- GitHub Pages'in bu repoda "Source: GitHub Actions" olarak açık olup
+  olmadığı doğrulanmalı, ardından ilk deploy'un gerçekten yeşile döndüğü
+  kontrol edilmeli.
+
 ## Sıradaki oturum
-- Repo/push sorunu çözülünce: ilk deploy'u tamamla, linki doğrula, M0'ı gerçekten kapat.
+- Pages/Actions deploy'unu doğrula, linki test et, M0'ı gerçekten kapat.
 - M1: joystick hareketi (x + z), low-gravity zıplama, gölge sistemi, depth sort.
