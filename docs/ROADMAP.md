@@ -7,7 +7,8 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 - [x] Sahne yapısı: Boot / Menu / Match / Result
 - [x] `src/config/arena.ts` ile ölçü sabitleri
 - [x] Placeholder saha, iki kale, orta çizgi, sabit kamera
-- [x] GitHub Pages deploy pipeline'ı kur ve **ilk deploy'u yap**
+- [x] GitHub Pages deploy pipeline'ı kur (`.github/workflows/deploy.yml`)
+- [ ] **İlk deploy'u yap** — bloklu: repo GitHub'a açılamadı, bkz. docs/PROGRESS.md
 
 **Doğrulama:** Build hatasız geçiyor, deploy edilen linkte saha ve iki kale görünüyor, ekran hiç kaymıyor.
 
