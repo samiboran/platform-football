@@ -33,6 +33,8 @@ export const CHARACTER_WIDTH = 70;
 /** Narrower box for the placeholder sprite render — keeps it human-shaped
  * even though CHARACTER_WIDTH (above) is wider for layout math. */
 export const CHARACTER_SPRITE_WIDTH = 40;
+/** Ball radius, world units — small relative to a character (M2). */
+export const BALL_RADIUS = 10;
 
 // --- Depth band (z axis, drawn as up/down on screen) -------------------
 /** ~3 character heights tall, per CLAUDE.md. */

@@ -139,9 +139,38 @@ düz dikdörtgen yerine gerçek trapez olarak çiziliyor.
 karakter boyu belirgin şekilde küçülüyor, saha trapez + çim şeritleri +
 tribün bandı + hacimli kaleler doğru görünüyor, konsol hatası yok.
 
+## Oturum 7 — M2: Top
+
+**Yapıldı:**
+- `src/config/ball.ts`: BALL_GRAVITY (700), BALL_BOUNCE_RESTITUTION (0.6),
+  BALL_MIN_BOUNCE_VY (altında zıplamayı kesip yere yapıştırıyor), BALL_WALL_
+  RESTITUTION (0.7), BALL_GROUND_FRICTION (220), BALL_TOUCH_SPEED (260).
+- `arena.ts`'e `BALL_RADIUS` (10) eklendi.
+- `src/config/match.ts`: MATCH_DURATION_SECONDS (150 — CLAUDE.md'nin "2-3
+  dakika" aralığının ortası).
+- `src/entities/Ball.ts`: yerçekimi + yerden sekme (restitution ile enerji
+  kaybı, çok yavaşlayınca durur), touchline'lardan sekme (z ekseni),
+  kale çizgisi mantığı — gol ağzı z-aralığındaysa içeri geçip ağın arkasından
+  sekiyor, ağzın dışındaysa direğe çarpmış gibi kenardan sekiyor; ilk geçişte
+  `'left'|'right'` gol sinyali dönüyor. Render Character ile aynı desen:
+  `projectToScreen(...).scale` ile küçülen sprite + zorunlu gölge.
+- `MatchScene.ts`: skor tablosu + geri sayan süre HUD'u, karakter-top temas
+  kontrolü (CONTACT_TOLERANCE_X/Z, basit "dribble nudge" — gerçek şut/tutuş
+  matrisi M3'te gelecek), gol olunca skor artırıp topu merkeze resetliyor,
+  süre bitince (veya "Bitir" butonuyla) `ResultScene`'e son skorla geçiyor.
+- `ResultScene.ts`: geçirilen skoru "1 — 1" formatında gösteriyor.
+
+**Doğrulama (Playwright + geçici debug tuşlarıyla, commit'ten önce kaldırıldı):**
+- Top 40px yükseklikten bırakılınca zıplayıp merkeze yerleşiyor.
+- Karaktere değince top karakterin hareket yönünde itiliyor.
+- Sağ kaleye gol → skor "1 — 0" oluyor, top merkeze dönüyor.
+- Sol kaleye gol → skor "1 — 1" oluyor, top merkeze dönüyor.
+- Süre "2:30"dan geri sayıyor; erken bitirilince ResultScene "1 — 1" gösteriyor.
+- Konsol hatası yok.
+
 ## Sıradaki oturum
-- M2: top fiziği (yerçekimi, sekme, sürtünme, duvar sekmesi), karakter-top
-  teması (z toleransı geniş — CONTACT_TOLERANCE_Z zaten arena.ts'te hazır),
-  gol algılama + skor + süre + ResultScene. Topun gölgesi ve ölçeği de
-  Character'daki aynı `projectToScreen(...).scale` + "z-düzleminde kal,
-  y'ye göre küçül" mantığını kullanmalı — sistem zaten buna hazır.
+- M3: bağlamsal Aksiyon tuşu (top bizdeyse şut, değilse tut), joystick
+  yönünden şut yönü, dash (4 yön, havada da), 3 segmentli power barı + UI,
+  power şut/tutuş matrisi (dört durum), dash'in power tüketimi, tutma
+  cooldown'u + dinamik tutma şansı. M2'deki basit "dribble nudge" burada
+  gerçek şut mekaniğiyle değişecek.

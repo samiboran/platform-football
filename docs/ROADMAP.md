@@ -22,12 +22,12 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** ✅ Karakter dört yöne gidiyor, zıplıyor, gölge yerde doğru yerde duruyor (y'yi takip etmiyor, küçülüp soluyor), orta çizgiyi ve touchline'ları geçemiyor, arkadaki karakter öndekinin arkasında çiziliyor — hepsi Playwright ile ekran görüntüleriyle doğrulandı.
 
 ## M2 — Top
-- [ ] Top fiziği: yerçekimi, yerden sekme, sürtünme
-- [ ] Duvardan sekme
-- [ ] Karakter-top teması, z toleranslı hitbox
-- [ ] Gol algılama, skor, maç süresi, ResultScene
+- [x] Top fiziği: yerçekimi, yerden sekme, sürtünme
+- [x] Duvardan sekme (touchline'lar)
+- [x] Karakter-top teması, z toleranslı hitbox (basit "dribble nudge" — gerçek şut/tutuş matrisi M3'te)
+- [x] Gol algılama, skor, maç süresi, ResultScene
 
-**Doğrulama:** Top gerçekçi sekiyor, kaleye girince gol sayılıyor, skor ve süre çalışıyor, maç bitince sonuç ekranı geliyor.
+**Doğrulama:** ✅ Top gerçekçi sekiyor (yerçekimi + restitution ile sekip yavaşlıyor), kaleye girince gol sayılıyor (her iki kale de test edildi), skor tablosu ve geri sayan süre çalışıyor, süre bitince (veya "Bitir" ile) ResultScene'de son skor gösteriliyor — Playwright ile uçtan uca doğrulandı, konsol hatası yok.
 
 ## M3 — Aksiyon ve power
 - [ ] Bağlamsal Aksiyon tuşu (şut / tut)
