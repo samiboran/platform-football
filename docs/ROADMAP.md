@@ -13,13 +13,13 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** Build hatasız geçiyor ✅. Deploy edilen linkte saha ve iki kale görünüyor mü — Sami'nin kendi tarayıcısında teyit etmesi lazım (bu sandbox github.io'ya erişemiyor).
 
 ## M1 — Hareket
-- [ ] Joystick: x ekseni + z (derinlik) hareketi
-- [ ] Low gravity zıplama (y ekseni)
-- [ ] Gölge sistemi (karakter + top)
-- [ ] Depth sort (z'ye göre render sırası)
-- [ ] Orta çizgi ve saha kenarı sınırları
+- [x] Joystick: x ekseni + z (derinlik) hareketi (+ klavye ok tuşları PC için)
+- [x] Low gravity zıplama (y ekseni)
+- [x] Gölge sistemi (karakter kısmı — top M2'de eklenecek, sistem zaten top için de kullanılabilir)
+- [x] Depth sort (z'ye göre render sırası)
+- [x] Orta çizgi ve saha kenarı sınırları
 
-**Doğrulama:** Karakter dört yöne gidiyor, zıplıyor, gölge yerde doğru yerde duruyor, orta çizgiyi geçemiyor, arkadaki karakter öndekinin arkasında çiziliyor.
+**Doğrulama:** ✅ Karakter dört yöne gidiyor, zıplıyor, gölge yerde doğru yerde duruyor (y'yi takip etmiyor, küçülüp soluyor), orta çizgiyi ve touchline'ları geçemiyor, arkadaki karakter öndekinin arkasında çiziliyor — hepsi Playwright ile ekran görüntüleriyle doğrulandı.
 
 ## M2 — Top
 - [ ] Top fiziği: yerçekimi, yerden sekme, sürtünme

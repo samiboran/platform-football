@@ -73,8 +73,34 @@ korunsun. Bu, ROADMAP'te olmayan bir tasarım kararıydı ama görsel kanıtla
 Geçici audit kodu `MatchScene.ts`'ten geri alındı — gerçek karakter render'ı
 M1'in kendi işi.
 
+## Oturum 5 — M1: Hareket
+
+**Yapıldı:**
+- `src/config/movement.ts`: MOVE_SPEED (220 px/s), GRAVITY (600), JUMP_VELOCITY
+  (380) — low-gravity floaty zıplama (~1.27s hava süresi, ~120px tepe yükseklik).
+- `src/systems/VirtualJoystick.ts`: dokunmatik/mouse joystick, bırakınca
+  merkeze dönüyor. Aşağı sürükleme = kameraya yakın (-z), yukarı = uzak (+z).
+- `src/systems/InputController.ts`: joystick + klavye ok tuşları (PC fallback)
+  birleşik hareket vektörü, ayrı bir ZIPLA dokunmatik tuşu + Space, edge-
+  triggered jump (basılı tutunca sürekli zıplamıyor).
+- `src/entities/Character.ts`: x/z/y state, sınır clamp (kendi yarısı +
+  touchline'lar), yerçekimi/zıplama fiziği, zorunlu gölge (y'yi takip
+  etmiyor, sadece z-düzleminde, y arttıkça küçülüp soluyor), `setDepth()`
+  ile otomatik z-sıralı render.
+- `MatchScene`: bir kontrol edilebilir karakter + F1 ile açılıp kapanan,
+  hareket etmeyen bir "referans" karakter (sadece depth-sort'u görsel
+  kanıtlamak için debug amaçlı, gerçek oyun nesnesi değil).
+
+**Doğrulama (Playwright, ekran görüntüleriyle):**
+- Sağ oku 2sn basılı tutunca karakter tam orta çizgide duruyor (x=480), geçmiyor.
+- Yukarı oku basılı tutunca z, DEPTH_MAX'ta (210) clamp'leniyor, öteye geçmiyor.
+- F1 açıkken referans karakterle aynı x'e gelip z'yi aşınca (z=210 > ref z=178.5),
+  referans (kameraya daha yakın) mavi karakteri doğru şekilde önden kesiyor.
+- Zıplarken karakter yukarı kalkarken gölgesi yerde kalıyor, küçülüp soluyor.
+- Konsol hatası yok.
+
 ## Sıradaki oturum
-- M1: joystick hareketi (x + z), low-gravity zıplama, **gölge sistemi**
-  (kritik — gölgesiz derinlik okunmaz), depth sort, orta çizgi/saha kenarı
-  sınırları. Karakterleri gerçekten render ederken `CHARACTER_SPRITE_WIDTH`
-  kullan, `CHARACTER_WIDTH`'i sadece layout/hitbox matematiği için.
+- M2: top fiziği (yerçekimi, sekme, sürtünme, duvar sekmesi), karakter-top
+  teması (z toleransı geniş — CONTACT_TOLERANCE_Z zaten arena.ts'te hazır),
+  gol algılama + skor + süre + ResultScene. Topun gölgesi de Character'daki
+  aynı "z-düzleminde kal, y'ye göre küçül" mantığını kullanmalı.
