@@ -1,5 +1,14 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT, LEFT_GOAL_LINE_X, CENTER_LINE_X, DEPTH_BAND_HEIGHT } from '../config/arena';
+import {
+  GAME_WIDTH,
+  GAME_HEIGHT,
+  LEFT_GOAL_LINE_X,
+  CENTER_LINE_X,
+  DEPTH_BAND_HEIGHT,
+  DEPTH_MIN,
+  DEPTH_MAX,
+  projectToScreen,
+} from '../config/arena';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { Character } from '../entities/Character';
@@ -78,7 +87,18 @@ export class MatchScene extends Phaser.Scene {
     if (this.debugVisible) {
       this.debugGraphics.clear();
       this.debugGraphics.lineStyle(1, 0xff00ff, 0.8);
-      this.debugGraphics.strokeRect(LEFT_GOAL_LINE_X, 0, CENTER_LINE_X - LEFT_GOAL_LINE_X, GAME_HEIGHT);
+      // Left-half bounds as an actual trapezoid, matching the perspective pitch.
+      const nearLeft = projectToScreen(LEFT_GOAL_LINE_X, DEPTH_MIN, 0);
+      const nearRight = projectToScreen(CENTER_LINE_X, DEPTH_MIN, 0);
+      const farRight = projectToScreen(CENTER_LINE_X, DEPTH_MAX, 0);
+      const farLeft = projectToScreen(LEFT_GOAL_LINE_X, DEPTH_MAX, 0);
+      this.debugGraphics.beginPath();
+      this.debugGraphics.moveTo(nearLeft.screenX, nearLeft.screenY);
+      this.debugGraphics.lineTo(nearRight.screenX, nearRight.screenY);
+      this.debugGraphics.lineTo(farRight.screenX, farRight.screenY);
+      this.debugGraphics.lineTo(farLeft.screenX, farLeft.screenY);
+      this.debugGraphics.closePath();
+      this.debugGraphics.strokePath();
     }
   }
 }

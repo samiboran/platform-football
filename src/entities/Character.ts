@@ -65,15 +65,19 @@ export class Character {
   private syncTransform(): void {
     const ground = projectToScreen(this.x, this.z, 0);
     const lifted = projectToScreen(this.x, this.z, this.y);
+    // `scale` is the perspective shrink at this depth (1.0 near -> 0.85 far,
+    // same factor for the shadow so both stay visually consistent).
+    const depthScale = ground.scale;
 
     // Shadow stays on the z-plane and shrinks/fades with jump height —
     // it must never follow y, or it stops reading as "ground contact".
     this.shadow.setPosition(ground.screenX, ground.screenY);
-    const shrink = Phaser.Math.Clamp(1 - this.y / 140, 0.4, 1);
-    this.shadow.setScale(shrink);
-    this.shadow.setAlpha(0.35 * shrink);
+    const jumpShrink = Phaser.Math.Clamp(1 - this.y / 140, 0.4, 1);
+    this.shadow.setScale(depthScale * jumpShrink);
+    this.shadow.setAlpha(0.35 * jumpShrink);
 
-    this.sprite.setPosition(lifted.screenX, lifted.screenY - CHARACTER_HEIGHT / 2);
+    this.sprite.setScale(depthScale);
+    this.sprite.setPosition(lifted.screenX, lifted.screenY - (CHARACTER_HEIGHT * depthScale) / 2);
 
     // Depth sort by ground screenY (not lifted) so jumping never reorders
     // front/back — only z does (CLAUDE.md section 3).

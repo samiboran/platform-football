@@ -99,8 +99,49 @@ M1'in kendi işi.
 - Zıplarken karakter yukarı kalkarken gölgesi yerde kalıyor, küçülüp soluyor.
 - Konsol hatası yok.
 
+## Oturum 6 — Sahaya perspektif
+
+Sami sahanın düz dikdörtgen yerine gerçek perspektif kazanmasını istedi.
+`arena.ts`'deki `projectToScreen` artık üç şey döndürüyor (`screenX, screenY,
+scale`), tüm sahne/entity kodu buradan besleniyor.
+
+**Yapıldı (`src/config/arena.ts`):**
+- `widthScaleAt(z)`: saha trapez — `PITCH_FAR_WIDTH_RATIO=0.75`, yakın kenar
+  %100, uzak kenar %75 genişlik. `screenX = CENTER_X + (x-CENTER_X)*widthScaleAt(z)`.
+  Orta çizgi (x=CENTER_X) simetri ekseni olduğu için hep dikey kalıyor.
+- `depthScaleAt(z)`: gerçek yüksekliği olan her şey (karakter, top, kale
+  direği) için ortak küçülme çarpanı — `DEPTH_FAR_SCALE=0.85`, lineer.
+- `DEPTH_SCALE` artık `(GAME_HEIGHT * 0.9) / DEPTH_MAX` formülünden
+  hesaplanıyor (saha ekranın %90'ını kaplasın, tek satırla ayarlanabilir).
+- `GOAL_HEIGHT = CHARACTER_HEIGHT * 1.4`.
+
+**Yapıldı (`src/systems/pitchRenderer.ts`):**
+- Tribün bandı: `y=0..FAR_Y` arası, saha kenarında ince bir çizgi.
+- Çim: `DEPTH_MIN..DEPTH_MAX` arası 6 trapez şeride bölünüp iki yeşil tonu
+  alternatif dolduruluyor — otomatik olarak uzakta dar, yakında geniş çıkıyor.
+- Saha çizgisi artık düz dikdörtgen değil, 4 köşeli bir trapez (stroke).
+- Kaleler: zemin izdüşümü + arkada ağ dokulu (grid) panel + önde direkler/
+  üst direk (`POST_COLOR` sarımsı, beyaz saha çizgileriyle karışmasın diye).
+  Uzak direk yüksekliği `GOAL_HEIGHT * depthScaleAt(farZ)`, yakın direk
+  `depthScaleAt(nearZ)` — uzak görünür şekilde kısa. İlk versiyon (yan
+  panel + tavan paneli dahil tam kutu) küçük ekranda çok karışık/okunaksız
+  çıktı, sadeleştirip sadece zemin+arka panel+çerçeveye indirildi.
+
+**Yapıldı (`src/entities/Character.ts`):**
+- Sprite ve gölge artık `projectToScreen(...).scale` ile ölçekleniyor —
+  uzaklaştıkça küçülüyor, gölge hem zıplama hem derinlik yüzünden aynı anda
+  küçülüp soluyor (`depthScale * jumpShrink`).
+
+**Yapıldı (`MatchScene.ts`):** F1 debug overlay'deki yarı-saha sınır kutusu
+düz dikdörtgen yerine gerçek trapez olarak çiziliyor.
+
+**Doğrulama (Playwright ekran görüntüleri):** yakın/uzak karşılaştırmasında
+karakter boyu belirgin şekilde küçülüyor, saha trapez + çim şeritleri +
+tribün bandı + hacimli kaleler doğru görünüyor, konsol hatası yok.
+
 ## Sıradaki oturum
 - M2: top fiziği (yerçekimi, sekme, sürtünme, duvar sekmesi), karakter-top
   teması (z toleransı geniş — CONTACT_TOLERANCE_Z zaten arena.ts'te hazır),
-  gol algılama + skor + süre + ResultScene. Topun gölgesi de Character'daki
-  aynı "z-düzleminde kal, y'ye göre küçül" mantığını kullanmalı.
+  gol algılama + skor + süre + ResultScene. Topun gölgesi ve ölçeği de
+  Character'daki aynı `projectToScreen(...).scale` + "z-düzleminde kal,
+  y'ye göre küçül" mantığını kullanmalı — sistem zaten buna hazır.
