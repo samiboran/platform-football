@@ -41,17 +41,17 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** Matristeki dört durumun dördü de test edilip doğru sonucu veriyor. Power barı doğru doluyor ve harcanıyor.
 
 ## M4 — Karakterler
-- [ ] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown
-- [ ] Karakter seçim ekranı
-- [ ] Her karakterin özel hareketi (3 segment süper)
-- [ ] Asset klasör yapısı + placeholder sprite'lar
-- [ ] İlk denge ayarı
+- [x] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown
+- [x] Karakter seçim ekranı
+- [ ] Her karakterin özel hareketi (3 segment süper) — **bloklu: M3'ün power barına ihtiyaç var**
+- [x] Asset klasör yapısı + placeholder sprite'lar (`assets/characters/<id>/`, renkli placeholder karakterler zaten karaktere göre boyanıyor)
+- [x] İlk denge ayarı (arketipe göre hız/güç/şut gücü/tutma/cooldown çarpanları)
 
-**Doğrulama:** Dört karakter de seçilip oynanabiliyor, istatistik farkları hissediliyor, hiçbiri açıkça diğerlerini eziyor değil.
+**Doğrulama:** ✅ Dört karakter de seçilip oynanabiliyor, hız/güç istatistikleri gerçekten hareket ve top temasına yansıyor (kod düzeyinde doğrulandı). "İstatistik farkları hissediliyor / kimse ezmiyor" kısmı gerçek oynanış testi gerektiriyor — Sami'nin geri bildirimini bekliyor.
 
 ## M5 — Kabuk
-- [ ] Ana menü, saha seçimi
-- [ ] 4 saha, veri tabanlı mekanik etkiler
+- [x] Ana menü (M0'dan beri var), saha seçimi
+- [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu)
 - [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali
 - [ ] Ses efektleri, seyirci tepkileri
 - [ ] Mobil dokunmatik kontrollerin son ayarı

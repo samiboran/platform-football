@@ -30,6 +30,6 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    startBtn.on('pointerup', () => this.scene.start('Match'));
+    startBtn.on('pointerup', () => this.scene.start('CharacterSelect'));
   }
 }

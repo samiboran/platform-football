@@ -27,11 +27,21 @@ export class Character {
   private readonly bounds: CharacterBounds;
   private readonly sprite: Phaser.GameObjects.Rectangle;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
+  private readonly speedMultiplier: number;
 
-  constructor(scene: Phaser.Scene, startX: number, startZ: number, bounds: CharacterBounds, color: number) {
+  constructor(
+    scene: Phaser.Scene,
+    startX: number,
+    startZ: number,
+    bounds: CharacterBounds,
+    color: number,
+    speedMultiplier = 1,
+  ) {
     this.x = startX;
     this.z = startZ;
     this.bounds = bounds;
+    this.speedMultiplier = speedMultiplier;
 
     this.shadow = scene.add.ellipse(0, 0, CHARACTER_SPRITE_WIDTH * 1.1, CHARACTER_SPRITE_WIDTH * 0.5, 0x000000, 0.35);
     this.sprite = scene.add.rectangle(0, 0, CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, color).setStrokeStyle(1, 0x000000);
@@ -41,9 +51,10 @@ export class Character {
 
   update(delta: number, input: CharacterInput): void {
     const dt = delta / 1000;
+    const speed = MOVE_SPEED * this.speedMultiplier;
 
-    this.x = Phaser.Math.Clamp(this.x + input.moveX * MOVE_SPEED * dt, this.bounds.minX, this.bounds.maxX);
-    this.z = Phaser.Math.Clamp(this.z + input.moveZ * MOVE_SPEED * dt, DEPTH_MIN, DEPTH_MAX);
+    this.x = Phaser.Math.Clamp(this.x + input.moveX * speed * dt, this.bounds.minX, this.bounds.maxX);
+    this.z = Phaser.Math.Clamp(this.z + input.moveZ * speed * dt, DEPTH_MIN, DEPTH_MAX);
 
     if (input.jumpPressed && this.y === 0) {
       this.vy = JUMP_VELOCITY;

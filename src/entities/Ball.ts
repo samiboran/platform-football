@@ -22,6 +22,18 @@ import {
 
 export type GoalSide = 'left' | 'right' | null;
 
+export interface BallTuning {
+  /** Multiplies BALL_BOUNCE_RESTITUTION (stadium data, M5). */
+  bounceMultiplier: number;
+  /** Multiplies BALL_GROUND_FRICTION. */
+  frictionMultiplier: number;
+  /** Constant world-space force on the ball, px/s². */
+  windX: number;
+  windZ: number;
+}
+
+const DEFAULT_TUNING: BallTuning = { bounceMultiplier: 1, frictionMultiplier: 1, windX: 0, windZ: 0 };
+
 function dampen(v: number, amount: number): number {
   if (Math.abs(v) <= amount) return 0;
   return v - Math.sign(v) * amount;
@@ -44,11 +56,13 @@ export class Ball {
   vy = 0;
   private readonly sprite: Phaser.GameObjects.Ellipse;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  private readonly tuning: BallTuning;
 
-  constructor(scene: Phaser.Scene, startX: number, startZ: number, startY = 40) {
+  constructor(scene: Phaser.Scene, startX: number, startZ: number, startY = 40, tuning: Partial<BallTuning> = {}) {
     this.x = startX;
     this.z = startZ;
     this.y = startY;
+    this.tuning = { ...DEFAULT_TUNING, ...tuning };
 
     this.shadow = scene.add.ellipse(0, 0, BALL_RADIUS * 2.2, BALL_RADIUS * 1.1, 0x000000, 0.35);
     this.sprite = scene.add.ellipse(0, 0, BALL_RADIUS * 2, BALL_RADIUS * 2, 0xffffff).setStrokeStyle(1, 0x333333);
@@ -67,8 +81,9 @@ export class Ball {
   }
 
   /** M2's simple contact response: push the ball along the toucher's move
-   * direction, or straight away from them if they're standing still. */
-  applyTouch(moveX: number, moveZ: number, pushX: number, pushZ: number): void {
+   * direction, or straight away from them if they're standing still.
+   * `chaos` (Kenya's plastic-bag ball, M4) adds an unpredictable wobble. */
+  applyTouch(moveX: number, moveZ: number, pushX: number, pushZ: number, power = 1, chaos = false): void {
     let ix = moveX;
     let iz = moveZ;
     if (ix === 0 && iz === 0) {
@@ -76,26 +91,36 @@ export class Ball {
       ix = pushX / len;
       iz = pushZ / len;
     }
-    this.vx = ix * BALL_TOUCH_SPEED;
-    this.vz = iz * BALL_TOUCH_SPEED;
+    if (chaos) {
+      ix += (Math.random() - 0.5) * 0.6;
+      iz += (Math.random() - 0.5) * 0.6;
+    }
+    this.vx = ix * BALL_TOUCH_SPEED * power;
+    this.vz = iz * BALL_TOUCH_SPEED * power;
   }
 
   update(delta: number): GoalSide {
     const dt = delta / 1000;
     let scored: GoalSide = null;
 
+    // Wind (stadium data, M5) — a constant push on the ball.
+    this.vx += this.tuning.windX * dt;
+    this.vz += this.tuning.windZ * dt;
+
     // Gravity + ground bounce.
     this.vy -= BALL_GRAVITY * dt;
     this.y += this.vy * dt;
     if (this.y <= 0) {
       this.y = 0;
-      this.vy = Math.abs(this.vy) > BALL_MIN_BOUNCE_VY ? -this.vy * BALL_BOUNCE_RESTITUTION : 0;
+      const restitution = BALL_BOUNCE_RESTITUTION * this.tuning.bounceMultiplier;
+      this.vy = Math.abs(this.vy) > BALL_MIN_BOUNCE_VY ? -this.vy * restitution : 0;
     }
 
     // Ground friction while rolling.
     if (this.y === 0) {
-      this.vx = dampen(this.vx, BALL_GROUND_FRICTION * dt);
-      this.vz = dampen(this.vz, BALL_GROUND_FRICTION * dt);
+      const friction = BALL_GROUND_FRICTION * this.tuning.frictionMultiplier;
+      this.vx = dampen(this.vx, friction * dt);
+      this.vz = dampen(this.vz, friction * dt);
     }
 
     const prevX = this.x;

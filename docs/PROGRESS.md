@@ -168,9 +168,50 @@ tribün bandı + hacimli kaleler doğru görünüyor, konsol hatası yok.
 - Süre "2:30"dan geri sayıyor; erken bitirilince ResultScene "1 — 1" gösteriyor.
 - Konsol hatası yok.
 
+## Oturum 8 — M3'ü atla, ona bağımlı olmayan işleri bitir (M4 + M5'in bir kısmı)
+
+Sami M3'ü (aksiyon/power) daha sonraya bıraktı, "ona gereksinimin olmayan
+şeyleri yap bitir" dedi. M4'ün süper hareket dışındaki her maddesi ve M5'in
+saha seçimi + veri tabanlı saha etkileri maddesi M3'e bağımlı değildi.
+
+**Yapıldı:**
+- `src/config/characters.ts`: Brezilya/Arjantin/Kenya/Kongo — CLAUDE.md
+  bölüm 6'daki kimlik/arketip/özel hareket isimleriyle birebir, artı hız/
+  güç/şutGücü/tutmaŞansı/cooldown çarpanları (arketipe göre ilk denge:
+  Brezilya hızlı-hafif-güçsüz, Kongo yavaş-çok güçlü, Kenya zayıf+kaotik,
+  Arjantin tamamen 1.0 baseline).
+- `src/scenes/CharacterSelectScene.ts`: 4 kart, tıkla-seç, DEVAM ile
+  `StadiumSelect`e geçiyor.
+- `src/config/stadiums.ts`: Brezilya/Arjantin/Kenya/Kongo sahaları —
+  top sekme/sürtünme çarpanı + rüzgar (x/z sabit kuvvet) + Kongo için
+  "ritim görsele yansır" bayrağı. "Dar alan hissi" (Arjantin) saha
+  geometrisini değiştirmek yerine oyuncu hız çarpanıyla temsil edildi —
+  geometriyi maça göre dinamikleştirmek çok daha büyük bir iş olurdu.
+- `src/scenes/StadiumSelectScene.ts`: aynı kart deseni, MAÇA BAŞLA ile
+  seçilen karakter+saha'yı `MatchScene`'e taşıyor.
+- `Character.ts`: `speedMultiplier` parametresi eklendi, `MOVE_SPEED`'i
+  ölçekliyor. `Ball.ts`: `BallTuning` (bounce/friction çarpanı + rüzgar)
+  ve `applyTouch`'a `power`/`chaos` parametreleri eklendi — Kenya'nın
+  "poşet top" kimliği dokunuşta rastgele sapma olarak uygulandı.
+- `MatchScene.ts`: seçilen karakter/saha'yı `init(data)`'dan okuyup
+  Character/Ball'a geçiriyor, HUD'da "Karakter: X | Saha: Y" gösteriyor,
+  saha rengiyle hafif bir "mood tint" (Kongo'da nabız gibi atan) ekliyor.
+- `main.ts` + `MenuScene.ts`: akış artık Menu → CharacterSelect →
+  StadiumSelect → Match → Result.
+- `assets/characters/<id>/` ve `assets/stadiums/<id>/` klasörleri +
+  birer README, gerçek pixel-art gelene kadar nereye konacağını açıklıyor.
+
+**Doğrulama (Playwright):** Menu→CharacterSelect→StadiumSelect→Match akışı
+uçtan uca çalışıyor, seçilen karakterin rengi ve saha adı maça doğru
+taşınıyor, Kongo'nun ritim pulse'ı görünüyor, konsol hatası yok. Hız/güç
+çarpanlarının gerçek oynanışta "hissedilir" fark yaratıp yaratmadığı henüz
+insan tarafından oynanarak test edilmedi — kod düzeyinde doğru bağlandığı
+kesin (build + statik tip kontrolü + manuel kod okuma).
+
 ## Sıradaki oturum
-- M3: bağlamsal Aksiyon tuşu (top bizdeyse şut, değilse tut), joystick
-  yönünden şut yönü, dash (4 yön, havada da), 3 segmentli power barı + UI,
-  power şut/tutuş matrisi (dört durum), dash'in power tüketimi, tutma
-  cooldown'u + dinamik tutma şansı. M2'deki basit "dribble nudge" burada
-  gerçek şut mekaniğiyle değişecek.
+- Sami hazır olduğunda M3: bağlamsal Aksiyon tuşu (top bizdeyse şut,
+  değilse tut), joystick yönünden şut yönü, dash (4 yön, havada da),
+  3 segmentli power barı + UI, power şut/tutuş matrisi (dört durum),
+  dash'in power tüketimi, tutma cooldown'u + dinamik tutma şansı.
+  M2'deki basit "dribble nudge" burada gerçek şut mekaniğiyle değişecek,
+  ve M4'ün "özel hareket (3 segment süper)" maddesi M3'ün üzerine kurulacak.

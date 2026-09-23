@@ -8,20 +8,29 @@ import {
   DEPTH_BAND_HEIGHT,
   DEPTH_MIN,
   DEPTH_MAX,
+  FAR_Y,
   CONTACT_TOLERANCE_X,
   CONTACT_TOLERANCE_Z,
   projectToScreen,
 } from '../config/arena';
 import { MATCH_DURATION_SECONDS } from '../config/match';
+import { CHARACTERS, type CharacterId } from '../config/characters';
+import { STADIUMS, type StadiumId } from '../config/stadiums';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 
+interface MatchData {
+  characterId?: CharacterId;
+  stadiumId?: StadiumId;
+}
+
 /**
  * M2: ball physics, character-ball contact, goal detection, scoreboard,
  * match timer. Action/power (shoot/hold matrix) lands in M3 — contact here
- * is just a simple "dribble nudge" placeholder.
+ * is just a simple "dribble nudge" placeholder, scaled by the M4 character's
+ * power stat and the M5 stadium's ball tuning.
  */
 export class MatchScene extends Phaser.Scene {
   private input1!: InputController;
@@ -33,6 +42,9 @@ export class MatchScene extends Phaser.Scene {
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
 
+  private character = CHARACTERS.argentina;
+  private stadium = STADIUMS.argentina;
+
   private scoreLeft = 0;
   private scoreRight = 0;
   private timeRemaining = MATCH_DURATION_SECONDS;
@@ -42,6 +54,11 @@ export class MatchScene extends Phaser.Scene {
 
   constructor() {
     super('Match');
+  }
+
+  init(data: MatchData): void {
+    this.character = CHARACTERS[data.characterId ?? 'argentina'];
+    this.stadium = STADIUMS[data.stadiumId ?? 'argentina'];
   }
 
   create(): void {
@@ -55,6 +72,13 @@ export class MatchScene extends Phaser.Scene {
     this.matchOver = false;
 
     drawPitch(this);
+
+    // Stadium mood tint — a stand-in for real per-stadium art (M5).
+    if (this.stadium.rhythmVisual) {
+      this.addRhythmPulse();
+    } else {
+      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, this.stadium.tintColor, 0.06);
+    }
 
     this.scoreText = this.add
       .text(GAME_WIDTH / 2, 20, '0 — 0', {
@@ -70,16 +94,28 @@ export class MatchScene extends Phaser.Scene {
         color: '#ffffff',
       })
       .setOrigin(0.5);
+    this.add
+      .text(10, GAME_HEIGHT - 10, `Karakter: ${this.character.name}  |  Saha: ${this.stadium.name}`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#888888',
+      })
+      .setOrigin(0, 1);
     this.updateHud();
 
     const leftHalfX = (LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2;
     const bounds = { minX: LEFT_GOAL_LINE_X, maxX: CENTER_LINE_X };
 
-    this.player = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT / 2, bounds, 0x2e86de);
+    this.player = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT / 2, bounds, this.character.color, this.character.speedMultiplier);
     this.depthSortRef = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT * 0.85, bounds, 0xe74c3c);
     this.depthSortRef.setVisible(false);
 
-    this.ball = new Ball(this, CENTER_X, DEPTH_BAND_HEIGHT / 2);
+    this.ball = new Ball(this, CENTER_X, DEPTH_BAND_HEIGHT / 2, 40, {
+      bounceMultiplier: this.stadium.bounceMultiplier,
+      frictionMultiplier: this.stadium.frictionMultiplier,
+      windX: this.stadium.windX,
+      windZ: this.stadium.windZ,
+    });
 
     this.input1 = new InputController(this, 90, GAME_HEIGHT - 90, GAME_WIDTH - 90, GAME_HEIGHT - 90);
 
@@ -119,7 +155,7 @@ export class MatchScene extends Phaser.Scene {
     const dx = this.ball.x - this.player.x;
     const dz = this.ball.z - this.player.z;
     if (Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z) {
-      this.ball.applyTouch(move.x, move.z, dx, dz);
+      this.ball.applyTouch(move.x, move.z, dx, dz, this.character.powerMultiplier, this.character.chaosTouch);
     }
 
     const scored = this.ball.update(delta);
@@ -169,5 +205,19 @@ export class MatchScene extends Phaser.Scene {
     if (this.matchOver) return;
     this.matchOver = true;
     this.scene.start('Result', { scoreLeft: this.scoreLeft, scoreRight: this.scoreRight });
+  }
+
+  /** Kongo's "ritim görsele yansır" — a cosmetic pulse on the stands band,
+   * no physics involved. */
+  private addRhythmPulse(): void {
+    const pulse = this.add.rectangle(GAME_WIDTH / 2, FAR_Y / 2, GAME_WIDTH, FAR_Y, this.stadium.tintColor, 0.25);
+    this.tweens.add({
+      targets: pulse,
+      alpha: { from: 0.1, to: 0.4 },
+      duration: 500,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+    });
   }
 }
