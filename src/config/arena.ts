@@ -11,8 +11,20 @@ export const GAME_HEIGHT = 540;
 // --- Character scale -----------------------------------------------
 /** ~12-15% of screen height, per CLAUDE.md. */
 export const CHARACTER_HEIGHT = 70;
-/** Placeholder sprite-box width until real art lands (M4). */
-export const CHARACTER_WIDTH = 42;
+/**
+ * "Character width" as used everywhere in this file (half-field sizing,
+ * goal-zone depth, x contact tolerance) is a gameplay FOOTPRINT/personal-
+ * space unit, not the rendered sprite's pixel width — a literal humanoid
+ * silhouette width (~40px) made the half-field far too narrow (4-5 of
+ * those widths left huge dead backdrop on both sides and failed the
+ * "iki kale aynı anda görünür" framing goal from CLAUDE.md section 3;
+ * verified visually before M1 — see docs/PROGRESS.md). 70 keeps the
+ * 4-5-character-widths rule but sizes the pitch to actually fill the frame.
+ */
+export const CHARACTER_WIDTH = 70;
+/** Narrower box for the placeholder sprite render — keeps it human-shaped
+ * even though CHARACTER_WIDTH (above) is wider for layout math. */
+export const CHARACTER_SPRITE_WIDTH = 40;
 
 // --- Depth band (z axis, drawn as up/down on screen) -------------------
 /** ~3 character heights tall, per CLAUDE.md. */

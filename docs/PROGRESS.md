@@ -47,6 +47,34 @@ Sami Settings → Pages → Source: GitHub Actions'ı elle açtı. Ardından
   teyit etmesi gerekiyor.
 - M0 artık tamamen kapandı.
 
+## Oturum 4 — M1 öncesi ölçek denetimi
+
+Sami M1'e geçmeden önce ölçeği gözden geçirmemi istedi: karakter boyu %12-15
+aralığında mı, iki kale rahat görünüyor mu. `MatchScene`'e geçici olarak iki
+placeholder karakter kutusu (CHARACTER_WIDTH × CHARACTER_HEIGHT) ekleyip
+Playwright ile ekran görüntüsü aldım.
+
+**Bulgu:** Karakter boyu oranı doğruydu (70/540 = %13), ama saha genişliği
+çerçevenin sadece ~%50'sini kaplıyordu — her iki yanda geniş, boş bir
+karanlık kenarlık vardı. Sebep: `CHARACTER_WIDTH` (42px, gerçekçi bir insan
+silueti oranı) doğrudan "yarı saha = 4.5 karakter genişliği" formülüne
+giriyordu, bu da sahayı gereğinden dar yapıyordu. CLAUDE.md'nin "Kadraj
+birinci görselden: tek ekranda iki kale" hedefiyle çelişiyordu.
+
+**Karar (arena.ts'te uygulandı):** `CHARACTER_WIDTH`'i saf bir "oyun alanı
+ayak izi / kişisel mesafe" birimi olarak yeniden tanımladım (70px, boyla
+aynı), 4.5 katsayısı sabit kaldı — bu da yarı saha genişliğini 189px'ten
+315px'e çıkardı, saha artık çerçevenin ~%83'ünü kaplıyor. Görselde çizilen
+placeholder sprite için ayrı, daha dar bir `CHARACTER_SPRITE_WIDTH` (40px)
+eklendi ki insansı oran (M1/M4'te gerçek karakter render'ı bunu kullanacak)
+korunsun. Bu, ROADMAP'te olmayan bir tasarım kararıydı ama görsel kanıtla
+(before/after ekran görüntüsü) doğrulanıp doğrudan uygulandı.
+
+Geçici audit kodu `MatchScene.ts`'ten geri alındı — gerçek karakter render'ı
+M1'in kendi işi.
+
 ## Sıradaki oturum
-- Sami linki teyit ettikten sonra M1'e başla: joystick hareketi (x + z),
-  low-gravity zıplama, gölge sistemi, depth sort.
+- M1: joystick hareketi (x + z), low-gravity zıplama, **gölge sistemi**
+  (kritik — gölgesiz derinlik okunmaz), depth sort, orta çizgi/saha kenarı
+  sınırları. Karakterleri gerçekten render ederken `CHARACTER_SPRITE_WIDTH`
+  kullan, `CHARACTER_WIDTH`'i sadece layout/hitbox matematiği için.
