@@ -52,8 +52,8 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 ## M5 — Kabuk
 - [x] Ana menü (M0'dan beri var), saha seçimi
 - [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu)
-- [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali
-- [ ] Ses efektleri, seyirci tepkileri
-- [ ] Mobil dokunmatik kontrollerin son ayarı
+- [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali — **bloklu: gerçek bir rakip (AI veya M3) olmadan "lig" anlamlı değil**
+- [x] Ses efektleri (sentezlenmiş: şut/gol/düdük), seyirci tepkileri (tribünde placeholder noktalar, golde zıplayıp parlıyor) — sürekli kalabalık gürültüsü (sessizlik→uğultu→tezahürat) henüz yok
+- [x] Mobil dokunmatik kontrollerin son ayarı — çoklu dokunuş açığı bulunup düzeltildi (`input.activePointers`), joystick+zıpla artık aynı anda çalışıyor
 
-**Doğrulama:** Bir ligi baştan sona oynayıp bitirebiliyorum. Telefonda tek elle oynanabiliyor.
+**Doğrulama:** Bir ligi baştan sona oynayıp bitirebiliyorum — **henüz değil, lig akışı yok**. Telefonda tek elle oynanabiliyor — ✅ çoklu dokunuş doğrulandı (Playwright + gerçek CDP touch simülasyonu).

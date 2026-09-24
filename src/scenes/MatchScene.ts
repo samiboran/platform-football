@@ -18,6 +18,8 @@ import { CHARACTERS, type CharacterId } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
+import { soundFX } from '../systems/SoundFX';
+import { CrowdBand } from '../systems/CrowdBand';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 
@@ -39,6 +41,7 @@ export class MatchScene extends Phaser.Scene {
    * depth-sort math, not a real gameplay entity. */
   private depthSortRef!: Character;
   private ball!: Ball;
+  private crowd!: CrowdBand;
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
 
@@ -51,6 +54,7 @@ export class MatchScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private matchOver = false;
+  private wasTouchingBall = false;
 
   constructor() {
     super('Match');
@@ -72,6 +76,7 @@ export class MatchScene extends Phaser.Scene {
     this.matchOver = false;
 
     drawPitch(this);
+    soundFX.whistle();
 
     // Stadium mood tint — a stand-in for real per-stadium art (M5).
     if (this.stadium.rhythmVisual) {
@@ -79,6 +84,8 @@ export class MatchScene extends Phaser.Scene {
     } else {
       this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, this.stadium.tintColor, 0.06);
     }
+
+    this.crowd = new CrowdBand(this);
 
     this.scoreText = this.add
       .text(GAME_WIDTH / 2, 20, '0 — 0', {
@@ -149,23 +156,31 @@ export class MatchScene extends Phaser.Scene {
     const jumpPressed = this.input1.consumeJumpPressed();
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed });
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false });
+    this.crowd.update(delta);
 
     // Character-ball contact — simple nudge (M3 replaces this with the
     // real shoot/hold power matrix).
     const dx = this.ball.x - this.player.x;
     const dz = this.ball.z - this.player.z;
-    if (Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z) {
+    const touching = Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
+    if (touching) {
       this.ball.applyTouch(move.x, move.z, dx, dz, this.character.powerMultiplier, this.character.chaosTouch);
+      if (!this.wasTouchingBall) soundFX.kick();
     }
+    this.wasTouchingBall = touching;
 
     const scored = this.ball.update(delta);
     if (scored === 'left') {
       this.scoreRight += 1; // ball entered the left goal -> right side scores
       this.updateHud();
+      soundFX.goal();
+      this.crowd.celebrate();
       this.ball.reset(CENTER_X, DEPTH_BAND_HEIGHT / 2);
     } else if (scored === 'right') {
       this.scoreLeft += 1;
       this.updateHud();
+      soundFX.goal();
+      this.crowd.celebrate();
       this.ball.reset(CENTER_X, DEPTH_BAND_HEIGHT / 2);
     }
 
@@ -204,6 +219,7 @@ export class MatchScene extends Phaser.Scene {
   private endMatch(): void {
     if (this.matchOver) return;
     this.matchOver = true;
+    soundFX.whistle();
     this.scene.start('Result', { scoreLeft: this.scoreLeft, scoreRight: this.scoreRight });
   }
 

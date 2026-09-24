@@ -215,3 +215,44 @@ kesin (build + statik tip kontrolü + manuel kod okuma).
   dash'in power tüketimi, tutma cooldown'u + dinamik tutma şansı.
   M2'deki basit "dribble nudge" burada gerçek şut mekaniğiyle değişecek,
   ve M4'ün "özel hareket (3 segment süper)" maddesi M3'ün üzerine kurulacak.
+
+## Oturum 9 — Devam: mobil dokunuş düzeltmesi, ses, seyirci
+
+Sami sahanın nasıl kod ile çizildiğini sordu (perspektif formülü, `Graphics`
+API — cevap sohbette, koda dokunmadım), sonra "kalan, yapabildiğin kodlara
+sırayla devam et" dedi. M5'in ses/seyirci maddesini bitirdim, ayrıca ciddi
+bir mobil hata buldum ve düzelttim.
+
+**Bulgu + düzeltme — çoklu dokunuş kırıktı:** Phaser varsayılan olarak
+sadece 1 dokunuşu izliyor (`activePointers` varsayılanı 1). Bu, gerçek bir
+telefonda joystick'i basılı tutup aynı anda ZIPLA'ya basmanın **çalışmadığı**
+anlamına geliyordu — CLAUDE.md'nin "mobil öncelikli" kuralına doğrudan
+aykırıydı. `main.ts`'e `input: { activePointers: 3 }` eklendi (3 = joystick
++ zıpla + M3'te gelecek bir tuş daha için pay). Playwright ile gerçek CDP
+çoklu-dokunuş simülasyonu (`Input.dispatchTouchEvent`, iki ayrı touch id)
+kullanılarak doğrulandı: joystick basılıyken ayrı bir dokunuşla zıplama
+tetiklenip serbest bırakıldığında joystick'in kendi vektörü hiç bozulmadan
+devam ediyor.
+
+**Yapıldı:**
+- `src/systems/SoundFX.ts`: dış ses dosyası yok, Web Audio osilatörleriyle
+  sentezlenmiş efektler — `kick()` (top temasında), `goal()` (yükselen 4
+  notalık arpej), `whistle()` (maç başı/sonu, 2200Hz kısa ton).
+  `MatchScene`'e bağlandı: temas anında bir kez (spam olmasın diye rising-
+  edge kontrolü ile), gol olunca, maç başlarken/biterken düdük.
+- `src/systems/CrowdBand.ts`: tribün bandında 26 küçük renkli nokta,
+  hafif sinüs dalgasıyla idle "bob" hareketi. `celebrate()` golde her
+  noktayı sırayla (küçük gecikmeyle, dalga hissi için) zıplatıp büyütüyor.
+  Sürekli kalabalık gürültüsü (CLAUDE.md: "sessizlik → uğultu →
+  tezahürat") kapsam dışı bırakıldı — bu ayrı bir iş, ileride yapılabilir.
+
+**Doğrulama (Playwright):** Gerçek çoklu-dokunuş testi (yukarıda), ses
+efektleri hatasız çalışıyor (console/pageerror yok — Web Audio headless
+Chromium'da da sorunsuz), seyirci noktaları golde görünür şekilde
+zıplıyor/büyüyor (ekran görüntüsüyle doğrulandı).
+
+## Sıradaki oturum
+- Sami hazır olduğunda M3'e geç (bkz. yukarıdaki not).
+- M5'in kalan maddesi (lig/hikaye akışı) gerçek bir rakip olmadan anlamsız
+  — en azından basit bir kaleci/rakip AI'sı (ya da M3 sonrası 2. oyuncu)
+  gerekiyor, bu yüzden bilinçli olarak atlandı.

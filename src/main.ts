@@ -18,6 +18,12 @@ new Phaser.Game({
     default: 'arcade',
     arcade: { debug: false },
   },
+  // Phaser only tracks 1 touch by default — joystick (left thumb) + a
+  // button (right thumb) at the same time needs at least 2. 3 leaves room
+  // for M3's extra buttons without touching this again.
+  input: {
+    activePointers: 3,
+  },
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
