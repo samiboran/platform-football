@@ -30,20 +30,22 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** ✅ Top gerçekçi sekiyor (yerçekimi + restitution ile sekip yavaşlıyor), kaleye girince gol sayılıyor (her iki kale de test edildi), skor tablosu ve geri sayan süre çalışıyor, süre bitince (veya "Bitir" ile) ResultScene'de son skor gösteriliyor — Playwright ile uçtan uca doğrulandı, konsol hatası yok.
 
 ## M3 — Aksiyon ve power
-- [ ] Bağlamsal Aksiyon tuşu (şut / tut)
-- [ ] Joystick yönünden şut yönü
-- [ ] Dash (4 yön, yerde ve havada)
-- [ ] 3 segmentli power barı + UI
-- [ ] Power şut / power tutuş matrisi
-- [ ] Dash'in power tüketimi
-- [ ] Tutma cooldown'u ve dinamik tutma şansı
+- [x] Bağlamsal Aksiyon tuşu (top bizdeyse şut — tutma tarafı, karşı takım/AI kaleci ile sınırlı, aşağıya bakın)
+- [x] Joystick yönünden şut yönü (Aksiyon'a basıldığı andaki son joystick yönü, nötrse karakterin baktığı yön)
+- [x] Dash (4 yön, yerde ve havada, joystick boşken bakılan yöne)
+- [x] 3 segmentli power barı + UI (sol alt)
+- [x] Power şut / power tutuş matrisi
+- [x] Dash'in power tüketimi (yerde ~%25, havada ~%35)
+- [x] Tutma cooldown'u ve dinamik tutma şansı (top hızına göre düşüyor)
 
-**Doğrulama:** Matristeki dört durumun dördü de test edilip doğru sonucu veriyor. Power barı doğru doluyor ve harcanıyor.
+**Doğrulama:** ✅ Matristeki dört hücre de (Power şut+Power tutuş→tutar, Power şut+Normal tutuş→tutamaz, Normal şut+Power tutuş→tutar/boşa gider, Normal şut+Normal tutuş→hıza bağlı şans) Playwright ile deterministik olarak (Math.random override) test edildi, hepsi doğru sonuç verdi. Dash'in yerde/havada farklı power maliyeti ve power şutun hız çarpanı da ayrıca doğrulandı. Power barı UI'da doğru doluyor/boşalıyor.
+
+**Kapsam notu:** Henüz ikinci bir insan oyuncu veya gerçek rakip AI yok, bu yüzden matrisi test edilebilir ve maçı oynanabilir kılmak için sağ kaleye basit bir AI kaleci eklendi (`src/entities/AIKeeper.ts`, CLAUDE.md'nin orijinal kapsamı dışında, bilinçli bir tasarım kararı). İnsan oyuncunun "tut" tarafı (kendi kalesini savunması) şu an fiilen kullanılmıyor çünkü kendi kalesine atan bir rakip yok — M3 rakip/AI opponent sistemi eklendiğinde devreye girecek.
 
 ## M4 — Karakterler
 - [x] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown
 - [x] Karakter seçim ekranı
-- [ ] Her karakterin özel hareketi (3 segment süper) — **bloklu: M3'ün power barına ihtiyaç var**
+- [ ] Her karakterin özel hareketi (3 segment süper) — Özellik tek-basış input hook'u hazır (`consumeSpecialAlonePressed`), power barı da artık var (M3 bitti); asıl 4 karaktere özel süper hareket efektleri henüz yazılmadı
 - [x] Asset klasör yapısı + placeholder sprite'lar (`assets/characters/<id>/`, renkli placeholder karakterler zaten karaktere göre boyanıyor)
 - [x] İlk denge ayarı (arketipe göre hız/güç/şut gücü/tutma/cooldown çarpanları)
 

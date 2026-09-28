@@ -50,6 +50,12 @@ export class SoundFX {
   whistle(): void {
     this.tone(2200, 0.35, 'sine', 0.12);
   }
+
+  /** Keeper catches the ball. */
+  save(): void {
+    this.tone(140, 0.1, 'square', 0.18);
+    this.tone(90, 0.15, 'square', 0.15, 0.05);
+  }
 }
 
 export const soundFX = new SoundFX();

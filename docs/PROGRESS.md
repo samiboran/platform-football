@@ -251,8 +251,78 @@ efektleri hatasız çalışıyor (console/pageerror yok — Web Audio headless
 Chromium'da da sorunsuz), seyirci noktaları golde görünür şekilde
 zıplıyor/büyüyor (ekran görüntüsüyle doğrulandı).
 
+## Oturum 10 — M3: Aksiyon ve power
+
+Sami "Başla başla" deyip M3'e (en karmaşık kalan milestone) yeşil ışık
+verdi. CLAUDE.md bölüm 4-5'teki bağlamsal Aksiyon/Dash/Özellik ve 3
+segmentli power/şut/tutuş matrisi baştan sona kuruldu.
+
+**Yapıldı:**
+- `src/config/power.ts`: `POWER_MAX_SEGMENTS=3`, pasif dolum süresi (8sn/
+  segment), dash maliyeti (yerde %25, havada %35 — havada biraz daha
+  pahalı, CLAUDE.md'nin istediği gibi), dash hızı/süresi/retrigger cooldown'u,
+  normal/power şut hızı (`SHOT_SPEED_NORMAL`, `x1.6` çarpan), power şut/
+  tutuş segment maliyeti.
+- `src/config/keeper.ts`: AI kaleci ayarları — takip hızı, yakalama menzili,
+  temel tutma şansı + hız-bazlı düşüş referansı.
+- `src/entities/Character.ts`: power segmentleri artık karakterin kendi
+  state'i (`powerSegments`, pasif dolan, `spendPower()` ile harcanan),
+  `facingX/Z` (son hareket yönü — joystick boşken dash bu yöne gider),
+  4 yönlü dash (yerde ve havada, kendi hız/süre/cooldown'u ile,
+  `CharacterInput`'a zorunlu `dashPressed` alanı eklendi).
+- `src/systems/InputController.ts`: elmas dizilimli 4 dokunmatik tuş
+  (ZIPLA/DASH/AKSİYON/ÖZEL) + klavye eşlemesi (Space/Z/X/C), edge-triggered
+  "pressed" ve held-state "isHeld" ayrımı — Özellik+Aksiyon birlikte basılırsa
+  power versiyonu, Özellik tek başına basılırsa (ileride) süper hareket.
+- `src/entities/Ball.ts`: `shoot(dirX, dirZ, speed, chaos, isPower)` — M2'nin
+  pasif dribble dokunuşundan ayrı, bilinçli bir şut. `lastShotWasPower`
+  bayrağı, tutuş matrisinin "power şutu normal tutuşla asla durduramazsın"
+  kuralını ifade etmek için eklendi (salt hız-bazlı şans bunu tek başına
+  ifade edemezdi).
+- `src/entities/AIKeeper.ts` (yeni, CLAUDE.md'nin orijinal kapsamında değil):
+  henüz ikinci bir insan oyuncu/rakip AI olmadığından, sağ kaleyi savunan
+  minimal bir AI kaleci — topu z ekseninde takip ediyor, kale ağzına giren
+  ve yeterince hızlı topa karşı matrisin 4 hücresini uyguluyor (cooldown
+  varsa ve şut power ise her zaman power tutuşa gider; cooldown yoksa normal
+  şuta karşı da %30 ihtimalle "overcommit" edip power tutuş dener — bu da
+  "normal şut + power tutuş → boşa gider" hücresini organik olarak tetikliyor).
+- `src/systems/SoundFX.ts`: `save()` — kaleci tuttuğunda çift tonlu kısa ses.
+- `src/scenes/MatchScene.ts`: her şey birleşti — joystick'in son yönü
+  Aksiyon anındaki şut yönü olarak saklanıyor, Aksiyon+temas → `ball.shoot()`
+  (Özellik basılıyken ve segment varsa power şut, hız `SHOT_SPEED_NORMAL *
+  shotPowerMultiplier * (power ? 1.6 : 1)`), Dash input'u karaktere bağlandı,
+  AI kaleci sağ kaleye yerleştirildi ve her frame güncelleniyor, sol altta
+  3 kutulu power bar UI'ı segment doluluğuna göre renk değiştiriyor.
+
+**Doğrulama (Playwright, geçici `window.__debugMatch`/`window.__game`
+hook'larıyla — commit'ten önce kaldırıldı):**
+- **Matrisin 4 hücresi de deterministik test edildi** (`Math.random`
+  geçici override edilerek): Power şut + Power tutuş (cooldown müsait) →
+  tutar ✅. Power şut + Normal tutuş (cooldown'da) → tutamaz ✅. Normal şut
+  + Power tutuş (AI overcommit) → tutar ama cooldown yine de harcanıyor
+  (boşa gidiyor) ✅. Normal şut + Normal tutuş → yavaş topta yüksek şansla
+  tutuyor, hızlı topta düşük şansla kaçırıyor (dinamik tutma şansı) ✅.
+- Dash maliyeti ayrıca izole test edildi: yerde ~0.25 segment, havada ~0.35
+  segment (ilk denemede ikisi de ~0 çıktı — kaleci/dash state'i aynı test
+  instance'ında sıfırlanmadığından kaynaklanan bir test script hatasıydı,
+  ürün kodunda değil; retrigger cooldown + `isDashing` state'i reset
+  edilince beklenen değerler doğrulandı).
+- Power şutun hız çarpanı (`x1.6`) ve `lastShotWasPower` bayrağının doğru
+  set/clear edildiği ayrıca doğrulandı.
+- `npm run build` (tsc + vite) temiz geçiyor.
+- Playwright ile Menu→CharacterSelect→StadiumSelect→Match akışı görsel
+  olarak da doğrulandı: mavi oyuncu, kırmızı AI kaleci sağ kalede, power
+  bar ve elmas dizilimli 4 dokunmatik tuş doğru render ediliyor; sağa
+  hareket edip top itildiğinde AI kaleci de topu takip ediyor.
+
+**Kapsam notu:** İnsan oyuncunun "tut" tarafı (kendi kalesini savunması)
+şu an fiilen erişilemez — kendi kalesine şut atan bir rakip yok. Bu, gerçek
+bir rakip/AI opponent sistemi geldiğinde (M3 sonrası, ROADMAP'in M5 lig
+maddesinin de beklediği şey) devreye girecek.
+
 ## Sıradaki oturum
-- Sami hazır olduğunda M3'e geç (bkz. yukarıdaki not).
-- M5'in kalan maddesi (lig/hikaye akışı) gerçek bir rakip olmadan anlamsız
-  — en azından basit bir kaleci/rakip AI'sı (ya da M3 sonrası 2. oyuncu)
-  gerekiyor, bu yüzden bilinçli olarak atlandı.
+- M4'ün kalan maddesi: her karakterin 3-segment süper hareketi (input hook'u
+  hazır, `consumeSpecialAlonePressed()`, ama 4 karaktere özel efektler
+  yazılmadı).
+- M5'in kalan maddesi (lig/hikaye akışı) hâlâ gerçek bir rakip/AI opponent
+  gerektiriyor — mevcut AIKeeper sadece kaleci, saha oyuncusu değil.

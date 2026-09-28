@@ -3,6 +3,7 @@ import {
   GAME_WIDTH,
   GAME_HEIGHT,
   LEFT_GOAL_LINE_X,
+  RIGHT_GOAL_LINE_X,
   CENTER_LINE_X,
   CENTER_X,
   DEPTH_BAND_HEIGHT,
@@ -16,12 +17,19 @@ import {
 import { MATCH_DURATION_SECONDS } from '../config/match';
 import { CHARACTERS, type CharacterId } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
+import {
+  POWER_MAX_SEGMENTS,
+  SHOT_SPEED_NORMAL,
+  SHOT_SPEED_POWER_MULTIPLIER,
+  POWER_SHOT_SEGMENT_COST,
+} from '../config/power';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
+import { AIKeeper } from '../entities/AIKeeper';
 
 interface MatchData {
   characterId?: CharacterId;
@@ -29,10 +37,13 @@ interface MatchData {
 }
 
 /**
- * M2: ball physics, character-ball contact, goal detection, scoreboard,
- * match timer. Action/power (shoot/hold matrix) lands in M3 — contact here
- * is just a simple "dribble nudge" placeholder, scaled by the M4 character's
- * power stat and the M5 stadium's ball tuning.
+ * Ball physics, character-ball contact, goal detection, scoreboard, match
+ * timer (M2), plus the M3 Aksiyon/Dash/power system: casual contact still
+ * nudges the ball, but Aksiyon fires a deliberate shoot() aimed from the
+ * last joystick direction, doubled and gated by a power segment when held
+ * with Özellik. An AI keeper (not in the original spec — there's no second
+ * human player yet, see docs/PROGRESS.md) defends the right goal so the
+ * shoot/hold matrix is actually testable.
  */
 export class MatchScene extends Phaser.Scene {
   private input1!: InputController;
@@ -41,9 +52,16 @@ export class MatchScene extends Phaser.Scene {
    * depth-sort math, not a real gameplay entity. */
   private depthSortRef!: Character;
   private ball!: Ball;
+  private keeper!: AIKeeper;
   private crowd!: CrowdBand;
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
+  private powerSegmentBoxes: Phaser.GameObjects.Rectangle[] = [];
+  /** Aim direction captured at the moment Aksiyon is pressed — CLAUDE.md:
+   * "Şut yönü, Aksiyon'a basıldığı andaki joystick yönünden gelir." Falls
+   * back to facing when the stick is neutral. */
+  private lastAimX = 1;
+  private lastAimZ = 0;
 
   private character = CHARACTERS.argentina;
   private stadium = STADIUMS.argentina;
@@ -124,9 +142,30 @@ export class MatchScene extends Phaser.Scene {
       windZ: this.stadium.windZ,
     });
 
+    this.keeper = new AIKeeper(
+      this,
+      RIGHT_GOAL_LINE_X,
+      DEPTH_BAND_HEIGHT / 2,
+      this.character.catchChance,
+      this.character.cooldownSeconds,
+      0xe74c3c,
+    );
+
     this.input1 = new InputController(this, 90, GAME_HEIGHT - 90, GAME_WIDTH - 90, GAME_HEIGHT - 90);
 
     this.debugGraphics = this.add.graphics().setDepth(20000);
+
+    // 3-segment power bar, bottom-left (CLAUDE.md section 5).
+    const barX = 16;
+    const barY = GAME_HEIGHT - 40;
+    for (let i = 0; i < POWER_MAX_SEGMENTS; i += 1) {
+      const box = this.add
+        .rectangle(barX + i * 26, barY, 20, 14, 0x333333)
+        .setStrokeStyle(1, 0xffffff)
+        .setOrigin(0, 0.5)
+        .setDepth(10000);
+      this.powerSegmentBoxes.push(box);
+    }
 
     this.input.keyboard?.on('keydown-F1', () => {
       this.debugVisible = !this.debugVisible;
@@ -153,21 +192,38 @@ export class MatchScene extends Phaser.Scene {
     if (this.matchOver) return;
 
     const move = this.input1.getMoveVector();
+    if (move.x !== 0 || move.z !== 0) {
+      this.lastAimX = move.x;
+      this.lastAimZ = move.z;
+    }
     const jumpPressed = this.input1.consumeJumpPressed();
-    this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed });
-    this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false });
+    const dashPressed = this.input1.consumeDashPressed();
+    this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
+    this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
+    this.keeper.update(delta, this.ball);
     this.crowd.update(delta);
 
-    // Character-ball contact — simple nudge (M3 replaces this with the
-    // real shoot/hold power matrix).
+    // Character-ball contact: casual dribble nudge on simple touch, or a
+    // deliberate Aksiyon shot (contextual: bizdeyse şut — CLAUDE.md section 4).
     const dx = this.ball.x - this.player.x;
     const dz = this.ball.z - this.player.z;
     const touching = Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
-    if (touching) {
+    const actionPressed = this.input1.consumeActionPressed();
+
+    if (touching && actionPressed) {
+      const isPower = this.input1.isSpecialHeld() && this.player.spendPower(POWER_SHOT_SEGMENT_COST);
+      const aimX = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimX : this.player.facingX;
+      const aimZ = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimZ : this.player.facingZ;
+      const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
+      this.ball.shoot(aimX, aimZ, speed, this.character.chaosTouch, isPower);
+      soundFX.kick();
+    } else if (touching) {
       this.ball.applyTouch(move.x, move.z, dx, dz, this.character.powerMultiplier, this.character.chaosTouch);
       if (!this.wasTouchingBall) soundFX.kick();
     }
     this.wasTouchingBall = touching;
+
+    this.updatePowerBar();
 
     const scored = this.ball.update(delta);
     if (scored === 'left') {
@@ -207,6 +263,13 @@ export class MatchScene extends Phaser.Scene {
       this.debugGraphics.closePath();
       this.debugGraphics.strokePath();
     }
+  }
+
+  private updatePowerBar(): void {
+    const filled = Math.floor(this.player.powerSegments + 1e-6);
+    this.powerSegmentBoxes.forEach((box, i) => {
+      box.setFillStyle(i < filled ? 0xffe066 : 0x333333);
+    });
   }
 
   private updateHud(): void {

@@ -54,6 +54,11 @@ export class Ball {
   vx = 0;
   vz = 0;
   vy = 0;
+  /** Set by shoot() when fired as a power şut — CLAUDE.md's matrix says a
+   * power shot can never be stopped by a normal (non-power) tutuş, which a
+   * pure speed-based chance roll can't express on its own. Cleared on the
+   * next touch/shot or once a keeper has resolved against it. */
+  lastShotWasPower = false;
   private readonly sprite: Phaser.GameObjects.Ellipse;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly tuning: BallTuning;
@@ -97,6 +102,22 @@ export class Ball {
     }
     this.vx = ix * BALL_TOUCH_SPEED * power;
     this.vz = iz * BALL_TOUCH_SPEED * power;
+    this.lastShotWasPower = false;
+  }
+
+  /** A deliberate Aksiyon shot (M3), aimed along (dirX, dirZ) at `speed`.
+   * `isPower` marks it for the shoot/hold matrix — see `lastShotWasPower`. */
+  shoot(dirX: number, dirZ: number, speed: number, chaos = false, isPower = false): void {
+    const len = Math.hypot(dirX, dirZ) || 1;
+    let ix = dirX / len;
+    let iz = dirZ / len;
+    if (chaos) {
+      ix += (Math.random() - 0.5) * 0.6;
+      iz += (Math.random() - 0.5) * 0.6;
+    }
+    this.vx = ix * speed;
+    this.vz = iz * speed;
+    this.lastShotWasPower = isPower;
   }
 
   update(delta: number): GoalSide {

@@ -1,6 +1,15 @@
 import Phaser from 'phaser';
 import { CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, DEPTH_MIN, DEPTH_MAX, projectToScreen } from '../config/arena';
 import { MOVE_SPEED, GRAVITY, JUMP_VELOCITY } from '../config/movement';
+import {
+  POWER_MAX_SEGMENTS,
+  POWER_FILL_SECONDS_PER_SEGMENT,
+  DASH_SEGMENT_COST_GROUND,
+  DASH_SEGMENT_COST_AIR,
+  DASH_SPEED,
+  DASH_DURATION,
+  DASH_RETRIGGER_COOLDOWN,
+} from '../config/power';
 
 export interface CharacterBounds {
   minX: number;
@@ -11,6 +20,7 @@ export interface CharacterInput {
   moveX: number; // -1..1
   moveZ: number; // -1..1
   jumpPressed: boolean;
+  dashPressed: boolean;
 }
 
 /**
@@ -18,6 +28,10 @@ export interface CharacterInput {
  * (y). Renders a placeholder sprite and a mandatory ground shadow (CLAUDE.md
  * section 3 — depth is unreadable without one), and keeps its Phaser depth
  * synced to its screen position so nearer characters draw in front.
+ *
+ * Also owns the M3 power bar (CLAUDE.md section 5): it fills passively and
+ * Dash spends a slice of it directly. Power şut/tutuş spend it through
+ * `spendPower()`, called from MatchScene/AIKeeper.
  */
 export class Character {
   x: number;
@@ -29,6 +43,18 @@ export class Character {
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
   private readonly speedMultiplier: number;
+
+  /** 0..POWER_MAX_SEGMENTS. */
+  powerSegments = 0;
+  /** Last nonzero move direction — where Dash goes when the joystick is
+   * neutral (CLAUDE.md section 4). */
+  facingX = 1;
+  facingZ = 0;
+
+  private dashTimeRemaining = 0;
+  private dashRetriggerTimer = 0;
+  private dashVX = 0;
+  private dashVZ = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -49,12 +75,55 @@ export class Character {
     this.syncTransform();
   }
 
+  get isDashing(): boolean {
+    return this.dashTimeRemaining > 0;
+  }
+
+  /** Spend power if there's enough; returns whether it went through. */
+  spendPower(amount: number): boolean {
+    if (this.powerSegments < amount) return false;
+    this.powerSegments -= amount;
+    return true;
+  }
+
   update(delta: number, input: CharacterInput): void {
     const dt = delta / 1000;
-    const speed = MOVE_SPEED * this.speedMultiplier;
 
-    this.x = Phaser.Math.Clamp(this.x + input.moveX * speed * dt, this.bounds.minX, this.bounds.maxX);
-    this.z = Phaser.Math.Clamp(this.z + input.moveZ * speed * dt, DEPTH_MIN, DEPTH_MAX);
+    this.powerSegments = Phaser.Math.Clamp(
+      this.powerSegments + dt / POWER_FILL_SECONDS_PER_SEGMENT,
+      0,
+      POWER_MAX_SEGMENTS,
+    );
+
+    if (input.moveX !== 0 || input.moveZ !== 0) {
+      this.facingX = input.moveX;
+      this.facingZ = input.moveZ;
+    }
+
+    if (this.dashRetriggerTimer > 0) this.dashRetriggerTimer -= dt;
+
+    if (input.dashPressed && !this.isDashing && this.dashRetriggerTimer <= 0) {
+      const dirX = input.moveX !== 0 || input.moveZ !== 0 ? input.moveX : this.facingX;
+      const dirZ = input.moveX !== 0 || input.moveZ !== 0 ? input.moveZ : this.facingZ;
+      const len = Math.hypot(dirX, dirZ) || 1;
+      const cost = this.y > 0 ? DASH_SEGMENT_COST_AIR : DASH_SEGMENT_COST_GROUND;
+      if (this.spendPower(cost)) {
+        this.dashVX = (dirX / len) * DASH_SPEED;
+        this.dashVZ = (dirZ / len) * DASH_SPEED;
+        this.dashTimeRemaining = DASH_DURATION;
+        this.dashRetriggerTimer = DASH_RETRIGGER_COOLDOWN;
+      }
+    }
+
+    if (this.isDashing) {
+      this.x = Phaser.Math.Clamp(this.x + this.dashVX * dt, this.bounds.minX, this.bounds.maxX);
+      this.z = Phaser.Math.Clamp(this.z + this.dashVZ * dt, DEPTH_MIN, DEPTH_MAX);
+      this.dashTimeRemaining -= dt;
+    } else {
+      const speed = MOVE_SPEED * this.speedMultiplier;
+      this.x = Phaser.Math.Clamp(this.x + input.moveX * speed * dt, this.bounds.minX, this.bounds.maxX);
+      this.z = Phaser.Math.Clamp(this.z + input.moveZ * speed * dt, DEPTH_MIN, DEPTH_MAX);
+    }
 
     if (input.jumpPressed && this.y === 0) {
       this.vy = JUMP_VELOCITY;
