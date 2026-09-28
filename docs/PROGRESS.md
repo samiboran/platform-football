@@ -413,3 +413,73 @@ tam ekranda (kesilmiyor). Canvas dışındaki siyah şeritler (letterbox) sabit
 16:9 oranı yüzünden kalmaya devam ediyor — bu ayrı bir şey, "kamera sabit"
 kuralının doğal sonucu, saha içindeki ölü alanla karıştırılmamalı.
 `npm run build` temiz.
+
+## Oturum 13 — Gerçek AI rakip (M5)
+
+Sami "onu da yap" dedi (gerçek rakip, bkz. Oturum 11'in kapsam notu).
+Şu ana kadar sağdaki AI sadece bir kaleciydi; sahada oynayan, top kovalayan,
+şut çeken bir rakip yoktu, insanın kendi kalesi de tamamen savunmasızdı.
+
+**Yapıldı:**
+- `src/config/opponent.ts` (yeni): AI'nin karar verme ayarları — şut
+  cooldown'u, temas başına şut/dribbling şansı, power şut kullanma şansı,
+  her şuta eklenen temel nişan sapması (+ kaotik karakterlerde ekstra).
+  Rakibin hız/güç/şut gücü/kaos gibi stat'ları kendi ayrı config'i yok —
+  doğrudan `characters.ts`'teki atanmış karakterin kendi verisini kullanıyor.
+- `src/entities/AIOpponent.ts` (yeni): sağ yarı sahaya insan oyuncuyla
+  simetrik şekilde sınırlı (`CENTER_LINE_X`..`RIGHT_GOAL_LINE_X`), topu
+  sadece kendi yarısındayken kovalıyor, top uzaktayken yarı sahasının
+  ortasına ("home") dönüyor. Top temasında ya sıradan bir dribbling
+  dokunuşu (`applyTouch`) ya da bir şut (`shoot`) çekiyor — hangisi
+  olacağı cooldown + şans tablosuna bağlı, tıpkı insan oyuncunun
+  bağlamsal Aksiyon'u gibi laser-guided değil (CLAUDE.md: otomatik nişan
+  yok kuralı AI'ye de uygulandı — her şutta bir taban sapma var).
+- `src/entities/AIKeeper.ts`: `'left'|'right'` taraf parametresi alacak
+  şekilde genelleştirildi (önceden sadece sağ kaleye gömülüydü) — menzil/
+  yaklaşma yönü kontrolleri, topu tutarken duruş ofseti ve başarısız power
+  şuttan sekme yönü artık tarafa göre aynalanıyor.
+- `src/scenes/MatchScene.ts`: maç başında insanın seçtiği karakterden
+  FARKLI rastgele bir karakter AI'ye atanıyor (`CHARACTER_ORDER`'dan
+  filtrelenip seçiliyor) — gerçek bir AI karakter seçim ekranı kapsam
+  dışı tutuldu, ama "AI de bir karakter oynuyor" hissi ucuz şekilde
+  sağlandı. Sağ kaleci artık AI'nin kendi karakter stat'larını kullanıyor
+  (önceden yanlışlıkla insanın stat'larını taşıyordu); yeni bir sol kaleci
+  insanın stat'larıyla kendi kalesini otomatik savunuyor. HUD'a
+  "Rakip: <isim>" eklendi.
+
+**Doğrulama (Playwright, geçici `window.__debugMatch`/`window.__game`
+hook'larıyla — commit'ten önce kaldırıldı):**
+- AI, top kendi yarısındayken ona doğru hareket ediyor (x ve z'de ölçülüp
+  doğrulandı); top insanın yarısındayken asla orta çizgiyi geçmiyor, kendi
+  yarısının merkezine dönüyor.
+- Zorla tetiklenen bir temas + şut kararı, topu doğru yönde (insanın
+  kalesine, negatif x) ve makul bir hızla fırlatıyor.
+- Sol kaleci, sağ kalecinin aynadaki davranışıyla insanın kendi kalesine
+  gelen bir power şutu doğru şekilde tutuyor; sağ kalecinin eski davranışı
+  da (regression) hâlâ doğru çalışıyor — refactor bir şey kırmadı.
+- 90 saniyelik saf-AI simülasyonunda (insan hiç dokunmadan) skor 0-0 kaldı
+  — bu bir hata değil, beklenen sonuç: insan olmadan top bir kez AI'nin
+  yarısından çıkınca onu geri getirecek kimse yok, AI da kendi yarısına
+  geri dönüyor. Sınır/home-dönüş mantığının doğru çalıştığını kanıtlıyor,
+  ama denge/zorluk sinyali değil.
+- Gerçek bir maç akışında (insan hareket ettirip topa vurarak) AI'nin
+  topu takip edip tepki verdiği, kalecilerin farklı renklerde doğru
+  yerleştiği ve gol mekanizmasının yeni varlıklarla birlikte hâlâ
+  çalıştığı ekran görüntüleriyle doğrulandı.
+- `npm run build` (tsc + vite) temiz geçiyor.
+
+**Kapsam notu / bilinçli basitleştirmeler:**
+- AI kendi 3-segment süper hareketini kullanmıyor — sadece normal/power
+  şut arasında karar veriyor. Süper hareketin AI tarafında da anlamlı
+  olması için ayrı bir karar katmanı gerekirdi, bu geçişte kapsam dışı
+  bırakıldı.
+- AI'nin gerçekte ne kadar zorlayıcı/eğlenceli olduğu (denge hissi) kod
+  düzeyinde doğrulanamaz — M4'teki karakter dengesi notunda olduğu gibi
+  Sami'nin kendi oynayışına bakıyor.
+- İnsanın kendi "tut" input'u (Aksiyon, topsuzken kendi kalesine karşı)
+  hâlâ yok — onun yerine otomatik bir takım arkadaşı kalecisi kondu. Bu,
+  CLAUDE.md'nin bağlamsal Aksiyon tarifini birebir karşılamıyor ama aynı
+  ihtiyacı (kendi kale boş kalmasın) karşılıyor; gerçek 1v1 (iki insan)
+  veya insanın kendi kalesini de savunması istenirse ayrı bir iş.
+- Lig/hikaye akışı hâlâ yok — bloke eden asıl şey (gerçek rakip) artık
+  ortadan kalktı, ama kademe/ilerleme yapısının kendisi henüz kurulmadı.

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { RIGHT_GOAL_LINE_X, GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, CENTER_X, DEPTH_BAND_HEIGHT } from '../config/arena';
+import { LEFT_GOAL_LINE_X, RIGHT_GOAL_LINE_X, GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, CENTER_X, DEPTH_BAND_HEIGHT } from '../config/arena';
 import { KEEPER_TRACK_SPEED, KEEPER_CATCH_RANGE_X, CATCH_BASE_CHANCE, CATCH_SPEED_REFERENCE } from '../config/keeper';
 import { MOVE_SPEED } from '../config/movement';
 import { SUPER_SHOT_CATCH_CHANCE_MULTIPLIER } from '../config/super';
@@ -7,11 +7,14 @@ import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
 
+export type KeeperSide = 'left' | 'right';
+
 /**
- * Minimal AI goalkeeper defending the right goal. There's no second human
- * player yet, so this is what makes the M3 shoot/hold matrix (CLAUDE.md
- * section 5) actually testable and the match feel like a game rather than
- * an open net — not meant to be a real opponent AI. See docs/PROGRESS.md.
+ * AI goalkeeper defending either goal. There's no second human player yet,
+ * so this is what makes the M3 shoot/hold matrix (CLAUDE.md section 5)
+ * actually testable, and — since M5's AIOpponent (M5) now shoots at the
+ * human's own goal too — what defends the human's side automatically.
+ * See docs/PROGRESS.md.
  *
  * Implements the exact 2x2 matrix from CLAUDE.md section 5:
  *   Normal şut + Normal tutuş -> chance based on ball speed
@@ -26,6 +29,8 @@ import { soundFX } from '../systems/SoundFX';
  */
 export class AIKeeper {
   readonly character: Character;
+  private readonly side: KeeperSide;
+  private readonly goalLineX: number;
   private readonly catchChance: number;
   private readonly cooldownSeconds: number;
   private cooldownRemaining = 0;
@@ -34,17 +39,19 @@ export class AIKeeper {
 
   constructor(
     scene: Phaser.Scene,
-    startX: number,
+    side: KeeperSide,
     startZ: number,
     catchChance: number,
     cooldownSeconds: number,
     color: number,
   ) {
+    this.side = side;
+    this.goalLineX = side === 'right' ? RIGHT_GOAL_LINE_X : LEFT_GOAL_LINE_X;
     this.character = new Character(
       scene,
-      startX,
+      this.goalLineX,
       startZ,
-      { minX: RIGHT_GOAL_LINE_X - 4, maxX: RIGHT_GOAL_LINE_X + 4 },
+      { minX: this.goalLineX - 4, maxX: this.goalLineX + 4 },
       color,
       KEEPER_TRACK_SPEED / MOVE_SPEED,
     );
@@ -58,7 +65,7 @@ export class AIKeeper {
 
     if (this.holdTimer > 0) {
       this.holdTimer -= dt;
-      ball.x = this.character.x - 6;
+      ball.x = this.character.x + (this.side === 'right' ? -6 : 6);
       ball.z = this.character.z;
       ball.y = 0;
       ball.vx = 0;
@@ -79,7 +86,12 @@ export class AIKeeper {
     if (this.holdTimer > 0) return;
 
     const onTarget = ball.z >= GOAL_MOUTH_Z_MIN && ball.z <= GOAL_MOUTH_Z_MAX;
-    const inRange = onTarget && ball.x >= RIGHT_GOAL_LINE_X - KEEPER_CATCH_RANGE_X && ball.vx > 40;
+    const approaching = this.side === 'right' ? ball.vx > 40 : ball.vx < -40;
+    const nearGoal =
+      this.side === 'right'
+        ? ball.x >= this.goalLineX - KEEPER_CATCH_RANGE_X
+        : ball.x <= this.goalLineX + KEEPER_CATCH_RANGE_X;
+    const inRange = onTarget && nearGoal && approaching;
     if (!inRange) {
       this.resolvedThisApproach = false;
       return;
@@ -118,7 +130,8 @@ export class AIKeeper {
       soundFX.save();
     } else if (isPowerShot && Math.random() < 0.5) {
       // Half the time a failed power şut deflects instead of a clean pass-through.
-      ball.vx = -Math.abs(ball.vx) * 0.4;
+      const deflectSign = this.side === 'right' ? -1 : 1;
+      ball.vx = deflectSign * Math.abs(ball.vx) * 0.4;
       ball.vz = (Math.random() - 0.5) * 200;
     }
 

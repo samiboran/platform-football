@@ -15,7 +15,7 @@ import {
   projectToScreen,
 } from '../config/arena';
 import { MATCH_DURATION_SECONDS } from '../config/match';
-import { CHARACTERS, type CharacterId } from '../config/characters';
+import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
 import {
   POWER_MAX_SEGMENTS,
@@ -41,6 +41,7 @@ import { CrowdBand } from '../systems/CrowdBand';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 import { AIKeeper } from '../entities/AIKeeper';
+import { AIOpponent } from '../entities/AIOpponent';
 
 interface MatchData {
   characterId?: CharacterId;
@@ -49,12 +50,13 @@ interface MatchData {
 
 /**
  * Ball physics, character-ball contact, goal detection, scoreboard, match
- * timer (M2), plus the M3 Aksiyon/Dash/power system: casual contact still
- * nudges the ball, but Aksiyon fires a deliberate shoot() aimed from the
- * last joystick direction, doubled and gated by a power segment when held
- * with Özellik. An AI keeper (not in the original spec — there's no second
- * human player yet, see docs/PROGRESS.md) defends the right goal so the
- * shoot/hold matrix is actually testable.
+ * timer (M2), the M3 Aksiyon/Dash/power system, M4's per-character super
+ * moves, and (M5) a real AI opponent: a computer-controlled outfield
+ * player on the right half (AIOpponent) plus a keeper for each goal —
+ * one defending against the human (tied to the AI's character stats),
+ * one automatically defending the human's own goal (tied to the human's
+ * own character stats), since there's no second human player yet. See
+ * docs/PROGRESS.md.
  */
 export class MatchScene extends Phaser.Scene {
   private input1!: InputController;
@@ -64,6 +66,9 @@ export class MatchScene extends Phaser.Scene {
   private depthSortRef!: Character;
   private ball!: Ball;
   private keeper!: AIKeeper;
+  private leftKeeper!: AIKeeper;
+  private opponent!: AIOpponent;
+  private opponentCharacter: CharacterDef = CHARACTERS.kenya;
   private crowd!: CrowdBand;
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
@@ -95,6 +100,10 @@ export class MatchScene extends Phaser.Scene {
   init(data: MatchData): void {
     this.character = CHARACTERS[data.characterId ?? 'argentina'];
     this.stadium = STADIUMS[data.stadiumId ?? 'argentina'];
+    // The computer picks a different character than the human's, purely
+    // for variety — there's no AI character-select screen (out of scope).
+    const pool = CHARACTER_ORDER.filter((id) => id !== this.character.id);
+    this.opponentCharacter = CHARACTERS[Phaser.Utils.Array.GetRandom(pool)];
   }
 
   create(): void {
@@ -134,11 +143,16 @@ export class MatchScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
     this.add
-      .text(10, GAME_HEIGHT - 10, `Karakter: ${this.character.name}  |  Saha: ${this.stadium.name}`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#888888',
-      })
+      .text(
+        10,
+        GAME_HEIGHT - 10,
+        `Karakter: ${this.character.name}  |  Saha: ${this.stadium.name}  |  Rakip: ${this.opponentCharacter.name}`,
+        {
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          color: '#888888',
+        },
+      )
       .setOrigin(0, 1);
     this.updateHud();
 
@@ -156,14 +170,28 @@ export class MatchScene extends Phaser.Scene {
       windZ: this.stadium.windZ,
     });
 
+    // Right keeper defends against the human, so it represents the AI
+    // team's identity — tied to the opponent's stats, not the human's own.
     this.keeper = new AIKeeper(
       this,
-      RIGHT_GOAL_LINE_X,
+      'right',
+      DEPTH_BAND_HEIGHT / 2,
+      this.opponentCharacter.catchChance,
+      this.opponentCharacter.cooldownSeconds,
+      this.opponentCharacter.color,
+    );
+    // Left keeper automatically defends the human's own goal — there's no
+    // human "tut" input for their own net yet (see docs/PROGRESS.md), so
+    // this is effectively their team's own keeper, tied to their stats.
+    this.leftKeeper = new AIKeeper(
+      this,
+      'left',
       DEPTH_BAND_HEIGHT / 2,
       this.character.catchChance,
       this.character.cooldownSeconds,
-      0xe74c3c,
+      0x2980b9,
     );
+    this.opponent = new AIOpponent(this, this.opponentCharacter);
 
     this.input1 = new InputController(this, 90, GAME_HEIGHT - 90, GAME_WIDTH - 90, GAME_HEIGHT - 90);
 
@@ -215,6 +243,8 @@ export class MatchScene extends Phaser.Scene {
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
     this.keeper.update(delta, this.ball);
+    this.leftKeeper.update(delta, this.ball);
+    this.opponent.update(delta, this.ball);
     this.crowd.update(delta);
 
     this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;
