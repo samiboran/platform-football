@@ -26,5 +26,8 @@ export const OPPONENT_AIM_WOBBLE = 0.5;
 export const OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER = 1.6;
 
 /** Distance (world units) inside which the opponent stops nudging toward
- * its move target — avoids jittering in place once it arrives. */
-export const OPPONENT_MOVE_DEADZONE = 4;
+ * its move target. Must clear one frame's worth of movement at the
+ * fastest character's speed (MOVE_SPEED * up to ~1.25, ~4.6px at 60fps,
+ * more on a slower frame) with real margin, or it overshoots the deadzone
+ * every frame and visibly vibrates in place instead of settling. */
+export const OPPONENT_MOVE_DEADZONE = 12;

@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { LEFT_GOAL_LINE_X, RIGHT_GOAL_LINE_X, GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, CENTER_X, DEPTH_BAND_HEIGHT } from '../config/arena';
-import { KEEPER_TRACK_SPEED, KEEPER_CATCH_RANGE_X, CATCH_BASE_CHANCE, CATCH_SPEED_REFERENCE } from '../config/keeper';
+import {
+  KEEPER_TRACK_SPEED,
+  KEEPER_MOVE_DEADZONE,
+  KEEPER_CATCH_RANGE_X,
+  CATCH_BASE_CHANCE,
+  CATCH_SPEED_REFERENCE,
+} from '../config/keeper';
 import { MOVE_SPEED } from '../config/movement';
 import { SUPER_SHOT_CATCH_CHANCE_MULTIPLIER } from '../config/super';
 import { Character } from './Character';
@@ -80,7 +86,7 @@ export class AIKeeper {
     // Track the ball's depth so the keeper covers the goal width.
     const targetZ = Phaser.Math.Clamp(ball.z, GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX);
     const dz = targetZ - this.character.z;
-    const moveZ = Math.abs(dz) > 2 ? Math.sign(dz) : 0;
+    const moveZ = Math.abs(dz) > KEEPER_MOVE_DEADZONE ? Math.sign(dz) : 0;
     this.character.update(delta, { moveX: 0, moveZ, jumpPressed: false, dashPressed: false });
 
     if (this.holdTimer > 0) return;

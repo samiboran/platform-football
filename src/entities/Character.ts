@@ -33,13 +33,19 @@ export interface CharacterInput {
  * Dash spends a slice of it directly. Power şut/tutuş spend it through
  * `spendPower()`, called from MatchScene/AIKeeper.
  */
+/** Placeholder-only skin tone for the head, distinct from the character's
+ * jersey color — real sprites still come from Sami's own pipeline
+ * (CLAUDE.md: "sen sprite üretmiyorsun"), this just reads as a little
+ * person instead of a floating color block. */
+const PLACEHOLDER_HEAD_COLOR = 0xe0ac69;
+
 export class Character {
   x: number;
   z: number;
   y = 0;
   private vy = 0;
   private readonly bounds: CharacterBounds;
-  private readonly sprite: Phaser.GameObjects.Rectangle;
+  private readonly sprite: Phaser.GameObjects.Container;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
   private readonly speedMultiplier: number;
@@ -70,7 +76,18 @@ export class Character {
     this.speedMultiplier = speedMultiplier;
 
     this.shadow = scene.add.ellipse(0, 0, CHARACTER_SPRITE_WIDTH * 1.1, CHARACTER_SPRITE_WIDTH * 0.5, 0x000000, 0.35);
-    this.sprite = scene.add.rectangle(0, 0, CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, color).setStrokeStyle(1, 0x000000);
+
+    // Simple head+body silhouette instead of a flat rectangle — still a
+    // placeholder (CLAUDE.md: real sprites are Sami's own pipeline), just
+    // one that reads as a person. Laid out top-anchored (local y=0 is the
+    // top of the head) so syncTransform can position/scale it as one unit.
+    const headRadius = CHARACTER_SPRITE_WIDTH * 0.38;
+    const bodyHeight = CHARACTER_HEIGHT - headRadius * 2;
+    const head = scene.add.circle(0, headRadius, headRadius, PLACEHOLDER_HEAD_COLOR).setStrokeStyle(1, 0x000000);
+    const body = scene.add
+      .rectangle(0, headRadius * 2 + bodyHeight / 2, CHARACTER_SPRITE_WIDTH, bodyHeight, color)
+      .setStrokeStyle(1, 0x000000);
+    this.sprite = scene.add.container(0, 0, [body, head]);
 
     this.syncTransform();
   }
@@ -157,7 +174,10 @@ export class Character {
     this.shadow.setAlpha(0.35 * jumpShrink);
 
     this.sprite.setScale(depthScale);
-    this.sprite.setPosition(lifted.screenX, lifted.screenY - (CHARACTER_HEIGHT * depthScale) / 2);
+    // Container is top-anchored (local y=0 is the head's top), so its
+    // screen position is the head-top point — bottom of the figure lands
+    // exactly at lifted.screenY regardless of scale.
+    this.sprite.setPosition(lifted.screenX, lifted.screenY - CHARACTER_HEIGHT * depthScale);
 
     // Depth sort by ground screenY (not lifted) so jumping never reorders
     // front/back — only z does (CLAUDE.md section 3).
@@ -167,6 +187,11 @@ export class Character {
   }
 
   destroy(): void {
+    // Container.destroy() alone only detaches its children, it doesn't
+    // destroy them (Phaser: removeAll(false) unless `exclusive` is set) —
+    // explicitly destroy the head/body shapes too, or they'd leak as
+    // orphaned GameObjects still rendering in the scene.
+    this.sprite.removeAll(true);
     this.sprite.destroy();
     this.shadow.destroy();
   }

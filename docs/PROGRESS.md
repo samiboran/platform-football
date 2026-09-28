@@ -483,3 +483,53 @@ hook'larıyla — commit'ten önce kaldırıldı):**
   veya insanın kendi kalesini de savunması istenirse ayrı bir iş.
 - Lig/hikaye akışı hâlâ yok — bloke eden asıl şey (gerçek rakip) artık
   ortadan kalktı, ama kademe/ilerleme yapısının kendisi henüz kurulmadı.
+
+## Oturum 14 — Gerçek bir bug turu: titreşim, klavye, karakter şekli
+
+Sami kendi tarayıcısında oynadı ve dört şey bildirdi: kaleci/rakip
+"takılıyor", Space şut çekmiyor, top şut çekilince hep düz gidiyor (çapraz
+değil), karakterler düz dikdörtgen duruyor.
+
+**Bulgu 1 — gerçek bir bug, titreşim:** `AIKeeper`'ın z-takibi (`Math.abs(dz)
+> 2 ? sign : 0`) ve `AIOpponent`'ın hareket deadzone'u (4) her frame'lik
+hareket mesafesinden (KEEPER_TRACK_SPEED=180px/s → ~3px/frame, hızlı
+karakterlerde ~4.6px/frame) DAHA KÜÇÜKTÜ. Hedefe yaklaşınca her frame hedefi
+1px kadar aşıp yön değiştiriyor, sonsuz döngüde titriyordu — "takılma" tam
+olarak buydu. `config/keeper.ts`'e `KEEPER_MOVE_DEADZONE=10`,
+`config/opponent.ts`'te `OPPONENT_MOVE_DEADZONE`'u 4'ten 12'ye çıkarıp
+düzelttim (her ikisi de en hızlı karakterin bir frame'lik hareketini rahat
+aşacak şekilde seçildi). Playwright ile 120 frame boyunca z pozisyonu
+izlenip son 10 frame'de hiç değişmediği (delta=0) doğrulandı.
+
+**Bulgu 2 — mapping tercihi, bug değil:** Klavyede Space=Zıpla, Z=Aksiyon
+idi; Sami Space ile şut beklemişti. `InputController.ts`'te ikisi takas
+edildi (Space=Aksiyon, Z=Zıpla). Bu aynı zamanda "top hep düz gidiyor"
+şikayetini de açıklıyordu — Sami hiç gerçek `shoot()`'u tetiklemiyordu,
+sadece M2'nin pasif dribbling dokunuşunu (`applyTouch`, hep hareket
+yönünde düz) görüyordu.
+
+**Bulgu 3 — şut fiziği zaten doğruymuş:** `Ball.shoot()` çapraz girdiyi
+zaten doğru işliyor (`dirX,dirZ` normalize edilip hıza çarpılıyor). Atomik
+bir Playwright testiyle (gerçek klavye event'leri yerine sahte tuş state'i
++ tek elle tetiklenen `scene.update()`, Phaser'ın kendi RAF döngüsüyle yarış
+durumu olmadan) doğrulandı: Yukarı+Sağ basılı Space'e basınca top gerçekten
+çapraz gidiyor (vx=vz=297, büyüklük=420=SHOT_SPEED_NORMAL — yani gerçek şut,
+dribbling değil). İlk deneme yanlışlıkla dribbling hızını (260) ölçmüştü,
+sebebi gerçek zamanlı klavye event'leri ile Phaser'ın arka planda çalışan
+kendi RAF döngüsü arasındaki yarış durumuydu — test metodolojisi hatasıydı,
+ürün kodunda değil.
+
+**Bulgu 4 — görsel istek, `Character.ts`:** Düz dikdörtgen yerine basit bir
+kafa (daire, nötr ten tonu placeholder) + gövde (dikdörtgen, karakterin
+kendi rengi) silueti eklendi — hâlâ placeholder, gerçek sprite üretmek
+CLAUDE.md gereği benim işim değil, ama artık bir insan gibi okunuyor.
+Container tabanlı yeni yapı üstten sabitlenmiş (local y=0 = kafanın üstü),
+`syncTransform` buna göre güncellendi. Bu arada fark ettiğim ayrı bir küçük
+hata da düzeltildi: Phaser `Container.destroy()` çocuklarını otomatik yok
+etmiyor (sadece listeden çıkarıyor) — `Character.destroy()` artık önce
+`sprite.removeAll(true)` çağırıyor. Şu an hiçbir yerden çağrılmadığı için
+canlıda hiç tetiklenmeyen bir hataydı, ama düzeltmesi bedavaydı.
+
+**Doğrulama:** Tüm düzeltmeler Playwright ile (çoğu gerçek klavye event'i,
+biri sahte tuş state'iyle atomik/yarışsız test) doğrulandı, `npm run build`
+temiz. Ekran görüntüsüyle yeni karakter silueti de kontrol edildi.

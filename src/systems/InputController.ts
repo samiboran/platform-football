@@ -77,8 +77,11 @@ export class InputController {
 
     const keyboard = scene.input.keyboard!;
     this.cursors = keyboard.createCursorKeys();
-    this.jumpKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.actionKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    // Space = Aksiyon (primary action, most reached-for key) — swapped from
+    // an earlier Z/Space layout after real-world testing showed players
+    // expect Space to shoot.
+    this.jumpKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
+    this.actionKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     this.dashKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
     this.specialKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
