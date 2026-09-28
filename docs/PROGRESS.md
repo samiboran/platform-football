@@ -386,3 +386,30 @@ hook'larıyla — commit'ten önce kaldırıldı):**
 **Kapsam notu:** M4 artık tamamen kapandı. M5'in kalan tek maddesi (lig/
 hikaye akışı) hâlâ gerçek bir rakip/AI opponent gerektiriyor — mevcut
 AIKeeper sadece kaleci, sahada oynayan bir rakip değil.
+
+## Oturum 12 — Saha kenar boşluğu düzeltmesi
+
+Sami kendi masaüstü tarayıcısından bir ekran görüntüsü paylaştı: sahanın
+sağında/solunda büyük koyu boş alan vardı, "mobil için mi böyle oldu"
+diye sordu. Kaynağı buldum: `FIELD_WIDTH` hiçbir zaman `GAME_WIDTH`'e göre
+ölçeklenmiyordu — sabit `CHARACTER_WIDTH * 4.5 * 2` idi (70*4.5*2=630px),
+960px'lik oyun genişliğinin sadece **%66**'sı. Mobil'le ilgisi yoktu, saf
+bir tuning eksikliğiydi.
+
+**Düzeltme (`src/config/arena.ts`):** `CHARACTER_WIDTH` 70'ten 82'ye
+çıkarıldı — yakın kenar genişliği artık ~%77'ye çıkıyor (960'ın). Daha da
+ileri gidilemedi çünkü `GOAL_ZONE_DEPTH` (kale ağı arka paneli) de aynı
+sabitten türüyordu ve saha daha da genişlerse ağ paneli ekranın solundan/
+sağından taşıyordu (`LEFT_GOAL_BACK_X` negatife düşüyordu). Bunu çözmek
+için `GOAL_ZONE_DEPTH`'i `CHARACTER_WIDTH` yerine `CHARACTER_HEIGHT`'tan
+türetecek şekilde ayırdım (sabit bir "ağ derinliği" — sahanın yatay
+ölçeğiyle birlikte büyümemeli), bu da genişliği güvenli marjla (~24px)
+maksimuma çıkarmayı sağladı.
+
+**Doğrulama:** Playwright ile hem 960×540 mantıksal çözünürlükte hem de
+Sami'nin ekran görüntüsüyle aynı geniş masaüstü pencere boyutunda (1920×1000)
+karşılaştırma yapıldı — saha artık kenara çok daha yakın, kale ağları hâlâ
+tam ekranda (kesilmiyor). Canvas dışındaki siyah şeritler (letterbox) sabit
+16:9 oranı yüzünden kalmaya devam ediyor — bu ayrı bir şey, "kamera sabit"
+kuralının doğal sonucu, saha içindeki ölü alanla karıştırılmamalı.
+`npm run build` temiz.

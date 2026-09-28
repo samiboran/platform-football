@@ -26,10 +26,14 @@ export const CHARACTER_HEIGHT = 70;
  * silhouette width (~40px) made the half-field far too narrow (4-5 of
  * those widths left huge dead backdrop on both sides and failed the
  * "iki kale aynı anda görünür" framing goal from CLAUDE.md section 3;
- * verified visually before M1 — see docs/PROGRESS.md). 70 keeps the
- * 4-5-character-widths rule but sizes the pitch to actually fill the frame.
+ * verified visually before M1 — see docs/PROGRESS.md). Raised again from 70
+ * to 82 after Sami found the same dead-space problem on a real desktop
+ * browser (near-edge pitch width was only ~66% of GAME_WIDTH) — this keeps
+ * the 4-5-character-widths rule but pushes the near edge to ~77% of the
+ * frame, as close to edge-to-edge as it can go while leaving the goal net
+ * panel (GOAL_ZONE_DEPTH) fully on-screen.
  */
-export const CHARACTER_WIDTH = 70;
+export const CHARACTER_WIDTH = 82;
 /** Narrower box for the placeholder sprite render — keeps it human-shaped
  * even though CHARACTER_WIDTH (above) is wider for layout math. */
 export const CHARACTER_SPRITE_WIDTH = 40;
@@ -78,8 +82,11 @@ export const CENTER_LINE_X = CENTER_X;
 export const LEFT_GOAL_LINE_X = CENTER_X - HALF_FIELD_WIDTH;
 export const RIGHT_GOAL_LINE_X = CENTER_X + HALF_FIELD_WIDTH;
 
-/** Extra depth (in x) behind each goal line where a goal registers. */
-export const GOAL_ZONE_DEPTH = CHARACTER_WIDTH * 1.2;
+/** Extra depth (in x) behind each goal line where a goal registers. Tied to
+ * CHARACTER_HEIGHT (a fixed prop-size unit), not CHARACTER_WIDTH — the net's
+ * physical depth shouldn't grow just because the pitch itself gets wider,
+ * or the net panel gets pushed off the left/right edge of the canvas. */
+export const GOAL_ZONE_DEPTH = CHARACTER_HEIGHT * 1.2;
 export const LEFT_GOAL_BACK_X = LEFT_GOAL_LINE_X - GOAL_ZONE_DEPTH;
 export const RIGHT_GOAL_BACK_X = RIGHT_GOAL_LINE_X + GOAL_ZONE_DEPTH;
 
