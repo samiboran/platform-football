@@ -45,11 +45,11 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 ## M4 — Karakterler
 - [x] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown
 - [x] Karakter seçim ekranı
-- [ ] Her karakterin özel hareketi (3 segment süper) — Özellik tek-basış input hook'u hazır (`consumeSpecialAlonePressed`), power barı da artık var (M3 bitti); asıl 4 karaktere özel süper hareket efektleri henüz yazılmadı
+- [x] Her karakterin özel hareketi (3 segment süper): Brezilya (capoeira ters vuruş — bakılan yöne ham güç), Arjantin (gambeta — garanti isabetli, kaleye kilitli kontrollü şut), Kenya (poşet top — zayıf ama çok kaotik sapma), Kongo (ritimli zamanlama — doğru anda basınca bonus hız, ÖZEL tuşu o an yeşil parlıyor)
 - [x] Asset klasör yapısı + placeholder sprite'lar (`assets/characters/<id>/`, renkli placeholder karakterler zaten karaktere göre boyanıyor)
 - [x] İlk denge ayarı (arketipe göre hız/güç/şut gücü/tutma/cooldown çarpanları)
 
-**Doğrulama:** ✅ Dört karakter de seçilip oynanabiliyor, hız/güç istatistikleri gerçekten hareket ve top temasına yansıyor (kod düzeyinde doğrulandı). "İstatistik farkları hissediliyor / kimse ezmiyor" kısmı gerçek oynanış testi gerektiriyor — Sami'nin geri bildirimini bekliyor.
+**Doğrulama:** ✅ Dört karakter de seçilip oynanabiliyor, hız/güç istatistikleri gerçekten hareket ve top temasına yansıyor (kod düzeyinde doğrulandı). 4 süper hareketin dördü de Playwright ile ayrı ayrı tetiklenip beklenen hız formülü, tam bar tüketimi ve (yetersiz bar varken) no-op davranışı doğrulandı; Kenya'nın ekstra kaos genliği ve Kongo'nun on-beat bonusu + ÖZEL tuşunun ritim penceresinde yeşile dönmesi ayrıca doğrulandı. Süper şutlar artık AI kaleciye karşı bile bir committed power tutuşu %50 ihtimalle geçebiliyor (CLAUDE.md: "özel şuta karşı düşer") — deterministik test edildi. "İstatistik farkları hissediliyor / kimse ezmiyor" kısmı gerçek oynanış testi gerektiriyor — Sami'nin geri bildirimini bekliyor.
 
 ## M5 — Kabuk
 - [x] Ana menü (M0'dan beri var), saha seçimi

@@ -59,6 +59,10 @@ export class Ball {
    * pure speed-based chance roll can't express on its own. Cleared on the
    * next touch/shot or once a keeper has resolved against it. */
   lastShotWasPower = false;
+  /** Set by shoot() when fired as a character's 3-segment super move —
+   * CLAUDE.md section 5: "tutma şansı... özel şuta karşı düşer", so even a
+   * keeper committed to a power tutuş can still be beaten. */
+  lastShotWasSuper = false;
   private readonly sprite: Phaser.GameObjects.Ellipse;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly tuning: BallTuning;
@@ -103,21 +107,26 @@ export class Ball {
     this.vx = ix * BALL_TOUCH_SPEED * power;
     this.vz = iz * BALL_TOUCH_SPEED * power;
     this.lastShotWasPower = false;
+    this.lastShotWasSuper = false;
   }
 
   /** A deliberate Aksiyon shot (M3), aimed along (dirX, dirZ) at `speed`.
-   * `isPower` marks it for the shoot/hold matrix — see `lastShotWasPower`. */
-  shoot(dirX: number, dirZ: number, speed: number, chaos = false, isPower = false): void {
+   * `isPower` marks it for the shoot/hold matrix — see `lastShotWasPower`.
+   * `isSuper` marks a character's 3-segment super move (M4) — see
+   * `lastShotWasSuper`. `chaosMagnitude` scales the wobble on top of the
+   * base jitter, for Kenya's extra-unpredictable super. */
+  shoot(dirX: number, dirZ: number, speed: number, chaos = false, isPower = false, isSuper = false, chaosMagnitude = 1): void {
     const len = Math.hypot(dirX, dirZ) || 1;
     let ix = dirX / len;
     let iz = dirZ / len;
     if (chaos) {
-      ix += (Math.random() - 0.5) * 0.6;
-      iz += (Math.random() - 0.5) * 0.6;
+      ix += (Math.random() - 0.5) * 0.6 * chaosMagnitude;
+      iz += (Math.random() - 0.5) * 0.6 * chaosMagnitude;
     }
     this.vx = ix * speed;
     this.vz = iz * speed;
     this.lastShotWasPower = isPower;
+    this.lastShotWasSuper = isSuper;
   }
 
   update(delta: number): GoalSide {

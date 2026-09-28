@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
 import { RIGHT_GOAL_LINE_X, GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, CENTER_X, DEPTH_BAND_HEIGHT } from '../config/arena';
-import { KEEPER_CATCH_RANGE_X, CATCH_BASE_CHANCE, CATCH_SPEED_REFERENCE } from '../config/keeper';
+import { KEEPER_TRACK_SPEED, KEEPER_CATCH_RANGE_X, CATCH_BASE_CHANCE, CATCH_SPEED_REFERENCE } from '../config/keeper';
+import { MOVE_SPEED } from '../config/movement';
+import { SUPER_SHOT_CATCH_CHANCE_MULTIPLIER } from '../config/super';
 import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
@@ -16,6 +18,11 @@ import { soundFX } from '../systems/SoundFX';
  *   Power şut  + Normal tutuş -> tutamaz (ball continues in / deflects)
  *   Power şut  + Power tutuş  -> tutar
  *   Normal şut + Power tutuş  -> tutar, ama power boşa gider
+ *
+ * Karakterlerin 3-segment süper hareketi (M4) de isPower olarak işaretlenir,
+ * artı ball.lastShotWasSuper: bir power tutuşa commit edilse bile süper
+ * şutlar SUPER_SHOT_CATCH_CHANCE_MULTIPLIER ihtimaliyle hâlâ geçebiliyor
+ * (CLAUDE.md section 5: "özel şuta karşı düşer").
  */
 export class AIKeeper {
   readonly character: Character;
@@ -39,6 +46,7 @@ export class AIKeeper {
       startZ,
       { minX: RIGHT_GOAL_LINE_X - 4, maxX: RIGHT_GOAL_LINE_X + 4 },
       color,
+      KEEPER_TRACK_SPEED / MOVE_SPEED,
     );
     this.catchChance = catchChance;
     this.cooldownSeconds = cooldownSeconds;
@@ -93,7 +101,9 @@ export class AIKeeper {
     let caught: boolean;
 
     if (wantsPowerCatch) {
-      caught = true;
+      // Even a committed power tutuş can be beaten by a super shot —
+      // CLAUDE.md: "tutma şansı... özel şuta karşı düşer" (section 5).
+      caught = ball.lastShotWasSuper ? Math.random() < SUPER_SHOT_CATCH_CHANCE_MULTIPLIER : true;
       this.cooldownRemaining = this.cooldownSeconds;
     } else if (isPowerShot) {
       caught = false;
@@ -113,6 +123,7 @@ export class AIKeeper {
     }
 
     ball.lastShotWasPower = false;
+    ball.lastShotWasSuper = false;
   }
 
   destroy(): void {

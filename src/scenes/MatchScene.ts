@@ -23,6 +23,17 @@ import {
   SHOT_SPEED_POWER_MULTIPLIER,
   POWER_SHOT_SEGMENT_COST,
 } from '../config/power';
+import {
+  SUPER_MOVE_SEGMENT_COST,
+  SUPER_STRIKE_SPEED_MULTIPLIER,
+  SUPER_CONTROL_SPEED_MULTIPLIER,
+  SUPER_CHAOS_SPEED_MULTIPLIER,
+  SUPER_CHAOS_WOBBLE_MULTIPLIER,
+  SUPER_RHYTHM_SPEED_MULTIPLIER,
+  SUPER_RHYTHM_BONUS_MULTIPLIER,
+  KONGO_RHYTHM_PERIOD_SECONDS,
+  KONGO_RHYTHM_WINDOW_SECONDS,
+} from '../config/super';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
@@ -62,6 +73,9 @@ export class MatchScene extends Phaser.Scene {
    * back to facing when the stick is neutral. */
   private lastAimX = 1;
   private lastAimZ = 0;
+  /** Kongo's rhythm clock (M4 super move) — free-running, independent of
+   * the stadium's cosmetic pulse, so timing works the same on any saha. */
+  private rhythmClock = 0;
 
   private character = CHARACTERS.argentina;
   private stadium = STADIUMS.argentina;
@@ -203,6 +217,11 @@ export class MatchScene extends Phaser.Scene {
     this.keeper.update(delta, this.ball);
     this.crowd.update(delta);
 
+    this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;
+    if (this.character.id === 'congo') {
+      this.input1.setSpecialGlow(this.isInRhythmWindow());
+    }
+
     // Character-ball contact: casual dribble nudge on simple touch, or a
     // deliberate Aksiyon shot (contextual: bizdeyse şut — CLAUDE.md section 4).
     const dx = this.ball.x - this.player.x;
@@ -222,6 +241,10 @@ export class MatchScene extends Phaser.Scene {
       if (!this.wasTouchingBall) soundFX.kick();
     }
     this.wasTouchingBall = touching;
+
+    if (this.input1.consumeSpecialAlonePressed() && touching) {
+      this.performSuperMove();
+    }
 
     this.updatePowerBar();
 
@@ -262,6 +285,63 @@ export class MatchScene extends Phaser.Scene {
       this.debugGraphics.lineTo(farLeft.screenX, farLeft.screenY);
       this.debugGraphics.closePath();
       this.debugGraphics.strokePath();
+    }
+  }
+
+  /** Kongo's "doğru anda basınca power bonusu" — a short recurring sweet
+   * spot window on an independent beat clock. */
+  private isInRhythmWindow(): boolean {
+    return this.rhythmClock < KONGO_RHYTHM_WINDOW_SECONDS;
+  }
+
+  /** 3-segment super move (M4, CLAUDE.md section 6) — only fires while
+   * touching the ball, since all four characters' identities (a strike, a
+   * controlled pass, an aerial wobble, a timed power shot) are ball
+   * actions. Consumes the whole power bar. */
+  private performSuperMove(): void {
+    if (this.player.powerSegments < SUPER_MOVE_SEGMENT_COST) return;
+    if (!this.player.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
+
+    const aimX = this.player.facingX;
+    const aimZ = this.player.facingZ;
+    const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier;
+    soundFX.kick();
+
+    switch (this.character.id) {
+      case 'brazil':
+        // Capoeira ters vuruş: pure power along the facing direction.
+        this.ball.shoot(aimX, aimZ, baseSpeed * SUPER_STRIKE_SPEED_MULTIPLIER, false, true, true);
+        break;
+      case 'argentina':
+        // Gambeta: control over power — always aimed dead-center at goal.
+        this.ball.shoot(
+          RIGHT_GOAL_LINE_X - this.player.x,
+          DEPTH_BAND_HEIGHT / 2 - this.player.z,
+          baseSpeed * SUPER_CONTROL_SPEED_MULTIPLIER,
+          false,
+          true,
+          true,
+        );
+        break;
+      case 'kenya':
+        // Poşet top: weaker shot, much wilder wobble than a normal chaos touch.
+        this.ball.shoot(
+          aimX,
+          aimZ,
+          baseSpeed * SUPER_CHAOS_SPEED_MULTIPLIER,
+          true,
+          true,
+          true,
+          SUPER_CHAOS_WOBBLE_MULTIPLIER,
+        );
+        break;
+      case 'congo': {
+        // Ritimli zamanlama: bonus speed when pressed on the beat.
+        const onBeat = this.isInRhythmWindow();
+        const speed = baseSpeed * SUPER_RHYTHM_SPEED_MULTIPLIER * (onBeat ? SUPER_RHYTHM_BONUS_MULTIPLIER : 1);
+        this.ball.shoot(aimX, aimZ, speed, false, true, true);
+        break;
+      }
     }
   }
 

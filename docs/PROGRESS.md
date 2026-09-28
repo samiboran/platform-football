@@ -320,9 +320,69 @@ hook'larıyla — commit'ten önce kaldırıldı):**
 bir rakip/AI opponent sistemi geldiğinde (M3 sonrası, ROADMAP'in M5 lig
 maddesinin de beklediği şey) devreye girecek.
 
-## Sıradaki oturum
-- M4'ün kalan maddesi: her karakterin 3-segment süper hareketi (input hook'u
-  hazır, `consumeSpecialAlonePressed()`, ama 4 karaktere özel efektler
-  yazılmadı).
-- M5'in kalan maddesi (lig/hikaye akışı) hâlâ gerçek bir rakip/AI opponent
-  gerektiriyor — mevcut AIKeeper sadece kaleci, saha oyuncusu değil.
+## Oturum 11 — M4'ü kapat: 4 karaktere özel süper hareket
+
+Sami "Devam et" dedi, M3 bittiğine göre sıradaki doğal iş M4'ün son maddesiydi:
+her karakterin 3 segmentli süper hareketi (CLAUDE.md section 6'daki kimlik
+tablosu: capoeira ters vuruş / gambeta / poşet top / ritimli zamanlama).
+
+**Tasarım kararı:** CLAUDE.md süper hareketin ne yaptığını somut olarak
+tarif etmiyor, sadece her karakterin futbol-kültürü kimliğini veriyor. Dördü
+de tanım gereği bir top eylemi (vuruş, kontrollü paslama, havada sapma,
+zamanlı şut) olduğundan, süper hareketi sadece topa değerken tetiklenen bir
+"gelişmiş şut" ailesi olarak tasarladım — topsuzken çalışan ayrı bir hareket
+eklemedim (spec'te olmayan bir mekanik icat etmemek için).
+
+**Yapıldı:**
+- `src/config/super.ts` (yeni): `SUPER_MOVE_SEGMENT_COST` (=POWER_MAX_SEGMENTS,
+  tüm bar), karakter başına hız çarpanı (Brezilya x2.0 ham güç, Arjantin x1.5
+  kontrol, Kenya x1.3 zayıf ama kaotik + x2.2 ekstra sapma genliği, Kongo x1.6
+  taban + on-beat x1.35 bonus), Kongo'nun ritim döngüsü (1.2sn periyot, 0.18sn
+  sweet-spot penceresi), ve `SUPER_SHOT_CATCH_CHANCE_MULTIPLIER` (0.5) —
+  CLAUDE.md section 5'in "tutma şansı... özel şuta karşı düşer" cümlesini
+  doğrudan uyguluyor.
+- `src/entities/Ball.ts`: `shoot()`'a `isSuper` ve `chaosMagnitude` parametreleri
+  eklendi, yeni `lastShotWasSuper` bayrağı (temas/şuttan sonra sıfırlanıyor,
+  `lastShotWasPower` ile aynı desende).
+- `src/entities/AIKeeper.ts`: bir power tutuşa commit edilse bile, top
+  `lastShotWasSuper` ise keeper artık garanti tutmuyor — sadece
+  `SUPER_SHOT_CATCH_CHANCE_MULTIPLIER` ihtimalle tutuyor, yoksa süper şut
+  keeperi geçiyor. Ayrıca gözden kaçan bir eksik giderildi: kaleci artık
+  gerçekten `KEEPER_TRACK_SPEED`'i kullanıyor (önceden import edilip
+  kullanılmıyordu, varsayılan `MOVE_SPEED`'e düşüyordu — `Character`'a
+  `speedMultiplier = KEEPER_TRACK_SPEED / MOVE_SPEED` olarak geçiliyor).
+- `src/systems/InputController.ts`: `TouchButton.setActive()` + `InputController.
+  setSpecialGlow()` — Kongo'nun ritim penceresi için ÖZEL tuşu yeşile dönüyor.
+- `src/scenes/MatchScene.ts`: `rhythmClock` (sahadan bağımsız, karakterin
+  kendi ritim saati), `performSuperMove()` — tam bar + top temasıyla
+  `consumeSpecialAlonePressed()` tetikliyor, karaktere göre dallanıyor:
+  - **Brezilya** — bakılan yöne (joystick'ten bağımsız) ham güçle vuruyor.
+  - **Arjantin** — yön girdisini yok sayıp doğrudan kale merkezine kilitli,
+    kontrollü ama daha düşük hızlı bir şut (asla yanlış yöne gitmiyor).
+  - **Kenya** — daha zayıf ama normal kaos dokunuşundan çok daha geniş
+    genlikte havada sapıyor.
+  - **Kongo** — ritim penceresinde basılırsa bonus hız; pencere dışında da
+    çalışıyor ama bonussuz.
+
+**Doğrulama (Playwright, geçici `window.__debugMatch`/`window.__game`
+hook'larıyla — commit'ten önce kaldırıldı):**
+- 4 karakterin süper hız formülleri ayrı ayrı hesaplanıp doğrulandı (ör.
+  Brezilya 420×0.95×2.0=798, Arjantin 420×1.0×1.5=630, Kongo on-beat
+  420×1.25×1.6×1.35=1134) — hepsi beklenen değerle birebir eşleşti.
+  Kenya'nın kaos vektör matematiği de (jitter'ın normalize öncesi yön
+  vektörüne eklenip sonra hızla çarpılması) elle hesaplanıp teyit edildi.
+- Süperin tam bar gerektirdiği ve tamamen tükettiği (3→0) doğrulandı; 3'ten
+  az segmentle çağrıldığında hiçbir şey olmadığı (no-op, top hızı/segment
+  değişmiyor) ayrıca doğrulandı.
+- AIKeeper'a karşı: normal power şut her zaman tutuluyor (deterministik),
+  süper şut düşük random rulette yine tutuluyor, yüksek rulette keeperi
+  geçiyor — tasarlanan %50 cezası doğru çalışıyor.
+- Kongo'nun ÖZEL tuş rengi doğrudan `specialBtn.circle.fillColor` okunarak
+  pencere içinde/dışında doğrulandı (yeşil/beyaz) — ekran görüntüsü
+  denemeleri 180ms'lik dar pencereyi örnekleme şansıyla kaçırdı, bu yüzden
+  koda doğrudan bakıldı.
+- `npm run build` (tsc + vite) temiz geçiyor.
+
+**Kapsam notu:** M4 artık tamamen kapandı. M5'in kalan tek maddesi (lig/
+hikaye akışı) hâlâ gerçek bir rakip/AI opponent gerektiriyor — mevcut
+AIKeeper sadece kaleci, sahada oynayan bir rakip değil.

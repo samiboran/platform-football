@@ -33,6 +33,11 @@ class TouchButton {
     return this.held || keyDown;
   }
 
+  /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */
+  setActive(active: boolean): void {
+    this.circle.setFillStyle(active ? 0x2ecc71 : 0xffffff, active ? 0.5 : 0.2);
+  }
+
   /** Edge-triggered: true only on the frame this input transitions to down. */
   consumePressed(keyDown: boolean): boolean {
     const down = this.held || keyDown;
@@ -128,6 +133,11 @@ export class InputController {
   consumeSpecialAlonePressed(): boolean {
     const pressed = this.specialBtn.consumePressed(this.specialKey.isDown);
     return pressed && !this.actionBtn.isHeld(this.actionKey.isDown);
+  }
+
+  /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */
+  setSpecialGlow(active: boolean): void {
+    this.specialBtn.setActive(active);
   }
 
   destroy(): void {
