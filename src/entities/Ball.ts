@@ -63,6 +63,12 @@ export class Ball {
    * CLAUDE.md section 5: "tutma şansı... özel şuta karşı düşer", so even a
    * keeper committed to a power tutuş can still be beaten. */
   lastShotWasSuper = false;
+  /** True after shoot() (any kind — normal/power/super), false after
+   * applyTouch(). Keepers gate their catch attempts on this: a routine
+   * dribble touch can easily exceed a keeper's old flat speed threshold
+   * (BALL_TOUCH_SPEED already did), which made them snatch the ball away
+   * during normal dribbling instead of only reacting to deliberate shots. */
+  lastTouchWasShot = false;
   private readonly sprite: Phaser.GameObjects.Ellipse;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   private readonly tuning: BallTuning;
@@ -86,6 +92,9 @@ export class Ball {
     this.vx = 0;
     this.vz = 0;
     this.vy = 0;
+    this.lastShotWasPower = false;
+    this.lastShotWasSuper = false;
+    this.lastTouchWasShot = false;
     this.syncTransform();
   }
 
@@ -108,6 +117,7 @@ export class Ball {
     this.vz = iz * BALL_TOUCH_SPEED * power;
     this.lastShotWasPower = false;
     this.lastShotWasSuper = false;
+    this.lastTouchWasShot = false;
   }
 
   /** A deliberate Aksiyon shot (M3), aimed along (dirX, dirZ) at `speed`.
@@ -127,6 +137,7 @@ export class Ball {
     this.vz = iz * speed;
     this.lastShotWasPower = isPower;
     this.lastShotWasSuper = isSuper;
+    this.lastTouchWasShot = true;
   }
 
   update(delta: number): GoalSide {

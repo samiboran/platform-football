@@ -65,6 +65,14 @@ export class AIKeeper {
     this.cooldownSeconds = cooldownSeconds;
   }
 
+  /** True while the keeper is holding the ball (forcing its position each
+   * frame) — other entities must not touch the ball during this window, or
+   * they end up fighting the keeper's hold every other frame (visible as
+   * the ball "getting stuck" between two characters). */
+  get isHolding(): boolean {
+    return this.holdTimer > 0;
+  }
+
   update(delta: number, ball: Ball): void {
     const dt = delta / 1000;
     if (this.cooldownRemaining > 0) this.cooldownRemaining -= dt;
@@ -92,7 +100,10 @@ export class AIKeeper {
     if (this.holdTimer > 0) return;
 
     const onTarget = ball.z >= GOAL_MOUTH_Z_MIN && ball.z <= GOAL_MOUTH_Z_MAX;
-    const approaching = this.side === 'right' ? ball.vx > 40 : ball.vx < -40;
+    // Only react to a deliberate shot, never a casual dribble touch — a
+    // routine applyTouch() push easily beats a flat speed threshold (it
+    // used to be treated as a "shot" and get snatched away mid-dribble).
+    const approaching = ball.lastTouchWasShot && (this.side === 'right' ? ball.vx > 0 : ball.vx < 0);
     const nearGoal =
       this.side === 'right'
         ? ball.x >= this.goalLineX - KEEPER_CATCH_RANGE_X

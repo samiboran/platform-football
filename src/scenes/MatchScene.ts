@@ -244,7 +244,12 @@ export class MatchScene extends Phaser.Scene {
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
     this.keeper.update(delta, this.ball);
     this.leftKeeper.update(delta, this.ball);
-    this.opponent.update(delta, this.ball);
+    // Whichever keeper is currently holding the ball owns it exclusively —
+    // otherwise the human/opponent could grab it away and the keeper's own
+    // hold logic yanks it right back next frame, visibly "stuck" between
+    // two characters.
+    const ballHeld = this.keeper.isHolding || this.leftKeeper.isHolding;
+    this.opponent.update(delta, this.ball, ballHeld);
     this.crowd.update(delta);
 
     this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;
@@ -254,9 +259,10 @@ export class MatchScene extends Phaser.Scene {
 
     // Character-ball contact: casual dribble nudge on simple touch, or a
     // deliberate Aksiyon shot (contextual: bizdeyse şut — CLAUDE.md section 4).
+    // Skipped entirely while a keeper is holding the ball (see ballHeld above).
     const dx = this.ball.x - this.player.x;
     const dz = this.ball.z - this.player.z;
-    const touching = Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
+    const touching = !ballHeld && Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
     const actionPressed = this.input1.consumeActionPressed();
 
     if (touching && actionPressed) {

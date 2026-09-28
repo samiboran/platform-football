@@ -533,3 +533,53 @@ canlıda hiç tetiklenmeyen bir hataydı, ama düzeltmesi bedavaydı.
 **Doğrulama:** Tüm düzeltmeler Playwright ile (çoğu gerçek klavye event'i,
 biri sahte tuş state'iyle atomik/yarışsız test) doğrulandı, `npm run build`
 temiz. Ekran görüntüsüyle yeni karakter silueti de kontrol edildi.
+
+## Oturum 15 — Top sıkışması ve yanlış kaleci yakalamaları
+
+Sami bir deploy sonra tekrar test etti: "vurma yok, top arada sıkışıyor iki
+kişi arasında, neden hâlâ kaleci var." Üç şikayetin de tek bir kök nedeni
+vardı.
+
+**Kök neden 1 — sahiplik kilidi yoktu:** Bir kaleci topu tutarken
+(`holdTimer > 0`) her frame topun pozisyonunu kendi konumuna zorluyordu,
+ama insan oyuncu ve `AIOpponent` bunu bilmeden AYNI FRAME içinde topa
+dokunup itmeye devam edebiliyordu. Sonuç: kaleci topu zorla kendine çekiyor
+→ insan/rakip iter → kaleci bir sonraki frame'de yine zorla çekiyor →
+sonsuz çekişme. Sami'nin gördüğü "top iki kişi arasında sıkışıyor" tam
+olarak buydu. **Düzeltme:** `AIKeeper`'a `isHolding` getter'ı eklendi;
+`MatchScene` her frame `ballHeld = keeper.isHolding || leftKeeper.isHolding`
+hesaplayıp hem insanın kendi temas/şut kodunu hem `AIOpponent.update()`'i bu
+süre boyunca tamamen devre dışı bırakıyor. Playwright ile doğrulandı: kaleci
+tutarken topun üstüne gelen insan artık topu hareket ettiremiyor (hız sıfır
+kalıyor, pozisyon kalecinin tuttuğu yerde sabit kalıyor).
+
+**Kök neden 2 — kaleciler dribbling'i şut sanıyordu:** Yakalama denemesi
+tetikleyen "top yaklaşıyor" eşiği düz bir hız sayısıydı (±40px/s) — M2'nin
+pasif dribbling dokunuşu (`BALL_TOUCH_SPEED=260`) bunu kolayca aşıyordu.
+Yani insan sadece kendi yarısında normal dribbling yaparken bile, top
+kalesine doğru gitse, kendi kalecisi bunu "şut" sanıp topu kapıyordu — bu
+da "neden hâlâ kaleci var (beni rahatsız ediyor)" hissini açıklıyor.
+**Düzeltme:** `Ball`'a yeni bir `lastTouchWasShot` bayrağı eklendi
+(`shoot()`'ta true, `applyTouch()`'ta false) — artık kaleciler SADECE
+gerçek bir şuta (normal/power/süper, fark etmez) tepki veriyor, hıza
+bakılmaksızın hiçbir dribbling dokunuşu yakalama denemesi tetiklemiyor.
+Bu, düz bir hız eşiği ayarlamaktan (Kenya'nın zayıf şutu 294px/s'de,
+dribbling 260px/s'de — aradaki fark çok dardı) çok daha sağlam bir çözüm.
+
+**"Vurma yok" şikayeti:** Ayrı bir bug değildi — yukarıdaki çekişme/yanlış-
+yakalama döngüsü top pozisyonunu o kadar kararsız hale getiriyordu ki,
+Sami'nin gerçek şutları da bu kaosun içinde kayboluyordu. İki kök neden
+düzeltilince şut mekaniği zaten çalışıyor (Oturum 14'te atomik test ile
+zaten doğrulanmıştı).
+
+**Doğrulama (Playwright, geçici hook'larla — commit'ten önce kaldırıldı):**
+- Hızlı bir dribbling dokunuşu (`lastTouchWasShot=false`, vx=-300) artık
+  kaleciyi tetiklemiyor ✅.
+- Gerçek bir şut (`lastTouchWasShot=true`) hâlâ matrise göre doğru
+  değerlendiriliyor — yavaş şut yüksek şansla tutuluyor, power+power hücresi
+  hâlâ garanti tutuyor (regression testleri geçti) ✅.
+- Sahiplik kilidi: kaleci tutarken tam üstüne gelen insan topu hareket
+  ettiremiyor, hız sıfır ve pozisyon sabit kalıyor ✅.
+- Gerçek zamanlı dribbling testinde (800ms sağa+800ms sola) kaleci hiç
+  yanlışlıkla tutmadı ✅.
+- `npm run build` temiz.

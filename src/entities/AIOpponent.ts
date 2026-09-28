@@ -49,7 +49,7 @@ export class AIOpponent {
     this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier);
   }
 
-  update(delta: number, ball: Ball): void {
+  update(delta: number, ball: Ball, ballHeld = false): void {
     const dt = delta / 1000;
     if (this.shotCooldownRemaining > 0) this.shotCooldownRemaining -= dt;
 
@@ -64,6 +64,11 @@ export class AIOpponent {
     const moveX = Math.abs(dx) > OPPONENT_MOVE_DEADZONE ? Math.sign(dx) : 0;
     const moveZ = Math.abs(dz) > OPPONENT_MOVE_DEADZONE ? Math.sign(dz) : 0;
     this.character.update(delta, { moveX, moveZ, jumpPressed: false, dashPressed: false });
+
+    // A keeper currently holding the ball owns it exclusively — touching it
+    // here would fight the keeper's hold every other frame (the ball
+    // visibly "stuck" between two characters).
+    if (ballHeld) return;
 
     const cdx = ball.x - this.character.x;
     const cdz = ball.z - this.character.z;
