@@ -657,3 +657,57 @@ satırları) şu an kullanılmıyor — statik poz-değişimi (idle/jump/slide)
 yeterli bir ilk sürüm için, gerçek çok-kareli animasyon ayrı bir iş
 (Phaser animation/spritesheet sistemi gerektirir). Kaleci-özel bir
 dalış/tutma pozu da yok, mevcut 6 pozla idare ediliyor.
+
+## Oturum 17 — Ayrı kaleci karakterlerini kaldır
+
+Sami sprite'ları oynayınca iki kez aynı şeyi sordu: "kalede adamlarımız var,
+onlar olmamalı, neden varlar?" — artı "top oyuncu-kale arası sıkışıyor."
+İki şikayet de aynı kök nedene çıkıyordu: M3'te (henüz rakip yokken) eklenen
+ayrı `AIKeeper` karakterleri, M5'te gerçek `AIOpponent` gelince gereksiz
+hale gelmiş ama kaldırılmamıştı — kalede boşu boşuna duran, arada sırada
+topu zorla kendine çeken iki fazladan karakter olarak kalmışlardı.
+
+**Karar:** CLAUDE.md'nin ORİJİNAL tasarımına dönüldü — bölüm 4: "Aksiyon:
+top bizdeyse şut, değilse tut (bağlamsal)". Ayrı bir kaleci hiçbir zaman
+spesifikasyonun parçası değildi; ben M3'te rakip yokken geçici bir çözüm
+olarak eklemiştim ve M5'te AIOpponent gelince kaldırmayı unutmuştum. Artık
+her taraf kendi kalesini KENDİ oyuncusuyla/rakibiyle savunuyor.
+
+**Yapıldı:**
+- `src/systems/catchMatrix.ts` (yeni): M3'ün şut/tutuş matrisi artık
+  paylaşılan saf bir fonksiyon (`resolveCatchAttempt`) — hem insanın kendi
+  tutma denemesi hem rakip AI'nin otomatik savunması aynı mantığı kullanıyor,
+  kopya kod yok.
+- `Character.ts`: `catchCooldownRemaining` state'i + `canPowerCatch`
+  getter'ı + `startCatchCooldown()` eklendi — tutma cooldown'u artık
+  doğrudan oyuncunun kendi karakterinde yaşıyor (ayrı bir kaleci nesnesinde
+  değil), tıpkı dash/power gibi.
+- `MatchScene.ts`: `leftKeeper`/`keeper` entity'leri ve `ballHeld` kilidi
+  tamamen kaldırıldı. İnsan artık Aksiyon'a topa dokunmadan basınca (ve top
+  gerçekten kendi kalesine gelen bir şutsa — `lastTouchWasShot`, hedefte,
+  menzilde) tutma deniyor; Özellik'le birlikte basılırsa ve bar yeterliyse
+  power tutuş (bir segment harcayıp cooldown başlatıyor), yetersizse otomatik
+  normal tutuşa düşüyor.
+- `AIOpponent.ts`: artık kendi kalesini de otomatik savunuyor — gerçek bir
+  şut kendi hedefine yaklaşınca (eski AIKeeper'ın "bazen erken atılıyor"
+  sezgisiyle) `resolveCatchAttempt`'i çağırıyor. `ballHeld` parametresi
+  tamamen kalktı (artık gerek yok, kimse topu zorla tutmuyor).
+- `AIKeeper.ts` silindi — hiçbir yerden kullanılmıyor.
+
+**Doğrulama (Playwright, geçici `window.__debugMatch`/`window.__game`
+hook'larıyla — commit'ten önce kaldırıldı):**
+- Ekran görüntüsüyle doğrulandı: sahada artık sadece 2 karakter var (insan +
+  rakip), kalelerde kimse durmuyor.
+- Matrisin 4 hücresi de insanın kendi tutma girdisiyle deterministik test
+  edildi: power+power tutar (1 segment harcanıyor), power+normal tutamaz,
+  normal+normal yavaş topta tutuluyor/hızlı topta kaçıyor, yetersiz power'da
+  power tutuş denemesi sessizce normale düşüyor (segment harcanmıyor).
+- Rakip AI'nin kendi kalesini savunması ayrıca doğrulandı (power şut→tutar).
+- Dribbling'in hâlâ hiçbir zaman tutma tetiklemediği (regression) doğrulandı.
+- Uçtan uca simülasyon: bir şut ya gol oluyor ya tutuluyor, hiçbir zaman
+  ortada asılı kalmıyor (300 frame'lik bir koşuda "resolved" hep true çıktı).
+- Karakterin yüzünün hareket/top yönüne göre doğru döndüğü de ayrıca
+  doğrulandı (`facingX=1` → `currentPose='right'` → doğru texture) — kod
+  zaten doğruydu, Arjantin'in sağ-profil sanatı sadece küçük boyutta önden
+  görünüme çok benziyor (bir sanat nüansı, kod hatası değil).
+- `npm run build` temiz.

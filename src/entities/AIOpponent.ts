@@ -11,6 +11,7 @@ import {
   GOAL_MOUTH_Z_MAX,
 } from '../config/arena';
 import { SHOT_SPEED_NORMAL, SHOT_SPEED_POWER_MULTIPLIER, POWER_SHOT_SEGMENT_COST } from '../config/power';
+import { KEEPER_CATCH_RANGE_X } from '../config/keeper';
 import {
   OPPONENT_SHOT_COOLDOWN_SECONDS,
   OPPONENT_SHOT_CHANCE_PER_TOUCH,
@@ -19,6 +20,7 @@ import {
   OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER,
   OPPONENT_MOVE_DEADZONE,
 } from '../config/opponent';
+import { resolveCatchAttempt } from '../systems/catchMatrix';
 import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
@@ -28,11 +30,12 @@ import type { CharacterDef } from '../config/characters';
  * A computer-controlled outfield player defending/attacking the right half
  * — closes the "gerçek rakip" gap flagged in earlier PROGRESS notes (M3/M4
  * added a matrix and super moves that only the human could ever use).
- * Bounded to its own half exactly like the human player (CLAUDE.md's
- * implicit each-side-owns-a-half structure that AIKeeper already assumed).
- * Chases the ball only when it's on its side, dribbles or shoots at the
- * human's goal once it's in contact. Doesn't use its 3-segment super move
- * — a deliberate scope cut, see docs/PROGRESS.md.
+ * Bounded to its own half exactly like the human player. Chases the ball
+ * only when it's on its side, dribbles or shoots at the human's goal once
+ * it's in contact — and defends its OWN goal too (no separate keeper
+ * entity, see docs/PROGRESS.md): any real shot heading in gets an
+ * automatic catch attempt via the shared M3 matrix. Doesn't use its
+ * 3-segment super move — a deliberate scope cut, see docs/PROGRESS.md.
  */
 export class AIOpponent {
   readonly character: Character;
@@ -40,6 +43,7 @@ export class AIOpponent {
   private readonly homeX: number;
   private readonly homeZ: number;
   private shotCooldownRemaining = 0;
+  private resolvedCatchThisApproach = false;
 
   constructor(scene: Phaser.Scene, def: CharacterDef) {
     this.def = def;
@@ -49,7 +53,7 @@ export class AIOpponent {
     this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier, def.id);
   }
 
-  update(delta: number, ball: Ball, ballHeld = false): void {
+  update(delta: number, ball: Ball): void {
     const dt = delta / 1000;
     if (this.shotCooldownRemaining > 0) this.shotCooldownRemaining -= dt;
 
@@ -65,10 +69,26 @@ export class AIOpponent {
     const moveZ = Math.abs(dz) > OPPONENT_MOVE_DEADZONE ? Math.sign(dz) : 0;
     this.character.update(delta, { moveX, moveZ, jumpPressed: false, dashPressed: false });
 
-    // A keeper currently holding the ball owns it exclusively — touching it
-    // here would fight the keeper's hold every other frame (the ball
-    // visibly "stuck" between two characters).
-    if (ballHeld) return;
+    // Defend its own goal: auto-attempt a catch on any real shot heading
+    // in, same matrix the human uses via Aksiyon (CLAUDE.md section 5).
+    const onTarget = ball.z >= GOAL_MOUTH_Z_MIN && ball.z <= GOAL_MOUTH_Z_MAX;
+    const nearGoal = ball.x >= RIGHT_GOAL_LINE_X - KEEPER_CATCH_RANGE_X;
+    const approaching = ball.lastTouchWasShot && ball.vx > 0;
+    const catchable = onTarget && nearGoal && approaching;
+
+    if (!catchable) {
+      this.resolvedCatchThisApproach = false;
+    } else if (!this.resolvedCatchThisApproach) {
+      this.resolvedCatchThisApproach = true;
+      // AI: always dives with power tutuş against a power şut when
+      // available; otherwise occasionally overcommits anyway (exercises
+      // the "normal şut, power tutuş — boşa gider" cell too).
+      const wantsPowerCatch = this.character.canPowerCatch && (ball.lastShotWasPower || Math.random() < 0.3);
+      const { caught } = resolveCatchAttempt(ball, 'right', this.def.catchChance, wantsPowerCatch);
+      if (wantsPowerCatch) this.character.startCatchCooldown(this.def.cooldownSeconds);
+      if (caught) soundFX.save();
+      return;
+    }
 
     const cdx = ball.x - this.character.x;
     const cdz = ball.z - this.character.z;

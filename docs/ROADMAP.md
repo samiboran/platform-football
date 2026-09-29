@@ -30,7 +30,7 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** ✅ Top gerçekçi sekiyor (yerçekimi + restitution ile sekip yavaşlıyor), kaleye girince gol sayılıyor (her iki kale de test edildi), skor tablosu ve geri sayan süre çalışıyor, süre bitince (veya "Bitir" ile) ResultScene'de son skor gösteriliyor — Playwright ile uçtan uca doğrulandı, konsol hatası yok.
 
 ## M3 — Aksiyon ve power
-- [x] Bağlamsal Aksiyon tuşu (top bizdeyse şut — tutma tarafı, karşı takım/AI kaleci ile sınırlı, aşağıya bakın)
+- [x] Bağlamsal Aksiyon tuşu (top bizdeyse şut, değilse tut — Oturum 17'de insanın kendi tutma girdisi de eklendi, aşağıya bakın)
 - [x] Joystick yönünden şut yönü (Aksiyon'a basıldığı andaki son joystick yönü, nötrse karakterin baktığı yön)
 - [x] Dash (4 yön, yerde ve havada, joystick boşken bakılan yöne)
 - [x] 3 segmentli power barı + UI (sol alt)
@@ -40,7 +40,7 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 
 **Doğrulama:** ✅ Matristeki dört hücre de (Power şut+Power tutuş→tutar, Power şut+Normal tutuş→tutamaz, Normal şut+Power tutuş→tutar/boşa gider, Normal şut+Normal tutuş→hıza bağlı şans) Playwright ile deterministik olarak (Math.random override) test edildi, hepsi doğru sonuç verdi. Dash'in yerde/havada farklı power maliyeti ve power şutun hız çarpanı da ayrıca doğrulandı. Power barı UI'da doğru doluyor/boşalıyor.
 
-**Kapsam notu:** Sağ kaleye basit bir AI kaleci eklendi (`src/entities/AIKeeper.ts`, CLAUDE.md'nin orijinal kapsamı dışında, bilinçli bir tasarım kararı). M5'te gerçek bir AI rakip (`AIOpponent`) eklenince sol kaleye de otomatik bir kaleci konuldu — insan oyuncunun "tut" tarafı (kendi kalesini kendi basıp savunması) hâlâ input olarak yok, bunun yerine kendi takımının otomatik kalecisi savunuyor; CLAUDE.md'nin bağlamsal Aksiyon-ile-tutma tarifini birebir karşılamıyor ama aynı ihtiyacı (kendi kalesinin savunmasız kalmaması) karşılıyor.
+**Kapsam notu (güncel, Oturum 17):** İlk sürümde sağ kaleye ayrı bir AI kaleci karakteri eklenmişti (`AIKeeper.ts`), sonra sol kaleye de bir tane. Sami bunu test edip "kalede duran adamlar" şeklinde iki kez şikayet etti ve top zaman zaman o duran karakterle sıkışıyordu. **Kaldırıldı** — artık CLAUDE.md'nin orijinal tasarımına birebir dönüldü: ayrı bir kaleci yok, her taraf kendi kalesini AYNI oyuncu/rakip karakteriyle, bağlamsal Aksiyon'la (topsuzken tut) savunuyor. Bkz. M5.
 
 ## M4 — Karakterler
 - [x] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown
@@ -54,9 +54,10 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 ## M5 — Kabuk
 - [x] Ana menü (M0'dan beri var), saha seçimi
 - [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu)
-- [x] Gerçek AI rakip (`src/entities/AIOpponent.ts`): sağ yarı sahada dolaşan, topu kovalayan, dribbling yapan/şut çeken bilgisayar oyuncusu — karakterini insanın seçiminden farklı rastgele bir karakterden alıyor. Sol kale artık otomatik bir kaleciyle savunuluyor (insanın kendi kalesi artık boş değil).
+- [x] Gerçek AI rakip (`src/entities/AIOpponent.ts`): sağ yarı sahada dolaşan, topu kovalayan, dribbling yapan/şut çeken bilgisayar oyuncusu — karakterini insanın seçiminden farklı rastgele bir karakterden alıyor. Kendi kalesini de kendisi savunuyor (ayrı bir kaleci yok, aşağıdaki doğrulamaya bakın).
+- [x] İnsanın kendi "tut" input'u: Aksiyon topa dokunmadan basılırsa ve gerçek bir şut kendi kalesine geliyorsa (`ball.lastTouchWasShot`, hedefte, menzilde) tutma denemesi yapılıyor — Özellik'le birlikte basılırsa ve bar varsa power tutuş.
 - [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali — gerçek rakip artık var, ama lig/kademe yapısı (farklı zorluk/karakter havuzları, ilerleme) henüz kurulmadı
 - [x] Ses efektleri (sentezlenmiş: şut/gol/düdük), seyirci tepkileri (tribünde placeholder noktalar, golde zıplayıp parlıyor) — sürekli kalabalık gürültüsü (sessizlik→uğultu→tezahürat) henüz yok
 - [x] Mobil dokunmatik kontrollerin son ayarı — çoklu dokunuş açığı bulunup düzeltildi (`input.activePointers`), joystick+zıpla artık aynı anda çalışıyor
 
-**Doğrulama:** ✅ AI rakip kendi yarı sahasında topu kovalıyor, karşı yarıya geçmiyor, top elindeyken dribbling/şut arasında karar veriyor, insanın kalesine kaleci varlığında bile gol atabiliyor (deterministik test edildi). Sol kaleci sağ kalecinin aynadaki hali gibi çalışıyor (regression test'le doğrulandı). Bir ligi baştan sona oynayıp bitirebiliyorum — **henüz değil, lig/kademe yapısı yok, ama artık gerçek bir rakibe karşı tek maç oynanabiliyor**. Telefonda tek elle oynanabiliyor — ✅ çoklu dokunuş doğrulandı (Playwright + gerçek CDP touch simülasyonu).
+**Doğrulama:** ✅ AI rakip kendi yarı sahasında topu kovalıyor, karşı yarıya geçmiyor, top elindeyken dribbling/şut arasında karar veriyor. Artık ne insanın ne rakibin kalesinde duran ayrı bir "kaleci" var — ekranda sadece 2 karakter (Sami'nin şikayetinin doğrudan çözümü). Matrisin 4 hücresi de (bu sefer insanın kendi Aksiyon'undan ve rakibin otomatik savunmasından) deterministik test edildi: power+power tutar, power+normal tutamaz, normal+normal hıza göre şans, yetersiz power'da power tutuş denemesi otomatik normale düşüyor. Sıradan dribbling artık hiçbir zaman tutma denemesi tetiklemiyor (regression). Top artık hiçbir yerde sıkışmıyor — bir şut ya gol olur ya tutulur, ortada takılı kalmıyor. Bir ligi baştan sona oynayıp bitirebiliyorum — **henüz değil, lig/kademe yapısı yok, ama artık gerçek bir rakibe karşı tek maç oynanabiliyor**. Telefonda tek elle oynanabiliyor — ✅ çoklu dokunuş doğrulandı (Playwright + gerçek CDP touch simülasyonu).

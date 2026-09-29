@@ -40,7 +40,8 @@ const PLACEHOLDER_HEAD_COLOR = 0xe0ac69;
  *
  * Also owns the M3 power bar (CLAUDE.md section 5): it fills passively and
  * Dash spends a slice of it directly. Power şut/tutuş spend it through
- * `spendPower()`, called from MatchScene/AIKeeper.
+ * `spendPower()`, called from MatchScene/AIOpponent — there's no separate
+ * keeper entity, catching is this same character's own contextual action.
  */
 export class Character {
   x: number;
@@ -75,6 +76,13 @@ export class Character {
   private dashRetriggerTimer = 0;
   private dashVX = 0;
   private dashVZ = 0;
+
+  /** M3 "tut" cooldown (CLAUDE.md section 5) — gates power tutuş, not
+   * normal tutuş (which is chance-based and always available). Lives here
+   * because catching is now the same character's own contextual action
+   * (Aksiyon while not touching the ball), not a separate keeper entity —
+   * see docs/PROGRESS.md. */
+  private catchCooldownRemaining = 0;
 
   constructor(
     scene: Phaser.Scene,
@@ -125,6 +133,14 @@ export class Character {
     return true;
   }
 
+  get canPowerCatch(): boolean {
+    return this.catchCooldownRemaining <= 0;
+  }
+
+  startCatchCooldown(seconds: number): void {
+    this.catchCooldownRemaining = seconds;
+  }
+
   update(delta: number, input: CharacterInput): void {
     const dt = delta / 1000;
 
@@ -140,6 +156,7 @@ export class Character {
     }
 
     if (this.dashRetriggerTimer > 0) this.dashRetriggerTimer -= dt;
+    if (this.catchCooldownRemaining > 0) this.catchCooldownRemaining -= dt;
 
     if (input.dashPressed && !this.isDashing && this.dashRetriggerTimer <= 0) {
       const dirX = input.moveX !== 0 || input.moveZ !== 0 ? input.moveX : this.facingX;

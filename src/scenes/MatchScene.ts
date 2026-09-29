@@ -10,6 +10,8 @@ import {
   DEPTH_MIN,
   DEPTH_MAX,
   FAR_Y,
+  GOAL_MOUTH_Z_MIN,
+  GOAL_MOUTH_Z_MAX,
   CONTACT_TOLERANCE_X,
   CONTACT_TOLERANCE_Z,
   projectToScreen,
@@ -17,11 +19,13 @@ import {
 import { MATCH_DURATION_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
+import { KEEPER_CATCH_RANGE_X } from '../config/keeper';
 import {
   POWER_MAX_SEGMENTS,
   SHOT_SPEED_NORMAL,
   SHOT_SPEED_POWER_MULTIPLIER,
   POWER_SHOT_SEGMENT_COST,
+  POWER_CATCH_SEGMENT_COST,
 } from '../config/power';
 import {
   SUPER_MOVE_SEGMENT_COST,
@@ -38,9 +42,9 @@ import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
+import { resolveCatchAttempt } from '../systems/catchMatrix';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
-import { AIKeeper } from '../entities/AIKeeper';
 import { AIOpponent } from '../entities/AIOpponent';
 
 interface MatchData {
@@ -51,12 +55,12 @@ interface MatchData {
 /**
  * Ball physics, character-ball contact, goal detection, scoreboard, match
  * timer (M2), the M3 Aksiyon/Dash/power system, M4's per-character super
- * moves, and (M5) a real AI opponent: a computer-controlled outfield
- * player on the right half (AIOpponent) plus a keeper for each goal —
- * one defending against the human (tied to the AI's character stats),
- * one automatically defending the human's own goal (tied to the human's
- * own character stats), since there's no second human player yet. See
- * docs/PROGRESS.md.
+ * moves, and (M5) a real AI opponent (AIOpponent) on the right half.
+ * There's no separate goalkeeper entity — each side defends its own goal
+ * itself via the contextual Aksiyon "tut" (catch) when not touching the
+ * ball, exactly like CLAUDE.md's original design (an earlier dedicated
+ * AIKeeper was a stopgap before AIOpponent existed and confused players by
+ * standing in the goal doing nothing — see docs/PROGRESS.md).
  */
 export class MatchScene extends Phaser.Scene {
   private input1!: InputController;
@@ -65,8 +69,6 @@ export class MatchScene extends Phaser.Scene {
    * depth-sort math, not a real gameplay entity. */
   private depthSortRef!: Character;
   private ball!: Ball;
-  private keeper!: AIKeeper;
-  private leftKeeper!: AIKeeper;
   private opponent!: AIOpponent;
   private opponentCharacter: CharacterDef = CHARACTERS.kenya;
   private crowd!: CrowdBand;
@@ -178,29 +180,6 @@ export class MatchScene extends Phaser.Scene {
       windZ: this.stadium.windZ,
     });
 
-    // Right keeper defends against the human, so it represents the AI
-    // team's identity — tied to the opponent's stats, not the human's own.
-    this.keeper = new AIKeeper(
-      this,
-      'right',
-      DEPTH_BAND_HEIGHT / 2,
-      this.opponentCharacter.catchChance,
-      this.opponentCharacter.cooldownSeconds,
-      this.opponentCharacter.color,
-      this.opponentCharacter.id,
-    );
-    // Left keeper automatically defends the human's own goal — there's no
-    // human "tut" input for their own net yet (see docs/PROGRESS.md), so
-    // this is effectively their team's own keeper, tied to their stats.
-    this.leftKeeper = new AIKeeper(
-      this,
-      'left',
-      DEPTH_BAND_HEIGHT / 2,
-      this.character.catchChance,
-      this.character.cooldownSeconds,
-      0x2980b9,
-      this.character.id,
-    );
     this.opponent = new AIOpponent(this, this.opponentCharacter);
 
     this.input1 = new InputController(this, 90, GAME_HEIGHT - 90, GAME_WIDTH - 90, GAME_HEIGHT - 90);
@@ -252,14 +231,7 @@ export class MatchScene extends Phaser.Scene {
     const dashPressed = this.input1.consumeDashPressed();
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
-    this.keeper.update(delta, this.ball);
-    this.leftKeeper.update(delta, this.ball);
-    // Whichever keeper is currently holding the ball owns it exclusively —
-    // otherwise the human/opponent could grab it away and the keeper's own
-    // hold logic yanks it right back next frame, visibly "stuck" between
-    // two characters.
-    const ballHeld = this.keeper.isHolding || this.leftKeeper.isHolding;
-    this.opponent.update(delta, this.ball, ballHeld);
+    this.opponent.update(delta, this.ball);
     this.crowd.update(delta);
 
     this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;
@@ -269,10 +241,9 @@ export class MatchScene extends Phaser.Scene {
 
     // Character-ball contact: casual dribble nudge on simple touch, or a
     // deliberate Aksiyon shot (contextual: bizdeyse şut — CLAUDE.md section 4).
-    // Skipped entirely while a keeper is holding the ball (see ballHeld above).
     const dx = this.ball.x - this.player.x;
     const dz = this.ball.z - this.player.z;
-    const touching = !ballHeld && Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
+    const touching = Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
     const actionPressed = this.input1.consumeActionPressed();
 
     if (touching && actionPressed) {
@@ -285,6 +256,20 @@ export class MatchScene extends Phaser.Scene {
     } else if (touching) {
       this.ball.applyTouch(move.x, move.z, dx, dz, this.character.powerMultiplier, this.character.chaosTouch);
       if (!this.wasTouchingBall) soundFX.kick();
+    } else if (actionPressed) {
+      // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
+      // only meaningful when a real shot is actually incoming on our own
+      // goal; otherwise this is a no-op (nothing to catch).
+      const onTarget = this.ball.z >= GOAL_MOUTH_Z_MIN && this.ball.z <= GOAL_MOUTH_Z_MAX;
+      const nearGoal = this.ball.x <= LEFT_GOAL_LINE_X + KEEPER_CATCH_RANGE_X;
+      const approaching = this.ball.lastTouchWasShot && this.ball.vx < 0;
+      if (onTarget && nearGoal && approaching) {
+        const wantsPowerCatch =
+          this.input1.isSpecialHeld() && this.player.canPowerCatch && this.player.spendPower(POWER_CATCH_SEGMENT_COST);
+        const { caught } = resolveCatchAttempt(this.ball, 'left', this.character.catchChance, wantsPowerCatch);
+        if (wantsPowerCatch) this.player.startCatchCooldown(this.character.cooldownSeconds);
+        if (caught) soundFX.save();
+      }
     }
     this.wasTouchingBall = touching;
 
