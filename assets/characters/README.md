@@ -12,6 +12,7 @@ congo/        Kongo
 
 Adobe Illustrator Turntable ile üretilen çok açılı görünümler pixel art'a
 çevrildikten sonra buraya konacak (idle, koşu, zıplama, şut animasyon
-kareleri vb.). Görseller gelene kadar oyun `CHARACTER_SPRITE_WIDTH x
-CHARACTER_HEIGHT` boyutunda renkli placeholder dikdörtgen kullanıyor
-(`characters.ts`'teki `color` alanı).
+kareleri vb.). Görseller gelene kadar oyun basit bir kafa+gövde placeholder
+silueti kullanıyor (`characters.ts`'teki `color` alanı).
+
+Midjourney için hazır prompt'lar: `docs/CHARACTER_ART_BRIEF.md`.
