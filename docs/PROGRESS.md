@@ -583,3 +583,77 @@ zaten doğrulanmıştı).
 - Gerçek zamanlı dribbling testinde (800ms sağa+800ms sola) kaleci hiç
   yanlışlıkla tutmadı ✅.
 - `npm run build` temiz.
+
+## Oturum 16 — Gerçek karakter sprite'ları
+
+Sami Midjourney'de 4 karakterin (Brezilya/Arjantin/Kenya/Kongo) 360°
+turnaround + idle/walk/run/slide/jump poz sayfasını üretti (chibi stil,
+Pixel Cup Soccer referansına çok yakın). Bu sayfayı işleyip oyuna bağladım
+— placeholder kafa+gövde silueti artık sadece F1 debug referans
+karakterinde kalıyor, gerçek karakterler hepsi kendi sanatını kullanıyor.
+
+**Görsel işleme (Claude Code tarafında):**
+- Sayfa 4x4'lük düzenli bir grid (her karakter kendi satırında: 360°
+  turnaround + animasyonlar) — pixel koordinatlarını kalibre edip her
+  karakter için 6 poz kırptım: `front`/`back`/`left`/`right` (idle duruş)
+  + `slide` (Dash pozu) + `jump` (zıplama pozu). Yürüme/koşma kareleri şu
+  an kullanılmıyor (kapsam dışı bırakıldı, aşağıya bakın).
+- **Arka plan temizliği iki başarısız denemeden sonra çözüldü:** önce
+  basit renk-mesafeli flood-fill denedim, kenar halo'su bıraktı; sonra
+  "kalın siyah outline'ı duvar say" yaklaşımını denedim, bu da outline'daki
+  boşluklardan sızıp Kongo'nun karakterini parçaladı (özellikle koyu/mor
+  tonlarda arka planla renk mesafesi çok azdı). İkisi de riskliydi.
+  **Çözüm:** `rembg` (U2Net, gerçek bir ML segmentasyon modeli) kurup
+  model dosyasını (176MB, GitHub releases'ten) indirdim — bu, tam olarak
+  bozulan Kongo görselinde bile temiz, halo'suz bir kesim üretti. 24
+  görselin hepsi bu şekilde işlendi, sonra şeffaf kenar boşlukları
+  otomatik kırpıldı (bounding-box + 4px pay).
+- Nihai PNG'ler `assets/characters/<id>/{front,back,left,right,slide,jump}.png`
+  altına kondu (toplam ~660KB, 24 dosya).
+
+**Oyuna bağlama:**
+- `vite.config.ts`: `publicDir: 'assets'` eklendi — proje zaten `assets/`
+  klasörünü asset pipeline'ının kalıcı yeri olarak kullanıyordu (CLAUDE.md,
+  `assets/characters/README.md`), ayrı bir `public/` klasörü açıp aynı
+  şeyi tekrarlamak yerine mevcut klasörü Vite'ın statik servis dizini
+  yaptım.
+- `characters.ts`: `CharacterPose` tipi + `CHARACTER_POSES` listesi +
+  `characterSpriteKey(id, pose)` helper'ı eklendi (tek yerden, tutarlı
+  texture key üretimi).
+- `BootScene.ts`: artık gerçek bir `preload()`'u var — 4 karakter × 6 poz
+  = 24 görseli Phaser'ın texture cache'ine yüklüyor.
+- `Character.ts`: en büyük değişiklik. Artık opsiyonel bir `characterId`
+  parametresi alıyor. Verilirse gerçek bir `Phaser.Image` (bottom-center
+  origin — eski top-anchored container matematiğinden çok daha basit)
+  kullanıp `resolvePose()` ile her frame doğru texture'a geçiyor: Dash
+  aktifse `slide`, havadaysa (`y > 0`) `jump`, yoksa `facingX`/`facingZ`'e
+  göre `front`/`back`/`left`/`right`. Verilmezse (sadece F1 debug referans
+  karakteri) eski placeholder kafa+gövde siluetine düşüyor. Bu arada,
+  Container'ı dokunurken fark edilen ayrı bir gerçek hata da düzeltildi:
+  Phaser'da `Container.destroy()` çocuklarını otomatik yok etmiyor, sadece
+  listeden çıkarıyor — `destroy()` artık önce çocukları elle yok ediyor.
+- `MatchScene.ts`/`AIKeeper.ts`/`AIOpponent.ts`: insan oyuncu, sağ/sol
+  kaleci ve rakip AI artık kendi gerçek `characterId`'leriyle `Character`
+  oluşturuyor — hepsi kendi sanatını gösteriyor.
+- `CharacterSelectScene.ts`: kart üzerindeki renkli placeholder dikdörtgen
+  yerine artık gerçek `front` sprite'ı gösteriliyor.
+
+**Doğrulama (Playwright, geçici `window.__debugMatch`/`window.__game`
+hook'larıyla — commit'ten önce kaldırıldı):**
+- Tüm sahne akışı (Menu → CharacterSelect → StadiumSelect → Match) konsol
+  hatası olmadan çalışıyor, karakter seçim kartları gerçek sprite'ları
+  gösteriyor.
+- Maçta 4 karakter de (insan, sağ kaleci, sol kaleci, rakip AI) doğru
+  renk/kimlikle render ediliyor.
+- Poz/texture geçişleri deterministik doğrulandı: varsayılan `right`,
+  zıplayınca `jump`, dash'teyken `slide`, dört `facingX`/`facingZ`
+  kombinasyonu doğru şekilde `front`/`back`/`left`/`right`'a karşılık
+  geliyor — hepsi tam olarak beklenen texture key'i üretti.
+- `npm run build` temiz, `dist/characters/<id>/*.png` doğru şekilde
+  build çıktısına giriyor (24 dosya doğrulandı).
+
+**Kapsam notu:** Yürüme/koşma animasyon kareleri (sayfadaki WALK/RUN
+satırları) şu an kullanılmıyor — statik poz-değişimi (idle/jump/slide)
+yeterli bir ilk sürüm için, gerçek çok-kareli animasyon ayrı bir iş
+(Phaser animation/spritesheet sistemi gerektirir). Kaleci-özel bir
+dalış/tutma pozu da yok, mevcut 6 pozla idare ediliyor.

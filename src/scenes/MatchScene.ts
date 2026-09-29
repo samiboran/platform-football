@@ -159,7 +159,15 @@ export class MatchScene extends Phaser.Scene {
     const leftHalfX = (LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2;
     const bounds = { minX: LEFT_GOAL_LINE_X, maxX: CENTER_LINE_X };
 
-    this.player = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT / 2, bounds, this.character.color, this.character.speedMultiplier);
+    this.player = new Character(
+      this,
+      leftHalfX,
+      DEPTH_BAND_HEIGHT / 2,
+      bounds,
+      this.character.color,
+      this.character.speedMultiplier,
+      this.character.id,
+    );
     this.depthSortRef = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT * 0.85, bounds, 0xe74c3c);
     this.depthSortRef.setVisible(false);
 
@@ -179,6 +187,7 @@ export class MatchScene extends Phaser.Scene {
       this.opponentCharacter.catchChance,
       this.opponentCharacter.cooldownSeconds,
       this.opponentCharacter.color,
+      this.opponentCharacter.id,
     );
     // Left keeper automatically defends the human's own goal — there's no
     // human "tut" input for their own net yet (see docs/PROGRESS.md), so
@@ -190,6 +199,7 @@ export class MatchScene extends Phaser.Scene {
       this.character.catchChance,
       this.character.cooldownSeconds,
       0x2980b9,
+      this.character.id,
     );
     this.opponent = new AIOpponent(this, this.opponentCharacter);
 

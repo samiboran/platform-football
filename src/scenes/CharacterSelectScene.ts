@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
-import { CHARACTERS, CHARACTER_ORDER, type CharacterId } from '../config/characters';
+import { CHARACTERS, CHARACTER_ORDER, type CharacterId, characterSpriteKey } from '../config/characters';
 
 const CARD_WIDTH = 200;
 const CARD_HEIGHT = 300;
@@ -64,7 +64,8 @@ export class CharacterSelectScene extends Phaser.Scene {
     const border = this.add.rectangle(x, y, CARD_WIDTH, CARD_HEIGHT).setStrokeStyle(2, 0x555555);
     this.cardBorders.set(def.id, border);
 
-    this.add.rectangle(x, y - 90, 60, 90, def.color).setStrokeStyle(1, 0x000000);
+    const portrait = this.add.image(x, y - 95, characterSpriteKey(def.id, 'front'));
+    portrait.setScale(100 / portrait.height);
 
     this.add
       .text(x, y - 20, def.name, { fontFamily: 'monospace', fontSize: '18px', color: '#ffffff' })

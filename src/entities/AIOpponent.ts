@@ -46,7 +46,7 @@ export class AIOpponent {
     const bounds = { minX: CENTER_LINE_X, maxX: RIGHT_GOAL_LINE_X - CHARACTER_WIDTH };
     this.homeX = (bounds.minX + bounds.maxX) / 2;
     this.homeZ = DEPTH_BAND_HEIGHT / 2;
-    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier);
+    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier, def.id);
   }
 
   update(delta: number, ball: Ball, ballHeld = false): void {

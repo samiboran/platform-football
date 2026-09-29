@@ -10,6 +10,7 @@ import {
   DASH_DURATION,
   DASH_RETRIGGER_COOLDOWN,
 } from '../config/power';
+import { type CharacterId, type CharacterPose, characterSpriteKey } from '../config/characters';
 
 export interface CharacterBounds {
   minX: number;
@@ -23,32 +24,45 @@ export interface CharacterInput {
   dashPressed: boolean;
 }
 
+/** Placeholder-only skin tone for the head, used only when no characterId
+ * is given (the F1 debug reference character) — real sprites (M4 art pass)
+ * cover every playable/AI character now. */
+const PLACEHOLDER_HEAD_COLOR = 0xe0ac69;
+
 /**
  * A single character on the pitch: ground position (x, z) plus jump height
- * (y). Renders a placeholder sprite and a mandatory ground shadow (CLAUDE.md
+ * (y). Renders a real per-character sprite (idle front/back/left/right,
+ * jump, slide — M4 art pass) plus a mandatory ground shadow (CLAUDE.md
  * section 3 — depth is unreadable without one), and keeps its Phaser depth
- * synced to its screen position so nearer characters draw in front.
+ * synced to its screen position so nearer characters draw in front. Falls
+ * back to a plain placeholder silhouette when no characterId is given (the
+ * F1 debug reference character, which isn't any real identity).
  *
  * Also owns the M3 power bar (CLAUDE.md section 5): it fills passively and
  * Dash spends a slice of it directly. Power şut/tutuş spend it through
  * `spendPower()`, called from MatchScene/AIKeeper.
  */
-/** Placeholder-only skin tone for the head, distinct from the character's
- * jersey color — real sprites still come from Sami's own pipeline
- * (CLAUDE.md: "sen sprite üretmiyorsun"), this just reads as a little
- * person instead of a floating color block. */
-const PLACEHOLDER_HEAD_COLOR = 0xe0ac69;
-
 export class Character {
   x: number;
   z: number;
   y = 0;
   private vy = 0;
   private readonly bounds: CharacterBounds;
-  private readonly sprite: Phaser.GameObjects.Container;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
   private readonly speedMultiplier: number;
+
+  private readonly characterId: CharacterId | null;
+  /** Real sprite mode (characterId given). */
+  private readonly spriteImage?: Phaser.GameObjects.Image;
+  /** Scale that makes the `front` pose's native pixel height equal
+   * CHARACTER_HEIGHT — reused as-is for every other pose of the same
+   * character so their relative proportions (e.g. `slide` reading shorter,
+   * lying down) stay whatever the source art intended. */
+  private readonly spriteBaseScale: number = 1;
+  private currentPose: CharacterPose | null = null;
+  /** Placeholder fallback mode (no characterId — F1 debug reference only). */
+  private readonly placeholderSprite?: Phaser.GameObjects.Container;
 
   /** 0..POWER_MAX_SEGMENTS. */
   powerSegments = 0;
@@ -69,25 +83,33 @@ export class Character {
     bounds: CharacterBounds,
     color: number,
     speedMultiplier = 1,
+    characterId: CharacterId | null = null,
   ) {
     this.x = startX;
     this.z = startZ;
     this.bounds = bounds;
     this.speedMultiplier = speedMultiplier;
+    this.characterId = characterId;
 
     this.shadow = scene.add.ellipse(0, 0, CHARACTER_SPRITE_WIDTH * 1.1, CHARACTER_SPRITE_WIDTH * 0.5, 0x000000, 0.35);
 
-    // Simple head+body silhouette instead of a flat rectangle — still a
-    // placeholder (CLAUDE.md: real sprites are Sami's own pipeline), just
-    // one that reads as a person. Laid out top-anchored (local y=0 is the
-    // top of the head) so syncTransform can position/scale it as one unit.
-    const headRadius = CHARACTER_SPRITE_WIDTH * 0.38;
-    const bodyHeight = CHARACTER_HEIGHT - headRadius * 2;
-    const head = scene.add.circle(0, headRadius, headRadius, PLACEHOLDER_HEAD_COLOR).setStrokeStyle(1, 0x000000);
-    const body = scene.add
-      .rectangle(0, headRadius * 2 + bodyHeight / 2, CHARACTER_SPRITE_WIDTH, bodyHeight, color)
-      .setStrokeStyle(1, 0x000000);
-    this.sprite = scene.add.container(0, 0, [body, head]);
+    if (characterId) {
+      const frontKey = characterSpriteKey(characterId, 'front');
+      const frontTex = scene.textures.get(frontKey).getSourceImage();
+      this.spriteBaseScale = CHARACTER_HEIGHT / frontTex.height;
+      this.currentPose = 'front';
+      this.spriteImage = scene.add.image(0, 0, frontKey).setOrigin(0.5, 1);
+    } else {
+      // Plain placeholder silhouette (head + body) for the F1 debug
+      // reference character — not any real identity, so no sprite art.
+      const headRadius = CHARACTER_SPRITE_WIDTH * 0.38;
+      const bodyHeight = CHARACTER_HEIGHT - headRadius * 2;
+      const head = scene.add.circle(0, headRadius, headRadius, PLACEHOLDER_HEAD_COLOR).setStrokeStyle(1, 0x000000);
+      const body = scene.add
+        .rectangle(0, headRadius * 2 + bodyHeight / 2, CHARACTER_SPRITE_WIDTH, bodyHeight, color)
+        .setStrokeStyle(1, 0x000000);
+      this.placeholderSprite = scene.add.container(0, 0, [body, head]);
+    }
 
     this.syncTransform();
   }
@@ -155,8 +177,21 @@ export class Character {
   }
 
   setVisible(visible: boolean): void {
-    this.sprite.setVisible(visible);
+    this.spriteImage?.setVisible(visible);
+    this.placeholderSprite?.setVisible(visible);
     this.shadow.setVisible(visible);
+  }
+
+  /** Dash ("kayma") beats jump, which beats plain directional idle —
+   * matches CLAUDE.md's pose list (idle/koşma reuse the same 4-direction
+   * art; no separate run-cycle frames yet). */
+  private resolvePose(): CharacterPose {
+    if (this.isDashing) return 'slide';
+    if (this.y > 0) return 'jump';
+    if (Math.abs(this.facingZ) >= Math.abs(this.facingX)) {
+      return this.facingZ > 0 ? 'back' : 'front';
+    }
+    return this.facingX > 0 ? 'right' : 'left';
   }
 
   private syncTransform(): void {
@@ -173,26 +208,40 @@ export class Character {
     this.shadow.setScale(depthScale * jumpShrink);
     this.shadow.setAlpha(0.35 * jumpShrink);
 
-    this.sprite.setScale(depthScale);
-    // Container is top-anchored (local y=0 is the head's top), so its
-    // screen position is the head-top point — bottom of the figure lands
-    // exactly at lifted.screenY regardless of scale.
-    this.sprite.setPosition(lifted.screenX, lifted.screenY - CHARACTER_HEIGHT * depthScale);
-
-    // Depth sort by ground screenY (not lifted) so jumping never reorders
-    // front/back — only z does (CLAUDE.md section 3).
     const depth = Math.round(ground.screenY);
+
+    if (this.spriteImage && this.characterId) {
+      const pose = this.resolvePose();
+      if (pose !== this.currentPose) {
+        this.currentPose = pose;
+        this.spriteImage.setTexture(characterSpriteKey(this.characterId, pose));
+      }
+      // Bottom-center origin — position is the ground-contact point, no
+      // manual height offset needed (unlike the old top-anchored container).
+      this.spriteImage.setScale(this.spriteBaseScale * depthScale);
+      this.spriteImage.setPosition(lifted.screenX, lifted.screenY);
+      this.spriteImage.setDepth(depth);
+    } else if (this.placeholderSprite) {
+      this.placeholderSprite.setScale(depthScale);
+      // Top-anchored (local y=0 is the head's top) — bottom of the figure
+      // lands exactly at lifted.screenY regardless of scale.
+      this.placeholderSprite.setPosition(lifted.screenX, lifted.screenY - CHARACTER_HEIGHT * depthScale);
+      this.placeholderSprite.setDepth(depth);
+    }
+
     this.shadow.setDepth(depth - 1);
-    this.sprite.setDepth(depth);
   }
 
   destroy(): void {
-    // Container.destroy() alone only detaches its children, it doesn't
-    // destroy them (Phaser: removeAll(false) unless `exclusive` is set) —
-    // explicitly destroy the head/body shapes too, or they'd leak as
-    // orphaned GameObjects still rendering in the scene.
-    this.sprite.removeAll(true);
-    this.sprite.destroy();
+    this.spriteImage?.destroy();
+    if (this.placeholderSprite) {
+      // Container.destroy() alone only detaches its children, it doesn't
+      // destroy them (Phaser: removeAll(false) unless `exclusive` is set) —
+      // explicitly destroy the head/body shapes too, or they'd leak as
+      // orphaned GameObjects still rendering in the scene.
+      this.placeholderSprite.removeAll(true);
+      this.placeholderSprite.destroy();
+    }
     this.shadow.destroy();
   }
 }

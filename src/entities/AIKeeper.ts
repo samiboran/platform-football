@@ -12,6 +12,7 @@ import { SUPER_SHOT_CATCH_CHANCE_MULTIPLIER } from '../config/super';
 import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
+import type { CharacterId } from '../config/characters';
 
 export type KeeperSide = 'left' | 'right';
 
@@ -50,6 +51,7 @@ export class AIKeeper {
     catchChance: number,
     cooldownSeconds: number,
     color: number,
+    characterId: CharacterId,
   ) {
     this.side = side;
     this.goalLineX = side === 'right' ? RIGHT_GOAL_LINE_X : LEFT_GOAL_LINE_X;
@@ -60,6 +62,7 @@ export class AIKeeper {
       { minX: this.goalLineX - 4, maxX: this.goalLineX + 4 },
       color,
       KEEPER_TRACK_SPEED / MOVE_SPEED,
+      characterId,
     );
     this.catchChance = catchChance;
     this.cooldownSeconds = cooldownSeconds;

@@ -92,3 +92,15 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
 };
 
 export const CHARACTER_ORDER: CharacterId[] = ['brazil', 'argentina', 'kenya', 'congo'];
+
+/** Real per-character art (M4 art pass) — one PNG per pose, in
+ * assets/characters/<id>/<pose>.png, transparent background. `front`/
+ * `back`/`left`/`right` are the idle-facing turnaround; `slide` is the
+ * Dash pose, `jump` is the airborne pose. No walk/run cycle frames yet —
+ * static pose-swap only (see docs/PROGRESS.md). */
+export type CharacterPose = 'front' | 'back' | 'left' | 'right' | 'slide' | 'jump';
+export const CHARACTER_POSES: CharacterPose[] = ['front', 'back', 'left', 'right', 'slide', 'jump'];
+
+export function characterSpriteKey(id: CharacterId, pose: CharacterPose): string {
+  return `${id}_${pose}`;
+}
