@@ -24,7 +24,7 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 ## M2 — Top
 - [x] Top fiziği: yerçekimi, yerden sekme, sürtünme
 - [x] Duvardan sekme (touchline'lar)
-- [x] Karakter-top teması, z toleranslı hitbox (basit "dribble nudge" — gerçek şut/tutuş matrisi M3'te)
+- [x] Karakter-top teması, z toleranslı hitbox (ilk sürüm: basit "dribble nudge" — Oturum 19'da gerçek kuvvet-tabanlı dribble control sistemine değişti, bkz. docs/PROGRESS.md)
 - [x] Gol algılama, skor, maç süresi, ResultScene
 
 **Doğrulama:** ✅ Top gerçekçi sekiyor (yerçekimi + restitution ile sekip yavaşlıyor), kaleye girince gol sayılıyor (her iki kale de test edildi), skor tablosu ve geri sayan süre çalışıyor, süre bitince (veya "Bitir" ile) ResultScene'de son skor gösteriliyor — Playwright ile uçtan uca doğrulandı, konsol hatası yok.
@@ -41,6 +41,8 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 **Doğrulama:** ✅ Matristeki dört hücre de (Power şut+Power tutuş→tutar, Power şut+Normal tutuş→tutamaz, Normal şut+Power tutuş→tutar/boşa gider, Normal şut+Normal tutuş→hıza bağlı şans) Playwright ile deterministik olarak (Math.random override) test edildi, hepsi doğru sonuç verdi. Dash'in yerde/havada farklı power maliyeti ve power şutun hız çarpanı da ayrıca doğrulandı. Power barı UI'da doğru doluyor/boşalıyor.
 
 **Kapsam notu (güncel, Oturum 17):** İlk sürümde sağ kaleye ayrı bir AI kaleci karakteri eklenmişti (`AIKeeper.ts`), sonra sol kaleye de bir tane. Sami bunu test edip "kalede duran adamlar" şeklinde iki kez şikayet etti ve top zaman zaman o duran karakterle sıkışıyordu. **Kaldırıldı** — artık CLAUDE.md'nin orijinal tasarımına birebir dönüldü: ayrı bir kaleci yok, her taraf kendi kalesini AYNI oyuncu/rakip karakteriyle, bağlamsal Aksiyon'la (topsuzken tut) savunuyor. Bkz. M5.
+
+**Kapsam notu (güncel, Oturum 19):** Özellik tuşunun süper hareketi anlık basışta tetiklemesi power şut/tutuş kombosunu imkansız kılıyordu (Özel'e basar basmaz süper fırlıyor, Aksiyon'a sıra gelmiyordu) — düzeltildi: süper artık Özel bırakıldığında, sadece o basılı tutuş boyunca Aksiyon'a hiç basılmamışsa tetikleniyor. Ayrıca top artık tam bir "dribble control" sistemiyle sürülüyor (top asla oyuncunun konumuna kilitlenmiyor, kuvvet/lerp ile sürükleniyor) — bkz. docs/PROGRESS.md Oturum 19.
 
 ## M4 — Karakterler
 - [x] 4 karakterin veri tanımı (`src/config/characters.ts`): hız, güç, şut gücü, tutma şansı, cooldown

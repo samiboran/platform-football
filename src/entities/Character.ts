@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, DEPTH_MIN, DEPTH_MAX, projectToScreen } from '../config/arena';
-import { MOVE_SPEED, GRAVITY, JUMP_VELOCITY } from '../config/movement';
+import { MOVE_SPEED, GRAVITY, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_TURN_SPEED } from '../config/movement';
 import {
   POWER_MAX_SEGMENTS,
   POWER_FILL_SECONDS_PER_SEGMENT,
@@ -22,6 +22,16 @@ export interface CharacterInput {
   moveZ: number; // -1..1
   jumpPressed: boolean;
   dashPressed: boolean;
+}
+
+/** Approaches `target` from `current` by at most `maxDelta`, same idea as
+ * Unity's Mathf.MoveToward — used for the character's ground velocity so
+ * starting/stopping/turning has real acceleration instead of an instant
+ * snap (needed for the ball-dribble feel rework: the dribble point's
+ * distance is derived from the character's actual current speed). */
+function moveToward(current: number, target: number, maxDelta: number): number {
+  if (Math.abs(target - current) <= maxDelta) return target;
+  return current + Math.sign(target - current) * maxDelta;
 }
 
 /** Placeholder-only skin tone for the head, used only when no characterId
@@ -48,6 +58,12 @@ export class Character {
   z: number;
   y = 0;
   private vy = 0;
+  /** Current ground velocity (px/s) — real acceleration/deceleration now
+   * (see movement.ts's PLAYER_ACCELERATION/DECELERATION/TURN_SPEED), not an
+   * instant snap to input. Public so the ball-dribble system can read the
+   * character's actual current speed to decide how far ahead the ball sits. */
+  velX = 0;
+  velZ = 0;
   private readonly bounds: CharacterBounds;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
@@ -172,13 +188,34 @@ export class Character {
     }
 
     if (this.isDashing) {
+      this.velX = this.dashVX;
+      this.velZ = this.dashVZ;
       this.x = Phaser.Math.Clamp(this.x + this.dashVX * dt, this.bounds.minX, this.bounds.maxX);
       this.z = Phaser.Math.Clamp(this.z + this.dashVZ * dt, DEPTH_MIN, DEPTH_MAX);
       this.dashTimeRemaining -= dt;
     } else {
-      const speed = MOVE_SPEED * this.speedMultiplier;
-      this.x = Phaser.Math.Clamp(this.x + input.moveX * speed * dt, this.bounds.minX, this.bounds.maxX);
-      this.z = Phaser.Math.Clamp(this.z + input.moveZ * speed * dt, DEPTH_MIN, DEPTH_MAX);
+      const topSpeed = MOVE_SPEED * this.speedMultiplier;
+      const targetVX = input.moveX * topSpeed;
+      const targetVZ = input.moveZ * topSpeed;
+      // Reversing direction (a pivot) uses PLAYER_TURN_SPEED instead of the
+      // plain accel/decel rate — a real player changes direction faster
+      // than they build up speed from a standstill.
+      const rateX =
+        targetVX === 0
+          ? PLAYER_DECELERATION
+          : Math.sign(this.velX) !== 0 && Math.sign(this.velX) !== Math.sign(targetVX)
+            ? PLAYER_TURN_SPEED
+            : PLAYER_ACCELERATION;
+      const rateZ =
+        targetVZ === 0
+          ? PLAYER_DECELERATION
+          : Math.sign(this.velZ) !== 0 && Math.sign(this.velZ) !== Math.sign(targetVZ)
+            ? PLAYER_TURN_SPEED
+            : PLAYER_ACCELERATION;
+      this.velX = moveToward(this.velX, targetVX, rateX * dt);
+      this.velZ = moveToward(this.velZ, targetVZ, rateZ * dt);
+      this.x = Phaser.Math.Clamp(this.x + this.velX * dt, this.bounds.minX, this.bounds.maxX);
+      this.z = Phaser.Math.Clamp(this.z + this.velZ * dt, DEPTH_MIN, DEPTH_MAX);
     }
 
     if (input.jumpPressed && this.y === 0) {

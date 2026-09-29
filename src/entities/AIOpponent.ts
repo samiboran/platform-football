@@ -5,8 +5,6 @@ import {
   LEFT_GOAL_LINE_X,
   DEPTH_BAND_HEIGHT,
   CHARACTER_WIDTH,
-  CONTACT_TOLERANCE_X,
-  CONTACT_TOLERANCE_Z,
   GOAL_MOUTH_Z_MIN,
   GOAL_MOUTH_Z_MAX,
 } from '../config/arena';
@@ -21,6 +19,7 @@ import {
   OPPONENT_MOVE_DEADZONE,
 } from '../config/opponent';
 import { resolveCatchAttempt } from '../systems/catchMatrix';
+import { computeDribbleTarget } from '../systems/dribbleControl';
 import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
@@ -31,8 +30,9 @@ import type { CharacterDef } from '../config/characters';
  * — closes the "gerçek rakip" gap flagged in earlier PROGRESS notes (M3/M4
  * added a matrix and super moves that only the human could ever use).
  * Bounded to its own half exactly like the human player. Chases the ball
- * only when it's on its side, dribbles or shoots at the human's goal once
- * it's in contact — and defends its OWN goal too (no separate keeper
+ * only when it's on its side, dribbles (force-based control, same rules as
+ * the human — see systems/dribbleControl.ts) or shoots at the human's goal
+ * once it has control, and defends its OWN goal too (no separate keeper
  * entity, see docs/PROGRESS.md): any real shot heading in gets an
  * automatic catch attempt via the shared M3 matrix. Doesn't use its
  * 3-segment super move — a deliberate scope cut, see docs/PROGRESS.md.
@@ -90,29 +90,51 @@ export class AIOpponent {
       return;
     }
 
-    const cdx = ball.x - this.character.x;
-    const cdz = ball.z - this.character.z;
-    const touching = Math.abs(cdx) <= CONTACT_TOLERANCE_X && Math.abs(cdz) <= CONTACT_TOLERANCE_Z;
-    if (!touching) return;
+    // Ball-dribble control — force/lerp toward a dribble point ahead of the
+    // AI, exactly the same rules as the human (systems/dribbleControl.ts).
+    const opponentSpeed = Math.hypot(this.character.velX, this.character.velZ);
+    const dribbleTarget = computeDribbleTarget(
+      this.character.x,
+      this.character.z,
+      this.character.facingX,
+      this.character.facingZ,
+      opponentSpeed,
+    );
+    ball.updateControl(
+      'right',
+      dribbleTarget.x,
+      dribbleTarget.z,
+      this.character.facingX,
+      this.character.facingZ,
+      this.character.isDashing,
+      this.character.y > 0,
+      dt,
+      this.def.chaosTouch,
+    );
 
-    if (this.shotCooldownRemaining > 0 || Math.random() > OPPONENT_SHOT_CHANCE_PER_TOUCH) {
-      // Not ready to shoot yet — just dribble it forward like the human's
-      // own casual contact (M2's applyTouch).
-      ball.applyTouch(moveX, moveZ, cdx, cdz, this.def.powerMultiplier, this.def.chaosTouch);
+    if (ball.controller !== 'right') return;
+
+    const holdExpired = ball.holdTimeRemaining <= 0;
+    const readyToShoot = this.shotCooldownRemaining <= 0 && Math.random() < OPPONENT_SHOT_CHANCE_PER_TOUCH;
+
+    if (readyToShoot) {
+      this.shotCooldownRemaining = OPPONENT_SHOT_COOLDOWN_SECONDS;
+      const isPower = Math.random() < OPPONENT_POWER_SHOT_CHANCE && this.character.spendPower(POWER_SHOT_SEGMENT_COST);
+      // Aim somewhere inside the goal mouth, not always dead-center — keeps
+      // it beatable rather than laser-guided (CLAUDE.md: no auto-aim).
+      const aimZ = Phaser.Math.Linear(GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, Math.random());
+      const dirX = LEFT_GOAL_LINE_X - this.character.x;
+      const dirZ = aimZ - this.character.z;
+      const speed = SHOT_SPEED_NORMAL * this.def.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
+      const wobble = OPPONENT_AIM_WOBBLE * (this.def.chaosTouch ? OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER : 1);
+      ball.shoot(dirX, dirZ, speed, true, isPower, false, wobble);
+      soundFX.kick();
+    } else if (holdExpired) {
+      // 6 saniye doldu, şut kararı da gelmedi — Ball.update() zaten kontrolü
+      // bırakır, burada ekstra bir şey yapmaya gerek yok (top zaten dribble
+      // kontrol hızıyla ileri gidiyordu, sadece bırakılıyor).
       return;
     }
-
-    this.shotCooldownRemaining = OPPONENT_SHOT_COOLDOWN_SECONDS;
-    const isPower = Math.random() < OPPONENT_POWER_SHOT_CHANCE && this.character.spendPower(POWER_SHOT_SEGMENT_COST);
-    // Aim somewhere inside the goal mouth, not always dead-center — keeps
-    // it beatable rather than laser-guided (CLAUDE.md: no auto-aim).
-    const aimZ = Phaser.Math.Linear(GOAL_MOUTH_Z_MIN, GOAL_MOUTH_Z_MAX, Math.random());
-    const dirX = LEFT_GOAL_LINE_X - this.character.x;
-    const dirZ = aimZ - this.character.z;
-    const speed = SHOT_SPEED_NORMAL * this.def.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
-    const wobble = OPPONENT_AIM_WOBBLE * (this.def.chaosTouch ? OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER : 1);
-    ball.shoot(dirX, dirZ, speed, true, isPower, false, wobble);
-    soundFX.kick();
   }
 
   destroy(): void {

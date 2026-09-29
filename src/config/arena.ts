@@ -128,6 +128,3 @@ export function projectToScreen(x: number, z: number, y: number): { screenX: num
   };
 }
 
-/** Hit-testing tolerance on z should be looser than on x (CLAUDE.md section 3). */
-export const CONTACT_TOLERANCE_X = CHARACTER_WIDTH * 0.6;
-export const CONTACT_TOLERANCE_Z = CHARACTER_HEIGHT * 0.9;

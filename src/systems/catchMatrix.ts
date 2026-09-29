@@ -47,6 +47,10 @@ export function resolveCatchAttempt(
   }
 
   if (caught) {
+    // Stop it dead at the catcher's feet — the very next frame's
+    // updateControl() call for `side` finds it at zero speed, well inside
+    // BALL_CONTROL_RADIUS, and naturally picks up dribble control from
+    // there (same BALL_HOLD_SECONDS hold rule as any other control pickup).
     ball.vx = 0;
     ball.vz = 0;
     ball.vy = 0;

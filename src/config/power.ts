@@ -20,9 +20,10 @@ export const DASH_DURATION = 0.18;
 export const DASH_RETRIGGER_COOLDOWN = 0.25;
 
 /** Ball speed (px/s) on a normal Aksiyon shot — notably harder than the
- * M2 dribble-touch nudge (BALL_TOUCH_SPEED), which stays for casual contact.
- * Raised from an earlier 420 — Sami found shots too slow to feel like a real
- * strike. Crosses HALF_FIELD_WIDTH (arena.ts) in well under a second now. */
+ * ball ever moves under dribble control (see BALL_CONTROL_STRENGTH,
+ * config/ball.ts). Raised from an earlier 420 — Sami found shots too slow
+ * to feel like a real strike. Crosses HALF_FIELD_WIDTH (arena.ts) in well
+ * under a second now. */
 export const SHOT_SPEED_NORMAL = 620;
 /** Power şut multiplies that speed and costs a full segment. */
 export const SHOT_SPEED_POWER_MULTIPLIER = 1.6;

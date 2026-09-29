@@ -72,6 +72,13 @@ export class InputController {
   private readonly dashBtn: TouchButton;
   private readonly specialBtn: TouchButton;
 
+  /** Tracks an in-progress Özellik hold, for consumeSpecialReleased(). */
+  private specialWasDown = false;
+  /** True if Aksiyon was pressed at any point during the current/last
+   * Özellik hold — if so, that hold was a power şut/tutuş combo, not a
+   * request for the 3-segment süper hareket. */
+  private actionUsedDuringSpecialHold = false;
+
   constructor(scene: Phaser.Scene, joystickX: number, joystickY: number, clusterX: number, clusterY: number) {
     this.joystick = new VirtualJoystick(scene, joystickX, joystickY);
 
@@ -131,11 +138,28 @@ export class InputController {
     return this.specialBtn.isHeld(this.specialKey.isDown);
   }
 
-  /** Özellik pressed alone (not combined with Aksiyon) — the 3-segment
-   * super move trigger. Edge-triggered. */
-  consumeSpecialAlonePressed(): boolean {
-    const pressed = this.specialBtn.consumePressed(this.specialKey.isDown);
-    return pressed && !this.actionBtn.isHeld(this.actionKey.isDown);
+  /** The 3-segment süper hareket trigger — edge-triggered on Özellik's
+   * RELEASE, not its press. Özellik+Aksiyon together is how a power şut/
+   * tutuş combo works (CLAUDE.md section 5); if süper fired the instant
+   * Özellik went down, a player could never reach that combo — Aksiyon
+   * would never get pressed because the süper already used up the power
+   * bar. So: hold Özellik, and if Aksiyon is never pressed during that
+   * hold, releasing Özellik fires the süper. If Aksiyon WAS pressed during
+   * the hold, that was a power şut/tutuş attempt instead — no süper. */
+  consumeSpecialReleased(): boolean {
+    const specialDown = this.specialBtn.isHeld(this.specialKey.isDown);
+    if (specialDown) {
+      if (this.actionBtn.isHeld(this.actionKey.isDown)) {
+        this.actionUsedDuringSpecialHold = true;
+      }
+      this.specialWasDown = true;
+      return false;
+    }
+    if (!this.specialWasDown) return false;
+    this.specialWasDown = false;
+    const fire = !this.actionUsedDuringSpecialHold;
+    this.actionUsedDuringSpecialHold = false;
+    return fire;
   }
 
   /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */

@@ -780,3 +780,134 @@ kaldırıldı):**
 - `npm run build` temiz, konsol hatası yok (tam maç ekranı ekran
   görüntüsüyle de kontrol edildi).
 - `npm run build` temiz.
+
+## Oturum 19 — Top hissi ve gerçek dribble control sistemi
+
+Sami iki bug bildirdi ve top hissini tamamen yeniden yazmamı istedi. **İlk
+yaklaşımım (bu oturumun başında) yanlıştı** — top tutma kuralını `Ball.x =
+player.x + offset` şeklinde bir konum kilidiyle uygulamıştım (Oturum 18'in
+devamı gibi). Sami'nin görevi bunu açıkça reddetti: "top asla oyuncunun
+child objesi olmamalı, kendi bağımsız hız vektörü olmalı." O yaklaşımı
+tamamen attım ve kuvvet/lerp tabanlı bir sisteme geçtim.
+
+**1) Özel/süper vs power şut çakışması (ciddi bug, doğrulandı).**
+`MatchScene.ts`'te süper hareket Özel'e **basıldığı anda** tetikleniyordu;
+ama power şut "Özel'i basılı tut + Aksiyon'a bas" ile çalışıyor — yani
+Özel'e basar basmaz süper fırlıyor, Aksiyon'a hiç sıra gelmiyordu.
+**Düzeltme:** `InputController.consumeSpecialAlonePressed()` yerine yeni
+`consumeSpecialReleased()` — süper artık Özel **bırakıldığında** tetikleniyor,
+sadece o basılı tutuş boyunca Aksiyon'a hiç basılmamışsa. Basılı tutma
+sırasında Aksiyon'a basılırsa (`actionUsedDuringSpecialHold` flag'i) süper
+o hold için tamamen iptal oluyor, power şut/tutuş normal çalışıyor.
+
+**2) Top hissi — kuvvet-tabanlı dribble control (baştan yazıldı).**
+
+Mimari (CLAUDE.md'nin "top kontrolü kendi katmanı olsun" isteği):
+- `Character.ts`: artık gerçek ivme/yavaşlama var (`PLAYER_ACCELERATION`/
+  `PLAYER_DECELERATION`/`PLAYER_TURN_SPEED`, movement.ts) — hareket anlık
+  bir konum atlaması değil, `moveToward()` ile yumuşak bir hız eğrisi.
+  `velX`/`velZ` public — dribble sisteminin "ne kadar hızlı gidiyor"
+  sorusuna cevap vermesi için.
+- `src/systems/dribbleControl.ts` (yeni, catchMatrix.ts'in aynı deseni):
+  `computeDribbleTarget()` — oyuncunun önünde, bakış yönünde, hıza göre
+  ölçeklenen (yürüme→yakın, koşma→orta, dash sonrası→uzak) tek bir saf
+  fonksiyon; hem `MatchScene` hem `AIOpponent` bunu çağırıyor.
+- `Ball.ts`: `possessor`/`possess()` (konum kilidi) tamamen kaldırıldı.
+  Yerine `controller` + `updateControl(side, target, facing, isDashing,
+  airborne, dt, chaos)` — HER FRAME çağrılıyor, top BALL_CONTROL_RADIUS
+  içindeyse hızı `lerp(hız, hedefHız, response*dt)` ile hedefe doğru
+  büker; konum hep normal fizikten (`update()`'teki gravity/friction/
+  bounce) geliyor, hiçbir yerde `ball.x = ...` ataması yok. Dash sırasında
+  kontrol tamamen kapanıyor (kasıtlı — dash'in top üzerindeki kontrolü
+  kaybettirmesi istendi), havadayken `AIR_CONTROL_MULTIPLIER` ile ciddi
+  ölçüde zayıflıyor.
+- Şut artık mevcut top hızının bir kısmını taşıyor:
+  `vx = vx*KICK_CARRY_MOMENTUM + şutYönü*şutGücü` — hareket halindeki topa
+  vurmak duran topa vurmaktan farklı hissettiriyor (doğrulandı: durgun topta
+  620, aynı yönde 300px/s giden topta 710 px/s çıktı).
+- `applyTouch()` ve `BALL_TOUCH_SPEED` tamamen kaldırıldı — artık "anlık
+  itiş" diye bir şey yok, her temas sürekli kontrol kuvvetine dönüşüyor.
+  `CONTACT_TOLERANCE_X/Z` de (arena.ts) kullanılmaz hale geldiği için
+  silindi — "topa değme" artık tek bir kavram: `BALL_CONTROL_RADIUS`.
+- 6 saniye kuralı (`BALL_HOLD_SECONDS`) aynı yerde kaldı ama artık
+  `Ball.update()` içinde otomatik işliyor: süre dolunca top zorla serbest
+  kalıyor VE bakılan yöne gerçek bir itiş alıyor (`controllerFacingX/Z` —
+  oyuncu hareketsiz durup topu tutuyorsa kontrol noktası zaten topun
+  üzerinde olur, sadece kontrolü bırakmak "ileri gitme" garantilemez, bu
+  yüzden ayrı bir itiş şart). Son 1.5 saniyede yanıp sönme aynen duruyor.
+- `BALL_RECAPTURE_LOCKOUT` (eski adıyla release-grace, Oturum 18'den):
+  bir şuttan veya hold-timeout'tan hemen sonra AYNI taraf topu anında geri
+  alamıyor — yoksa her şut/timeout bir sonraki frame'de kendi ayağına
+  geri yapışırdı (gerçek bir test hatasıyla yakalandı, aşağıya bakın).
+- Gol sonrası akış (Oturum 18) korunuyor: top gol yiyenin kendi yarısının
+  ortasına, `GOAL_RESET_FREEZE_SECONDS=2` boyunca kontroller kilitli.
+
+**Test sırasında yakalanan iki gerçek regresyon (kendi kendini düzeltme):**
+1. İlk `updateControl()` implementasyonunda hold-timeout'tan hemen sonra
+   top aynı frame'de (veya bir sonraki frame'de) tekrar aynı oyuncunun
+   kontrolüne düşüyordu — sonsuz "serbest bırak → hemen yeniden yakala"
+   döngüsü. `BALL_RECAPTURE_LOCKOUT` eklenerek (ve doğru sırada — `Ball.
+   update()`'in kendi içinde, `updateControl()`'den SONRA çalıştığı için
+   bir sonraki frame'e kadar) çözüldü, 400+ frame'lik bir simülasyonla
+   doğrulandı.
+2. Oyuncu hareketsiz dururken hold-timeout tetiklenince top neredeyse
+   hiç hareket etmiyordu — çünkü kontrol kuvveti zaten topu tam kontrol
+   noktasına oturtmuştu, bırakınca taşınacak bir hız kalmıyordu. "İleri
+   gider" kuralı, top-kontrol noktası vektörü yerine oyuncunun son bilinen
+   bakış yönü kullanılarak (`controllerFacingX/Z`) düzeltildi.
+
+**Bilinçli kapsam kesintileri (dürüstçe not edilmiş, section 6/11'in tamamı
+uygulanmadı):**
+- "Sert yön değiştirme" başlı başına bir kontrol kaybı sebebi olarak ayrı
+  uygulanmadı — mevcut lerp/moveToward sistemi zaten sert dönüşleri doğal
+  olarak yumuşatıyor, ekstra bir "sert dönüş algıla" mantığı eklemedim.
+- Gövde çarpışması (rigid-body collision) hiç yok — bu proje hiçbir zaman
+  karakter-top arası fiziksel engelleme yapmadı, şimdi de eklemedim; sadece
+  "kontrol" (dribble) ve "şut/tutuş" (bağlamsal Aksiyon) ayrı kavramlar.
+- Rakip teması top kontrolünü çalabiliyor (her iki tarafın `updateControl()`
+  çağrısı bağımsız çalışıyor, kim menzildeyse o kontrolü alıyor) ama iki
+  taraf da tam aynı anda üst üsteyse hangisinin kazanacağı çağrı sırasına
+  bağlı — nadir bir kenar durum, ekstra tie-break mantığı eklemedim.
+
+**Doğrulama (Playwright, geçici debug hook'larla — commit'ten önce
+kaldırıldı):**
+- Force-based pickup: top menzile girince hızı ANINDA değil, kademeli
+  artan bir kuvvetle çekiliyor (vx: -1,-2,-2,-3,-4,-5... ilk 6 frame).
+- Momentum/yön değişimi: top sağa 196px/s giderken oyuncu aniden sola
+  dönünce bir frame sonra top HÂLÂ pozitif (193px/s) — anında ters
+  dönmüyor, yeni yöne kademeli oturuyor.
+- Fren hissi: koşan oyuncu aniden durunca top-oyuncu farkı önce negatifken
+  (top geride) sıfırdan geçip pozitife dönüyor (top öne kayıyor), sonra
+  sürtünmeyle geri küçülüyor — tam da istenen "top kısa mesafe ileri
+  kayar, sonra ayağa geri gelir" hissi.
+- Kick carry momentum: durgun topta şut 620 px/s, aynı yönde 300px/s giden
+  topta 710 px/s (300*0.3+620 formülüyle birebir eşleşiyor).
+- Hava kontrolü: yerdeyken 5 frame'de topu ~113px/s'e çeken kontrol,
+  havadayken aynı 5 frame'de ölçülemeyecek kadar zayıf.
+- Dash kontrolü tamamen kapatıyor: dash sırasında `controller` anında
+  `null` oluyor.
+- 6 saniyelik hold: kontrol alınıyor, ~6.4 saniye sonra zorla bırakılıyor
+  VE bırakılmış kalıyor (bir önceki hatalı sürümde anında geri yapışıyordu).
+- Şut kaçışı: bir şuttan sonra top 30 frame boyunca hiçbir zaman şutu atan
+  tarafa geri düşmüyor.
+- Süper/power çakışması: power şut kombosu çalışıyor (bar 3→2), sonra Özel
+  bırakılınca süper YANMIYOR (bar 2'de kalıyor) — eski bug'ın tam tersi.
+- Tam maç ekranı görüntüsü: iki karakter, top ayakta, konsol hatası yok.
+- `npm run build` temiz.
+
+**Hissi ayarlamak isteyenler için (Sami'nin istediği tablo, hepsi
+`config/ball.ts` / `config/movement.ts`):**
+- **Top daha ağır/hafif hissetsin:** `BALL_CONTROL_STRENGTH` düşür = top
+  daha "ağır", geç tepki verir; yükselt = daha "hafif", çabuk yapışır.
+  `BALL_GROUND_FRICTION` de etkiler — yükseltirsen top daha çabuk durur
+  (daha "ağır" bir his), düşürürsen daha çok kayar ("hafif"/kaygan).
+- **Dribbling daha sıkı/gevşek olsun:** `BALL_CONTROL_RESPONSE` yükselt =
+  daha sıkı (top hemen hedefe kilitlenir, momentum azalır); düşür = daha
+  gevşek (top kendi hızını daha uzun süre korur, hedefe yavaş oturur).
+  `BALL_CONTROL_RADIUS`'u küçültmek de sıkılaştırır (topu kaybetmek
+  kolaylaşır), büyütmek gevşetir.
+- **Oyuncu daha hızlı/yavaş dönsün:** `PLAYER_TURN_SPEED` yükselt = anlık
+  yön değişiminde (pivot) daha çevik; `PLAYER_ACCELERATION`/
+  `PLAYER_DECELERATION` durgunluktan hızlanma/durma hissini ayrı ayrı
+  kontrol eder (ikisi de yükseldikçe karakter daha "keskin"/arcade hisseder,
+  düştükçe daha "kayan"/ağır bir ivmelenme olur).

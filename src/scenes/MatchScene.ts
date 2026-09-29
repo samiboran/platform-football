@@ -12,14 +12,13 @@ import {
   FAR_Y,
   GOAL_MOUTH_Z_MIN,
   GOAL_MOUTH_Z_MAX,
-  CONTACT_TOLERANCE_X,
-  CONTACT_TOLERANCE_Z,
   projectToScreen,
 } from '../config/arena';
-import { MATCH_DURATION_SECONDS } from '../config/match';
+import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
 import { KEEPER_CATCH_RANGE_X } from '../config/keeper';
+import { computeDribbleTarget } from '../systems/dribbleControl';
 import {
   POWER_MAX_SEGMENTS,
   SHOT_SPEED_NORMAL,
@@ -93,7 +92,10 @@ export class MatchScene extends Phaser.Scene {
   private scoreText!: Phaser.GameObjects.Text;
   private timeText!: Phaser.GameObjects.Text;
   private matchOver = false;
-  private wasTouchingBall = false;
+  private wasControllingBall = false;
+  /** Counts down after a goal — controls locked, nothing moves, until it
+   * hits 0 (CLAUDE.md: "~2 sn kontroller kilitli"). */
+  private kickoffFreezeRemaining = 0;
 
   constructor() {
     super('Match');
@@ -147,7 +149,7 @@ export class MatchScene extends Phaser.Scene {
     this.add
       .text(
         10,
-        GAME_HEIGHT - 10,
+        GAME_HEIGHT - 20,
         `Karakter: ${this.character.name}  |  Saha: ${this.stadium.name}  |  Rakip: ${this.opponentCharacter.name}`,
         {
           fontFamily: 'monospace',
@@ -155,6 +157,16 @@ export class MatchScene extends Phaser.Scene {
           color: '#888888',
         },
       )
+      .setOrigin(0, 1);
+    // Klavye eşlemesi ekranda görünsün — tuşlar dokunmatik tuşlarla aynı
+    // sırada değil (Zıpla=Z, Aksiyon=Space, Dash=X, Özel=C) ve bilmeyen
+    // biri klavyede bunları bulamaz.
+    this.add
+      .text(10, GAME_HEIGHT - 10, `Klavye: Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel`, {
+        fontFamily: 'monospace',
+        fontSize: '10px',
+        color: '#666666',
+      })
       .setOrigin(0, 1);
     this.updateHud();
 
@@ -222,6 +234,15 @@ export class MatchScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.matchOver) return;
 
+    if (this.kickoffFreezeRemaining > 0) {
+      // Controls locked after a goal (CLAUDE.md: "~2 sn kontroller
+      // kilitli") — nothing moves, nobody can touch/shoot/catch, the clock
+      // doesn't run down either. Crowd/HUD keep going, purely cosmetic.
+      this.kickoffFreezeRemaining -= delta / 1000;
+      this.crowd.update(delta);
+      return;
+    }
+
     const move = this.input1.getMoveVector();
     if (move.x !== 0 || move.z !== 0) {
       this.lastAimX = move.x;
@@ -239,24 +260,42 @@ export class MatchScene extends Phaser.Scene {
       this.input1.setSpecialGlow(this.isInRhythmWindow());
     }
 
-    // Character-ball contact: casual dribble nudge on simple touch, or a
-    // deliberate Aksiyon shot (contextual: bizdeyse şut — CLAUDE.md section 4).
-    const dx = this.ball.x - this.player.x;
-    const dz = this.ball.z - this.player.z;
-    const touching = Math.abs(dx) <= CONTACT_TOLERANCE_X && Math.abs(dz) <= CONTACT_TOLERANCE_Z;
+    // Ball-dribble control (force/lerp toward a dribble point ahead of the
+    // player, never a position lock — see Ball.updateControl()). Called
+    // unconditionally every frame; it's a no-op when the ball's too far
+    // from the dribble point. Distance scales with the player's real
+    // current speed (systems/dribbleControl.ts).
+    const playerSpeed = Math.hypot(this.player.velX, this.player.velZ);
+    const dribbleTarget = computeDribbleTarget(
+      this.player.x,
+      this.player.z,
+      this.player.facingX,
+      this.player.facingZ,
+      playerSpeed,
+    );
+    this.ball.updateControl(
+      'left',
+      dribbleTarget.x,
+      dribbleTarget.z,
+      this.player.facingX,
+      this.player.facingZ,
+      this.player.isDashing,
+      this.player.y > 0,
+      delta / 1000,
+      this.character.chaosTouch,
+    );
+
+    const controllingBall = this.ball.controller === 'left';
     const actionPressed = this.input1.consumeActionPressed();
 
-    if (touching && actionPressed) {
+    if (controllingBall && actionPressed) {
       const isPower = this.input1.isSpecialHeld() && this.player.spendPower(POWER_SHOT_SEGMENT_COST);
       const aimX = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimX : this.player.facingX;
       const aimZ = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimZ : this.player.facingZ;
       const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
       this.ball.shoot(aimX, aimZ, speed, this.character.chaosTouch, isPower);
       soundFX.kick();
-    } else if (touching) {
-      this.ball.applyTouch(move.x, move.z, dx, dz, this.character.powerMultiplier, this.character.chaosTouch);
-      if (!this.wasTouchingBall) soundFX.kick();
-    } else if (actionPressed) {
+    } else if (!controllingBall && actionPressed) {
       // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
       // only meaningful when a real shot is actually incoming on our own
       // goal; otherwise this is a no-op (nothing to catch).
@@ -271,9 +310,10 @@ export class MatchScene extends Phaser.Scene {
         if (caught) soundFX.save();
       }
     }
-    this.wasTouchingBall = touching;
+    if (controllingBall && !this.wasControllingBall) soundFX.kick();
+    this.wasControllingBall = controllingBall;
 
-    if (this.input1.consumeSpecialAlonePressed() && touching) {
+    if (this.input1.consumeSpecialReleased() && controllingBall) {
       this.performSuperMove();
     }
 
@@ -281,17 +321,22 @@ export class MatchScene extends Phaser.Scene {
 
     const scored = this.ball.update(delta);
     if (scored === 'left') {
-      this.scoreRight += 1; // ball entered the left goal -> right side scores
+      // Ball entered the left goal -> right side scores -> LEFT side
+      // conceded, so kickoff goes to the center of the LEFT half
+      // (CLAUDE.md: "gol yiyene, kendi yarısının ortasında verilsin").
+      this.scoreRight += 1;
       this.updateHud();
       soundFX.goal();
       this.crowd.celebrate();
-      this.ball.reset(CENTER_X, DEPTH_BAND_HEIGHT / 2);
+      this.ball.reset((LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2);
+      this.kickoffFreezeRemaining = GOAL_RESET_FREEZE_SECONDS;
     } else if (scored === 'right') {
       this.scoreLeft += 1;
       this.updateHud();
       soundFX.goal();
       this.crowd.celebrate();
-      this.ball.reset(CENTER_X, DEPTH_BAND_HEIGHT / 2);
+      this.ball.reset((CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2);
+      this.kickoffFreezeRemaining = GOAL_RESET_FREEZE_SECONDS;
     }
 
     this.timeRemaining = Math.max(0, this.timeRemaining - delta / 1000);
