@@ -14,6 +14,10 @@ new Phaser.Game({
   height: GAME_HEIGHT,
   backgroundColor: '#0b0f14',
   pixelArt: true,
+  // A long-press on the touch buttons must fire the button, not a
+  // right-click-style context menu (mainly an Android/desktop-trackpad
+  // issue, but harmless to disable everywhere).
+  disableContextMenu: true,
   physics: {
     default: 'arcade',
     arcade: { debug: false },

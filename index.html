@@ -22,6 +22,15 @@
       }
       canvas {
         image-rendering: pixelated;
+        /* Without this, the browser's own touch handling (scroll attempt,
+           edge-swipe-back gesture, long-press callout/magnifier) competes
+           with Phaser's pointer events — on real phones this is what made
+           the bottom-right button cluster feel unresponsive, especially
+           near the screen edge. */
+        touch-action: none;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        user-select: none;
       }
     </style>
   </head>

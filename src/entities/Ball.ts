@@ -18,6 +18,7 @@ import {
   BALL_WALL_RESTITUTION,
   BALL_GROUND_FRICTION,
   BALL_TOUCH_SPEED,
+  BALL_MAX_SPEED,
 } from '../config/ball';
 
 export type GoalSide = 'left' | 'right' | null;
@@ -71,6 +72,11 @@ export class Ball {
   lastTouchWasShot = false;
   private readonly sprite: Phaser.GameObjects.Ellipse;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  /** A single seam line across the ball, rotated by how far it's actually
+   * rolled (angle += speed/BALL_RADIUS * dt) — without this the ball reads
+   * as "sliding" rather than rolling, however fast it's really going. */
+  private readonly spinMark: Phaser.GameObjects.Line;
+  private spinAngle = 0;
   private readonly tuning: BallTuning;
 
   constructor(scene: Phaser.Scene, startX: number, startZ: number, startY = 40, tuning: Partial<BallTuning> = {}) {
@@ -81,6 +87,7 @@ export class Ball {
 
     this.shadow = scene.add.ellipse(0, 0, BALL_RADIUS * 2.2, BALL_RADIUS * 1.1, 0x000000, 0.35);
     this.sprite = scene.add.ellipse(0, 0, BALL_RADIUS * 2, BALL_RADIUS * 2, 0xffffff).setStrokeStyle(1, 0x333333);
+    this.spinMark = scene.add.line(0, 0, 0, -BALL_RADIUS * 0.75, 0, BALL_RADIUS * 0.75, 0x333333).setLineWidth(1.5);
 
     this.syncTransform();
   }
@@ -95,6 +102,7 @@ export class Ball {
     this.lastShotWasPower = false;
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
+    this.spinAngle = 0;
     this.syncTransform();
   }
 
@@ -164,6 +172,19 @@ export class Ball {
       this.vz = dampen(this.vz, friction * dt);
     }
 
+    // Hard speed cap — stops repeated wall bounces (or wind, over many
+    // frames) from accumulating into an uncontrollable runaway speed.
+    const speed = Math.hypot(this.vx, this.vz);
+    if (speed > BALL_MAX_SPEED) {
+      const clampScale = BALL_MAX_SPEED / speed;
+      this.vx *= clampScale;
+      this.vz *= clampScale;
+    }
+
+    // Visual rolling spin — purely cosmetic, but without it the ball reads
+    // as "sliding" no matter how fast it's actually moving.
+    this.spinAngle += (Math.min(speed, BALL_MAX_SPEED) / BALL_RADIUS) * dt;
+
     const prevX = this.x;
     this.x += this.vx * dt;
     this.z += this.vz * dt;
@@ -218,14 +239,20 @@ export class Ball {
     this.sprite.setScale(scale);
     this.sprite.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
 
+    this.spinMark.setScale(scale);
+    this.spinMark.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
+    this.spinMark.setRotation(this.spinAngle);
+
     // Ball renders just above a character standing on the same ground row.
     const depth = Math.round(ground.screenY);
     this.shadow.setDepth(depth - 1);
     this.sprite.setDepth(depth + 1);
+    this.spinMark.setDepth(depth + 2);
   }
 
   destroy(): void {
     this.sprite.destroy();
     this.shadow.destroy();
+    this.spinMark.destroy();
   }
 }

@@ -710,4 +710,73 @@ hook'larıyla — commit'ten önce kaldırıldı):**
   doğrulandı (`facingX=1` → `currentPose='right'` → doğru texture) — kod
   zaten doğruydu, Arjantin'in sağ-profil sanatı sadece küçük boyutta önden
   görünüme çok benziyor (bir sanat nüansı, kod hatası değil).
+
+## Oturum 18 — 4 gerçek oynanış bug'ı (yön, tuşlar, şut hızı, top fiziği)
+
+Sami telefonda gerçek bir maç oynadıktan sonra dört net bug bildirdi (Opus
+ile birlikte hazırlanmış net bir liste): (1) karakter sağa giderken sola,
+sola giderken sağa bakıyor, (2) sağ alttaki dokunmatik tuşlar çalışmıyor,
+(3) şut çok yavaş, (4) top fiziği "savruluyor" / kayma hissi kötü.
+
+**1) Yön tersliği — düzeltme: Oturum 17'deki sonuç yanlıştı.** Oturum
+17'de "kod doğru, bu sadece bir sanat nüansı" denmişti — bu YANLIŞ bir
+teşhisti. Gerçek kök neden: M4'te Midjourney sayfasından kırpılan 4
+karakterin `left.png`/`right.png` dosyaları kırpma pipeline'ında yer
+değiştirmiş — `left.png` aslında sağa bakan karakteri, `right.png` sola
+bakan karakteri gösteriyordu (yüz/burun piksellerinin kırpım içindeki
+konumuyla doğrulandı). Kod (`resolvePose()`, `projectToScreen`, joystick/
+klavye x işareti) baştan beri doğruydu; sorun saf asset-dosya adlandırma
+hatasıydı. **Düzeltme:** 4 karakterin de `left.png`/`right.png` dosyaları
+fiziksel olarak yer değiştirildi (mv ile swap, kod değişmedi).
+
+**2) Sağ alt tuşlar çalışmıyor.** `TouchButton`'ın (Phaser `Arc` +
+`setInteractive()`) hit-area üretimini Phaser kaynağından doğruladım —
+`Arc.setSize(diameter, diameter)` çağırdığı için varsayılan hit-area zaten
+doğru bir kare (çapa eşit), yani interaktif alan kendisi bozuk değildi;
+gerçek CDP dokunuş simülasyonuyla da buton `held` state'i doğru tetiklendi.
+Asıl kök neden muhtemelen `index.html`'de `canvas` için `touch-action`
+CSS'inin hiç tanımlı olmamasıydı — gerçek telefonlarda bu, tarayıcının
+kendi dokunma davranışının (kaydırma denemesi, ekran kenarı geri-kaydırma
+jesti, uzun-basma büyüteç/bağlam menüsü) Phaser'ın pointer olaylarıyla
+yarışmasına yol açar; özellikle ekran kenarına yakın sağ alt küme bu tür
+jestlerin tam isabet bölgesinde. **Düzeltme:** `canvas`'a
+`touch-action: none` + `-webkit-touch-callout: none` + `user-select: none`
+eklendi, Phaser oyun config'ine `disableContextMenu: true` eklendi.
+
+**3) Şut çok yavaş.** `SHOT_SPEED_NORMAL` (config/power.ts) 420'den 620'ye
+çıkarıldı — yarı sahayı (`HALF_FIELD_WIDTH` ≈ 369px) artık ~0.6 saniyede
+kat ediyor (öncesi ~0.88s). AI rakip de aynı sabiti kullandığı için
+(`AIOpponent.ts`) değişiklik iki tarafa da otomatik yansıdı.
+
+**4) Top fiziği "savruluyor".** `config/ball.ts`'de dört sabit ayarlandı:
+- `BALL_GROUND_FRICTION`: 220 → 380 (top artık daha hızlı yavaşlayıp
+  duruyor, eskisi gibi uzun süre kaymıyor).
+- `BALL_BOUNCE_RESTITUTION`: 0.6 → 0.45 (yerden sekme daha az "zıplak").
+- `BALL_WALL_RESTITUTION`: 0.7 → 0.55 (duvar/kale çerçevesi sekmesinde
+  belirgin hız kaybı).
+- Yeni `BALL_MAX_SPEED = 1400` — her frame'de `Ball.update()` içinde
+  uygulanan sert bir hız tavanı; en hızlı meşru şuttan (Brezilya süper
+  hareketi, ~1180 px/s yeni ayarla) güvenli payla yukarıda, sadece art arda
+  duvar sekmesi/rüzgarın gerçek dışı bir hıza katlanmasını engelliyor.
+- Top artık gerçek hızına bağlı bir "dönüş" görseli de kazandı (`Ball.ts`
+  içinde `spinMark`, ince bir çizgi, açısı `speed/BALL_RADIUS * dt` ile
+  birikiyor) — önceden top ne kadar hızlı gitse de "kayıyormuş" gibi
+  görünüyordu, artık görsel olarak da yuvarlanıyor.
+
+**Doğrulama (Playwright, geçici debug hook'larla — commit'ten önce
+kaldırıldı):**
+- Yön: `facingX=1` → `argentina_right` texture'ı, yeni (swap edilmiş)
+  `right.png` görsel olarak da sağa bakan profili gösteriyor (yükseltilmiş
+  crop karşılaştırmasıyla elle doğrulandı, 4 karakterin hepsinde aynı swap
+  deseni doğrulandı: brazil de dahil).
+- Tuşlar: gerçek CDP `Input.dispatchTouchEvent` ile Aksiyon düğmesinin
+  gerçek ekran koordinatına (Scale.FIT dönüşümü hesaplanarak) dokunuldu,
+  `held` state'i doğru `true` oldu.
+- Şut hızı: `shoot(1,0,620,...)` sonrası `Math.hypot(vx,vz) === 620`
+  doğrulandı.
+- Top fiziği: aşırı bir hız (`vx=5000`) verilip bir `update()` çağrısından
+  sonra `1400`'e tavanlandığı doğrulandı; sürtünmeyle 300px/s'lik bir yuvarlanma
+  ~1 saniyede tamamen durdu (öncesinde çok daha uzun sürerdi).
+- `npm run build` temiz, konsol hatası yok (tam maç ekranı ekran
+  görüntüsüyle de kontrol edildi).
 - `npm run build` temiz.
