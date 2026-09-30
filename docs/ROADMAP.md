@@ -55,8 +55,8 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 
 ## M5 — Kabuk
 - [x] Ana menü (M0'dan beri var), saha seçimi
-- [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu)
-- [x] Gerçek AI rakip (`src/entities/AIOpponent.ts`): sağ yarı sahada dolaşan, topu kovalayan, dribbling yapan/şut çeken bilgisayar oyuncusu — karakterini insanın seçiminden farklı rastgele bir karakterden alıyor. Kendi kalesini de kendisi savunuyor (ayrı bir kaleci yok, aşağıdaki doğrulamaya bakın).
+- [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu) — Oturum 20'de görsel tarafı da gerçek hale geldi: her sahanın kendi zemin rengi var (kum/toprak/toprak/sokak), Kenya'da ayrıca çamur lekesi görseli
+- [x] Gerçek AI rakip (`src/entities/AIOpponent.ts`): sağ yarı sahada dolaşan, topu kovalayan, dribbling yapan/şut çeken bilgisayar oyuncusu — karakterini insanın seçiminden farklı rastgele bir karakterden alıyor. Kendi kalesini de kendisi savunuyor (ayrı bir kaleci yok, aşağıdaki doğrulamaya bakın). Oturum 20'de insana daha az "güdümlü/omniscient" hissettirmesi için top takibine gecikme ve tutma kararına reaksiyon süresi eklendi.
 - [x] İnsanın kendi "tut" input'u: Aksiyon topa dokunmadan basılırsa ve gerçek bir şut kendi kalesine geliyorsa (`ball.lastTouchWasShot`, hedefte, menzilde) tutma denemesi yapılıyor — Özellik'le birlikte basılırsa ve bar varsa power tutuş.
 - [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali — gerçek rakip artık var, ama lig/kademe yapısı (farklı zorluk/karakter havuzları, ilerleme) henüz kurulmadı
 - [x] Ses efektleri (sentezlenmiş: şut/gol/düdük), seyirci tepkileri (tribünde placeholder noktalar, golde zıplayıp parlıyor) — sürekli kalabalık gürültüsü (sessizlik→uğultu→tezahürat) henüz yok

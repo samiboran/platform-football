@@ -911,3 +911,28 @@ kaldırıldı):**
   `PLAYER_DECELERATION` durgunluktan hızlanma/durma hissini ayrı ayrı
   kontrol eder (ikisi de yükseldikçe karakter daha "keskin"/arcade hisseder,
   düştükçe daha "kayan"/ağır bir ivmelenme olur).
+
+## Oturum 20 — Mıknatıs hissi, top ağırlığı, AI reaksiyonu, saha görselleri
+
+Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bildirim verdi. Hepsi mekanikti, kapsam/dizayn değişikliği değil — ince ayar ve bir mimari düzeltme.
+
+**1) "Top karaktere yaklaştığında mıknatıs gibi ilerliyor."** Kök neden: `Ball.updateControl()` topun hızını `lerp(vel, desiredVel, response*dt)` ile büküyordu — bu, hedef hızla mevcut hız arasındaki fark ne kadar büyük olursa olsun sınırsız bir "anlık düzeltme" uyguluyordu (fark büyükse o kadar sert bir sıçrama). Hızlı giden bir top, kontrol yarıçapına girer girmez anında yönü değişiyordu. **Düzeltme:** gerçek kütle/kuvvet modeline geçildi — `config/ball.ts`'e `BALL_MASS` ve `BALL_CONTROL_FORCE` eklendi, her frame'de hıza uygulanabilecek DEĞİŞİM `(force/mass)*dt` ile sabit bir tavana bağlandı (`Math.min(steerLen, maxDeltaV)`). Artık top ne kadar hızlı/ters yönde gelirse gelsin, bir karede tam kontrole giremiyor — birkaç kare boyunca kademeli kıvrılıyor, hatta yeterince hızlıysa yarıçaptan çıkıp hiç yakalanmıyor. Ayrıca `BALL_CONTROL_RADIUS` 45'ten 30'a küçültüldü (mıknatıs hissinin bir kısmı sırf menzilin görünür bir mesafeden başlamasıydı).
+
+**2) "Topun kendi mass ve fiziği olmalı."** Yukarıdaki `BALL_MASS`/`BALL_CONTROL_FORCE` tam olarak bunu karşılıyor — kütle artırılırsa top kontrole karşı daha ağır/dirençli, düşürülürse daha hafif/itaatkâr davranıyor. Yerçekimi/sekme/sürtünmeye dokunmadı (onlar zaten kendi ayrı sabitleriyle çalışıyordu) — sadece dribble kontrolünün "gerçekçi" hissetmesini sağlıyor.
+
+**3) "AI çok güdümlü, topun geleceği yönü bilip hemen tutuyor."** İki ayrı düzeltme, `AIOpponent.ts`:
+- **Takip gecikmesi:** AI artık topun gerçek konumunu değil, `OPPONENT_TRACKING_LERP_SPEED` ile geriden gelen "algılanan" bir konumu (`trackedBallX/Z`) kovalıyor — pozisyon alma/hareket kararları bu gecikmeli veriyle, ama gerçek temas/şut/tutma mekaniği hâlâ topun gerçek konumuyla çalışıyor (mekanik doğruluktan ödün yok, sadece "farkındalık" gecikmeli).
+- **Tutma reaksiyon süresi:** eskiden bir şut "tutulabilir" hale geldiği an aynı karede sonuçlanıyordu (şut daha havadayken tutuluyormuş gibi hissettiriyordu). Şimdi `OPPONENT_CATCH_REACTION_SECONDS` (0.15s) kadar bir gecikme var — bu sürede top kaleye girerse (hızlı/power şutlarda mümkün) kaleci hiç tepki veremeden gol oluyor. Yavaş şutlarda hâlâ genelde tutuluyor.
+
+**4) "Top çok hızlı yavaşlıyor."** Oturum 18'de `BALL_GROUND_FRICTION` 220'den 380'e çıkarılmıştı ("top savruluyor" şikayetine karşı) — bu sefer tersine döndü, sarkaç fazla gitmişti. **Düzeltme:** `BALL_GROUND_FRICTION` 380'den 150'ye düşürüldü. "Top kayıp durmuyor" endişesi artık global sürtünmeyle değil, saha-bazlı `frictionMultiplier` ile çözülüyor (bkz. madde 5) — bu daha doğru bir yer: her sahanın kendine has zemin hissi olmalı, tüm oyunun aynı derecede "yapışkan" olması değil.
+
+**5) "Sahanın görsel kısmı değişmiyor... Kenya'da çamur olur, top yere değince yavaşlar."** İki kısım:
+- **Görsel:** `pitchRenderer.ts` her zaman sabit yeşil `GRASS_LIGHT`/`GRASS_DARK` renkleriyle çiziyordu — `stadium.tintColor` sadece maç ekranında %6 alfa'lık neredeyse görünmez bir overlay'di. CLAUDE.md bölüm 7 zaten "her saha görsel + mekanik olarak farklı" diyordu, görsel taraf hiç uygulanmamıştı. `StadiumDef`'e `groundLight`/`groundDark` eklendi, `drawPitch(scene, stadium)` artık bu renkleri kullanıyor (kum/toprak/toprak/sokak — dördü de görsel olarak ayrı ayrı doğrulandı, ekran görüntüleriyle). Backdrop da sahanın zemin renginden türetilen koyu bir tonla eşleşiyor.
+- **Kenya'nın çamuru:** `frictionMultiplier` 1.05'ten 2.6'ya çıkarıldı (global sürtünme düşürüldüğü için bu artık gerçek bir kontrast yaratıyor — Kenya'da top havada aynı hızda gidiyor ama yere değince global varsayılana göre çok daha hızlı yavaşlıyor, "yere değince sert yavaşlar" tam olarak istenen). `bounceMultiplier` de 1.0'dan 0.7'ye düşürüldü (çamur sekmeyi de yutuyor). Ayrıca `pitchRenderer.ts`'e `muddy: boolean` bayraklı, sadece Kenya'da çizilen 5 sabit (rastgele değil — maç her açıldığında aynı yerde) koyu çamur lekesi eklendi — hem fiziği hem görseli aynı hikâyeyi anlatıyor artık.
+
+**Doğrulama (Playwright, geçici debug hook'larla — commit'ten önce kaldırıldı):**
+- Mıknatıs testi: topa -400px/s ters yönde hız verilip 20px mesafeden kontrol menziline sokuldu — hız bir karede sıfırlanmak yerine kademeli değişti (~-400 → -383 → ...), ve top hızlı olduğu için bir kareden sonra menzilden çıkıp serbest kaldı (tam kontrole hiç girmedi) — eskiden anında yakalanırdı.
+- Sürtünme: 620px/s'lik bir top 1 saniye sonra varsayılan sahada ~489px/s'e (eskiden çok daha hızlı düşerdi), Kenya'da ise aynı 1 saniyede ~326px/s'e düştü — belirgin, ölçülebilir bir kontrast.
+- AI reaksiyonu: bir şut tam "tutulabilir" hale geldiği karede artık sonuçlanmıyor (`controller`/hız değişmedi) — eskiden aynı karede tutulur/tutulmazdı.
+- 4 sahanın da ekran görüntüsü alındı: kum (Brezilya, açık bej), toprak (Arjantin, kahve), toprak+çamur lekeleri (Kenya, turuncu-kahve), sokak (Kongo, gri) — hepsi birbirinden görsel olarak ayırt edilebiliyor, konsol hatası yok.
+- `npm run build` temiz.

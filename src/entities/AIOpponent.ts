@@ -17,6 +17,8 @@ import {
   OPPONENT_AIM_WOBBLE,
   OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER,
   OPPONENT_MOVE_DEADZONE,
+  OPPONENT_TRACKING_LERP_SPEED,
+  OPPONENT_CATCH_REACTION_SECONDS,
 } from '../config/opponent';
 import { resolveCatchAttempt } from '../systems/catchMatrix';
 import { computeDribbleTarget } from '../systems/dribbleControl';
@@ -44,12 +46,26 @@ export class AIOpponent {
   private readonly homeZ: number;
   private shotCooldownRemaining = 0;
   private resolvedCatchThisApproach = false;
+  /** Armed the moment a shot first becomes catchable; the catch itself only
+   * resolves once OPPONENT_CATCH_REACTION_SECONDS has elapsed since — see
+   * update(). */
+  private catchReactionArmed = false;
+  private catchReactionRemaining = 0;
+  /** The AI's "perceived" ball position — deliberately lags behind the real
+   * one (OPPONENT_TRACKING_LERP_SPEED) so its chase/positioning doesn't
+   * read as omniscient zero-latency tracking. Only used for movement
+   * targeting; actual control/catch/shot logic below still uses the ball's
+   * real position, since those need to be mechanically accurate. */
+  private trackedBallX: number;
+  private trackedBallZ: number;
 
   constructor(scene: Phaser.Scene, def: CharacterDef) {
     this.def = def;
     const bounds = { minX: CENTER_LINE_X, maxX: RIGHT_GOAL_LINE_X - CHARACTER_WIDTH };
     this.homeX = (bounds.minX + bounds.maxX) / 2;
     this.homeZ = DEPTH_BAND_HEIGHT / 2;
+    this.trackedBallX = this.homeX;
+    this.trackedBallZ = this.homeZ;
     this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier, def.id);
   }
 
@@ -57,12 +73,16 @@ export class AIOpponent {
     const dt = delta / 1000;
     if (this.shotCooldownRemaining > 0) this.shotCooldownRemaining -= dt;
 
+    this.trackedBallX = Phaser.Math.Linear(this.trackedBallX, ball.x, OPPONENT_TRACKING_LERP_SPEED * dt);
+    this.trackedBallZ = Phaser.Math.Linear(this.trackedBallZ, ball.z, OPPONENT_TRACKING_LERP_SPEED * dt);
+
     // Chase the ball only within its own half; otherwise drift back home —
     // it's bounded the same way the human player is, so it couldn't
-    // meaningfully chase across the line anyway.
+    // meaningfully chase across the line anyway. Uses the *tracked*
+    // (lagged) ball position, not its true one — see field doc above.
     const ballInMyHalf = ball.x >= CENTER_LINE_X;
-    const targetX = ballInMyHalf ? ball.x : this.homeX;
-    const targetZ = ballInMyHalf ? ball.z : this.homeZ;
+    const targetX = ballInMyHalf ? this.trackedBallX : this.homeX;
+    const targetZ = ballInMyHalf ? this.trackedBallZ : this.homeZ;
     const dx = targetX - this.character.x;
     const dz = targetZ - this.character.z;
     const moveX = Math.abs(dx) > OPPONENT_MOVE_DEADZONE ? Math.sign(dx) : 0;
@@ -78,15 +98,27 @@ export class AIOpponent {
 
     if (!catchable) {
       this.resolvedCatchThisApproach = false;
+      this.catchReactionArmed = false;
     } else if (!this.resolvedCatchThisApproach) {
-      this.resolvedCatchThisApproach = true;
-      // AI: always dives with power tutuş against a power şut when
-      // available; otherwise occasionally overcommits anyway (exercises
-      // the "normal şut, power tutuş — boşa gider" cell too).
-      const wantsPowerCatch = this.character.canPowerCatch && (ball.lastShotWasPower || Math.random() < 0.3);
-      const { caught } = resolveCatchAttempt(ball, 'right', this.def.catchChance, wantsPowerCatch);
-      if (wantsPowerCatch) this.character.startCatchCooldown(this.def.cooldownSeconds);
-      if (caught) soundFX.save();
+      if (!this.catchReactionArmed) {
+        // Just became catchable this frame — start a short reaction-time
+        // countdown instead of resolving instantly. A fast enough shot can
+        // cross the line before this expires, beating the keeper outright.
+        this.catchReactionArmed = true;
+        this.catchReactionRemaining = OPPONENT_CATCH_REACTION_SECONDS;
+      } else {
+        this.catchReactionRemaining -= dt;
+      }
+      if (this.catchReactionRemaining <= 0) {
+        this.resolvedCatchThisApproach = true;
+        // AI: always dives with power tutuş against a power şut when
+        // available; otherwise occasionally overcommits anyway (exercises
+        // the "normal şut, power tutuş — boşa gider" cell too).
+        const wantsPowerCatch = this.character.canPowerCatch && (ball.lastShotWasPower || Math.random() < 0.3);
+        const { caught } = resolveCatchAttempt(ball, 'right', this.def.catchChance, wantsPowerCatch);
+        if (wantsPowerCatch) this.character.startCatchCooldown(this.def.cooldownSeconds);
+        if (caught) soundFX.save();
+      }
       return;
     }
 

@@ -31,3 +31,19 @@ export const OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER = 1.6;
  * more on a slower frame) with real margin, or it overshoots the deadzone
  * every frame and visibly vibrates in place instead of settling. */
 export const OPPONENT_MOVE_DEADZONE = 12;
+
+/** Lerp rate (1/s) for the AI's *perceived* ball position, which it chases
+ * instead of the ball's true position every frame. Without this the AI
+ * read as omniscient — always exactly where the ball currently is with
+ * zero latency, "biliyormuş gibi" per Sami. A human-scale reaction lag on
+ * top of that (not a perfect readout) makes it feel like it's actually
+ * watching the ball rather than being fed its coordinates. */
+export const OPPONENT_TRACKING_LERP_SPEED = 6;
+
+/** Delay (seconds) between a shot becoming catchable and the AI actually
+ * attempting the catch — without this it reacted the instant a shot came
+ * on target, as if it already knew the shot was coming before it was even
+ * struck. A fast/power shot can now cross the goal line before this delay
+ * elapses, beating the keeper outright — matches CLAUDE.md's "no auto-aim,
+ * has to be beatable" spirit for the defending side too. */
+export const OPPONENT_CATCH_REACTION_SECONDS = 0.15;

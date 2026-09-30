@@ -20,7 +20,8 @@ import {
   BALL_MAX_SPEED,
   BALL_CONTROL_RADIUS,
   BALL_CONTROL_STRENGTH,
-  BALL_CONTROL_RESPONSE,
+  BALL_MASS,
+  BALL_CONTROL_FORCE,
   DRIBBLE_POINT_LERP_SPEED,
   AIR_CONTROL_MULTIPLIER,
   KICK_CARRY_MOMENTUM,
@@ -220,22 +221,35 @@ export class Ball {
     this.controllerFacingZ = facingZ;
 
     const airControl = airborne || this.y > 0 ? AIR_CONTROL_MULTIPLIER : 1;
-    const strength = BALL_CONTROL_STRENGTH * airControl;
-    const response = BALL_CONTROL_RESPONSE * airControl;
 
     const toX = this.controlPointX - this.x;
     const toZ = this.controlPointZ - this.z;
     const toLen = Math.hypot(toX, toZ) || 1;
-    let desiredVX = (toX / toLen) * strength;
-    let desiredVZ = (toZ / toLen) * strength;
+    let desiredVX = (toX / toLen) * BALL_CONTROL_STRENGTH;
+    let desiredVZ = (toZ / toLen) * BALL_CONTROL_STRENGTH;
     if (chaos) {
       // Kenya's poşet top: dribbling it is a little unpredictable too, not
       // just shots (M4's chaosTouch carried over into the new control model).
-      desiredVX += (Math.random() - 0.5) * strength * 0.5;
-      desiredVZ += (Math.random() - 0.5) * strength * 0.5;
+      desiredVX += (Math.random() - 0.5) * BALL_CONTROL_STRENGTH * 0.5;
+      desiredVZ += (Math.random() - 0.5) * BALL_CONTROL_STRENGTH * 0.5;
     }
-    this.vx = Phaser.Math.Linear(this.vx, desiredVX, response * dt);
-    this.vz = Phaser.Math.Linear(this.vz, desiredVZ, response * dt);
+
+    // Real force/mass steering, not an unbounded lerp: the velocity can
+    // only change by at most (force/mass)*dt this frame, however big the
+    // gap to the desired velocity is. This is what actually kills the
+    // "magnet" feel — a fast ball can't be yanked to a dead stop toward
+    // the dribble point in one frame, it has to visibly curve in over a
+    // few frames (or simply can't be fully caught at all if it's moving
+    // too fast and passes through the control radius too quickly).
+    const steerX = desiredVX - this.vx;
+    const steerZ = desiredVZ - this.vz;
+    const steerLen = Math.hypot(steerX, steerZ);
+    const maxDeltaV = (BALL_CONTROL_FORCE / BALL_MASS) * airControl * dt;
+    if (steerLen > 0) {
+      const applied = Math.min(steerLen, maxDeltaV);
+      this.vx += (steerX / steerLen) * applied;
+      this.vz += (steerZ / steerLen) * applied;
+    }
 
     // Actively controlled = not "the ball a shot left behind" anymore.
     this.lastShotWasPower = false;

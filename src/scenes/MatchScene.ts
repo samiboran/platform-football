@@ -120,7 +120,7 @@ export class MatchScene extends Phaser.Scene {
     this.timeRemaining = MATCH_DURATION_SECONDS;
     this.matchOver = false;
 
-    drawPitch(this);
+    drawPitch(this, this.stadium);
     soundFX.whistle();
 
     // Stadium mood tint — a stand-in for real per-stadium art (M5).

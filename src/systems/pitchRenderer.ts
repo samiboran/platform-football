@@ -15,12 +15,11 @@ import {
   depthScaleAt,
   projectToScreen,
 } from '../config/arena';
+import type { StadiumDef } from '../config/stadiums';
 
 type Point = { x: number; y: number };
 
 const GRASS_STRIPE_COUNT = 6;
-const GRASS_LIGHT = 0x22984d;
-const GRASS_DARK = 0x1b7a3e;
 const STANDS_COLOR = 0x2b2f3a;
 const STANDS_EDGE = 0x555b6e;
 const NET_FILL = 0xeaf4ff;
@@ -115,6 +114,30 @@ function drawGoal(g: Phaser.GameObjects.Graphics, lineX: number, backX: number):
   g.strokePath();
 }
 
+/** Fixed relative (x-fraction across the pitch, z-fraction across the
+ * depth band) spots for MUDDY stadiums' darker patches — a visual tell for
+ * why this ground's frictionMultiplier is so much higher than usual.
+ * Fixed rather than randomized so the pitch doesn't redraw differently
+ * every match. */
+const MUD_PATCH_SPOTS: { fracX: number; fracZ: number; radius: number }[] = [
+  { fracX: 0.28, fracZ: 0.22, radius: 34 },
+  { fracX: 0.62, fracZ: 0.35, radius: 26 },
+  { fracX: 0.45, fracZ: 0.68, radius: 30 },
+  { fracX: 0.78, fracZ: 0.58, radius: 22 },
+  { fracX: 0.18, fracZ: 0.8, radius: 24 },
+];
+
+function drawMudPatches(g: Phaser.GameObjects.Graphics): void {
+  for (const spot of MUD_PATCH_SPOTS) {
+    const x = LEFT_GOAL_LINE_X + (RIGHT_GOAL_LINE_X - LEFT_GOAL_LINE_X) * spot.fracX;
+    const z = DEPTH_MIN + (DEPTH_MAX - DEPTH_MIN) * spot.fracZ;
+    const center = project(x, z, 0);
+    const scale = depthScaleAt(z);
+    g.fillStyle(0x4a3018, 0.4);
+    g.fillEllipse(center.x, center.y, spot.radius * 2 * scale, spot.radius * scale);
+  }
+}
+
 /**
  * Draws the M0/M1 placeholder pitch as a proper trapezoid in perspective:
  * a stands band behind the far touchline, grass stripes and outline that
@@ -122,11 +145,14 @@ function drawGoal(g: Phaser.GameObjects.Graphics, lineX: number, backX: number):
  * trapezoid's axis of symmetry), and two volumetric goals. Every
  * measurement comes from config/arena.ts.
  */
-export function drawPitch(scene: Phaser.Scene): void {
+export function drawPitch(scene: Phaser.Scene, stadium: StadiumDef): void {
   const g = scene.add.graphics();
 
-  // Backdrop behind everything.
-  g.fillStyle(0x123018, 1);
+  // Backdrop behind everything — darkened version of this stadium's own
+  // ground tone, so the whole scene reads as one place instead of a green
+  // pitch with a colored sticker on top.
+  const backdrop = Phaser.Display.Color.ValueToColor(stadium.groundDark).darken(55).color;
+  g.fillStyle(backdrop, 1);
   g.fillRect(0, 0, GAME_WIDTH, scene.scale.height);
 
   // Stands band behind the far touchline.
@@ -147,8 +173,10 @@ export function drawPitch(scene: Phaser.Scene): void {
     const nearRight = project(RIGHT_GOAL_LINE_X, z0, 0);
     const farRight = project(RIGHT_GOAL_LINE_X, z1, 0);
     const farLeft = project(LEFT_GOAL_LINE_X, z1, 0);
-    fillQuad(g, [nearLeft, nearRight, farRight, farLeft], i % 2 === 0 ? GRASS_LIGHT : GRASS_DARK, 1);
+    fillQuad(g, [nearLeft, nearRight, farRight, farLeft], i % 2 === 0 ? stadium.groundLight : stadium.groundDark, 1);
   }
+
+  if (stadium.muddy) drawMudPatches(g);
 
   // Pitch outline (touchlines + goal-line edges — the latter read as
   // slanted, converging toward the far/top edge).
