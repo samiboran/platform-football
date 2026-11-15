@@ -1,0 +1,392 @@
+"""
+Procedural pixel-art generator for Platform Football.
+
+Draws the playable characters (front/back/side turnaround + action poses +
+run cycle), the ball with power-level auras, and the energy drink pickup.
+Native size is 1 sprite pixel = 2 screen pixels: the front pose is exactly
+35 px tall and CHARACTER_HEIGHT (arena.ts) is 70, so Character.ts scales it
+by an integer factor of 2 and the pixels stay crisp.
+
+Run:  python3 tools/pixelart/gen_sprites.py
+Out:  assets/characters/<id>/*.png, assets/fx/*.png, docs/sprite_sheet.png
+"""
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+
+from PIL import Image
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+OUTLINE = (24, 20, 28, 255)
+W, H = 28, 35
+
+
+@dataclass
+class Look:
+    id: str
+    skin: tuple
+    skin_dark: tuple
+    hair: tuple
+    shirt: tuple
+    shirt_dark: tuple
+    trim: tuple
+    shorts: tuple
+    socks: tuple
+    shoes: tuple
+    hat: tuple | None = None
+    hat_band: tuple | None = None
+    tie: tuple | None = None
+    big: bool = False
+
+
+def rgb(h: str) -> tuple:
+    h = h.lstrip('#')
+    return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
+
+
+LOOKS = [
+    Look('brazil', skin=rgb('e8b48a'), skin_dark=rgb('c98d64'), hair=rgb('6b3f22'),
+         shirt=rgb('f7d117'), shirt_dark=rgb('d4a90c'), trim=rgb('1f9b48'),
+         shorts=rgb('2152b8'), socks=rgb('f2f2f2'), shoes=rgb('ffffff')),
+    Look('congo', skin=rgb('7a4a2c'), skin_dark=rgb('5c3520'), hair=rgb('231710'),
+         shirt=rgb('7b3fb5'), shirt_dark=rgb('5c2d8c'), trim=rgb('f4c430'),
+         shorts=rgb('6a35a0'), socks=rgb('7b3fb5'), shoes=rgb('ffffff'),
+         hat=rgb('6a2fa5'), hat_band=rgb('f4c430'), tie=rgb('f4c430'), big=True),
+]
+
+
+class Canvas:
+    def __init__(self, w: int = W, h: int = H):
+        self.w, self.h = w, h
+        self.px = [[None] * w for _ in range(h)]
+
+    def put(self, x: int, y: int, c):
+        if 0 <= x < self.w and 0 <= y < self.h:
+            self.px[y][x] = c
+
+    def rect(self, x0: int, y0: int, x1: int, y1: int, c):
+        """Inclusive rectangle."""
+        for y in range(y0, y1 + 1):
+            for x in range(x0, x1 + 1):
+                self.put(x, y, c)
+
+    def head(self, x0: int, y0: int, x1: int, y1: int, c):
+        """Rounded box — corners clipped, reads as a chibi skull."""
+        self.rect(x0, y0, x1, y1, c)
+        for (x, y) in [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]:
+            self.px[y][x] = None
+        self.rect(x0 + 1, y0, x1 - 1, y0, c)
+
+    def image(self, outline: bool = True) -> Image.Image:
+        img = Image.new('RGBA', (self.w, self.h), (0, 0, 0, 0))
+        for y in range(self.h):
+            for x in range(self.w):
+                if self.px[y][x] is not None:
+                    img.putpixel((x, y), self.px[y][x])
+        if outline:
+            out = img.copy()
+            for y in range(self.h):
+                for x in range(self.w):
+                    if img.getpixel((x, y))[3]:
+                        continue
+                    for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < self.w and 0 <= ny < self.h and img.getpixel((nx, ny))[3]:
+                            out.putpixel((x, y), OUTLINE)
+                            break
+            img = out
+        return img
+
+
+# ---------------------------------------------------------------- parts
+
+def draw_hat_or_hair(c: Canvas, L: Look, hx0: int, hx1: int, top: int, facing: str):
+    if L.hat:
+        c.rect(hx0 + 1, top - 1, hx1 - 1, top + 2, L.hat)          # crown
+        c.rect(hx0 + 1, top + 2, hx1 - 1, top + 2, L.hat_band)      # band
+        c.rect(hx0 - 2, top + 3, hx1 + 2, top + 3, L.hat)           # brim
+        c.put(hx1 - 2, top - 1, rgb('e05a9c'))                       # feather tip
+        c.put(hx1 - 2, top - 2, rgb('e05a9c'))
+        if facing == 'back':
+            c.rect(hx0, top + 4, hx1, top + 7, L.hair)
+    else:
+        c.rect(hx0, top, hx1, top + 2, L.hair)
+        c.rect(hx0 + 1, top - 1, hx1 - 1, top - 1, L.hair)
+        if facing == 'front':
+            c.put(hx0, top + 3, L.hair); c.put(hx1, top + 3, L.hair)
+            c.rect(hx0 + 2, top + 3, hx0 + 4, top + 3, L.hair)       # fringe
+        elif facing == 'back':
+            c.rect(hx0, top + 3, hx1, top + 7, L.hair)
+        elif facing == 'left':
+            c.rect(hx0 + 5, top + 3, hx1, top + 6, L.hair)
+
+
+def draw_head(c: Canvas, L: Look, cx: int, top: int, facing: str, eyes: str = 'open'):
+    hx0, hx1 = cx - 6, cx + 5
+    c.head(hx0, top, hx1, top + 11, L.skin)
+    if facing == 'front':
+        if eyes == 'x':
+            for ex in (cx - 3, cx + 2):
+                c.put(ex - 1, top + 6, OUTLINE); c.put(ex + 1, top + 6, OUTLINE)
+                c.put(ex, top + 7, OUTLINE)
+                c.put(ex - 1, top + 8, OUTLINE); c.put(ex + 1, top + 8, OUTLINE)
+        else:
+            c.rect(cx - 3, top + 6, cx - 3, top + 7, OUTLINE)
+            c.rect(cx + 2, top + 6, cx + 2, top + 7, OUTLINE)
+        c.put(cx - 5, top + 9, L.skin_dark); c.put(cx + 4, top + 9, L.skin_dark)  # cheeks
+    elif facing == 'left':
+        c.rect(cx - 4, top + 6, cx - 4, top + 7, OUTLINE)
+        c.put(hx0 - 1, top + 7, L.skin)                                        # nose
+        c.put(cx + 1, top + 7, L.skin_dark)                                    # ear
+    draw_hat_or_hair(c, L, hx0, hx1, top, facing)
+
+
+def draw_torso_front(c: Canvas, L: Look, cx: int, top: int, back: bool = False, arms: str = 'down'):
+    half = 7 if L.big else 6
+    x0, x1 = cx - half, cx + half - 1
+    c.rect(x0, top, x1, top + 8, L.shirt)
+    c.rect(x0, top + 7, x1, top + 8, L.shirt_dark)
+    if not back:
+        c.rect(cx - 2, top, cx + 1, top, L.trim)                   # collar
+        if L.tie:
+            c.rect(cx - 1, top + 1, cx, top + 5, L.tie)
+        else:
+            c.put(cx + 2, top + 2, L.trim)                          # crest
+    else:
+        # back number "10"
+        c.rect(cx - 3, top + 2, cx - 3, top + 6, L.trim)
+        c.rect(cx - 1, top + 2, cx + 1, top + 2, L.trim)
+        c.rect(cx - 1, top + 6, cx + 1, top + 6, L.trim)
+        c.rect(cx - 1, top + 2, cx - 1, top + 6, L.trim)
+        c.rect(cx + 1, top + 2, cx + 1, top + 6, L.trim)
+    ax0, ax1 = x0 - 2, x1 + 1
+    if arms == 'down':
+        for ax in (ax0, ax1):
+            c.rect(ax, top + 1, ax + 1, top + 2, L.shirt)
+            c.rect(ax, top + 3, ax + 1, top + 7, L.skin)
+            c.rect(ax, top + 8, ax + 1, top + 8, L.skin_dark)
+    elif arms == 'up':
+        for ax in (ax0, ax1):
+            c.rect(ax, top - 6, ax + 1, top - 1, L.skin)
+            c.rect(ax, top, ax + 1, top + 1, L.shirt)
+    elif arms == 'catch':
+        c.rect(ax0 - 3, top - 2, ax0 + 1, top - 1, L.skin)
+        c.rect(ax0, top, ax0 + 1, top + 1, L.shirt)
+        c.rect(ax1, top - 2, ax1 + 4, top - 1, L.skin)
+        c.rect(ax1, top, ax1 + 1, top + 1, L.shirt)
+        c.rect(ax0 - 4, top - 4, ax0 - 3, top - 1, L.skin_dark)     # palms
+        c.rect(ax1 + 4, top - 4, ax1 + 5, top - 1, L.skin_dark)
+    return x0, x1
+
+
+def draw_legs_front(c: Canvas, L: Look, cx: int, top: int, bent: bool = False):
+    half = 7 if L.big else 6
+    x0, x1 = cx - half, cx + half - 1
+    c.rect(x0, top, x1, top + 3, L.shorts)
+    c.rect(cx - 1, top + 3, cx, top + 3, None)
+    lx = [(cx - 5, cx - 3), (cx + 2, cx + 4)]
+    if bent:
+        lx = [(cx - 6, cx - 4), (cx + 3, cx + 5)]
+        for a, b in lx:
+            c.rect(a, top + 4, b, top + 4, L.skin)
+            c.rect(a, top + 5, b, top + 6, L.socks)
+            c.rect(a - (1 if a < cx else 0), top + 7, b + (1 if a > cx else 0), top + 8, L.shoes)
+        return
+    for a, b in lx:
+        c.rect(a, top + 4, b, top + 5, L.skin)
+        c.rect(a, top + 6, b, top + 7, L.socks)
+        if not L.tie:
+            c.rect(a, top + 6, b, top + 6, L.trim)
+        c.rect(a - (1 if a < cx else 0), top + 8, b + (1 if a > cx else 0), top + 9, L.shoes)
+
+
+# ---------------------------------------------------------------- poses
+
+CX = 14
+HEAD_TOP = 2
+TORSO_TOP = 14
+LEGS_TOP = 23
+
+
+def pose_front(L: Look, back=False, arms='down', eyes='open', bent=False, lift=0) -> Canvas:
+    c = Canvas()
+    draw_legs_front(c, L, CX, LEGS_TOP - lift, bent)
+    draw_torso_front(c, L, CX, TORSO_TOP - lift, back, arms)
+    draw_head(c, L, CX, HEAD_TOP - lift, 'back' if back else 'front', eyes)
+    return c
+
+
+def side_leg(c: Canvas, L: Look, hip_x: int, top: int, swing: int, lift: int = 0):
+    """One leg in profile; swing <0 forward (left), >0 back. lift raises foot."""
+    fx = hip_x + swing
+    for i in range(2):
+        c.rect(hip_x + (swing * i) // 3, top + i, hip_x + (swing * i) // 3 + 2, top + i, L.skin)
+    c.rect(fx, top + 2 - lift, fx + 2, top + 3 - lift, L.socks)
+    c.rect(fx - 1, top + 4 - lift, fx + 2, top + 5 - lift, L.shoes)
+
+
+def pose_side(L: Look, frame: str = 'idle') -> Canvas:
+    """Facing left. frame: idle | run0..run3 | kick."""
+    c = Canvas()
+    bob = 1 if frame in ('run1', 'run3') else 0
+    legs_top = LEGS_TOP + 4 - bob
+    swings = {'idle': (0, 1), 'run0': (-4, 4), 'run1': (-1, 1), 'run2': (4, -4), 'run3': (1, -1),
+              'kick': (5, 0)}[frame]
+    hip = CX - 2
+    # far leg first (darker), near leg on top
+    side_leg(c, L, hip + 1, legs_top, swings[1], lift=2 if frame == 'run2' else 0)
+    if frame == 'kick':
+        c.rect(hip - 7, legs_top - 2, hip, legs_top - 1, L.skin)       # extended kicking leg
+        c.rect(hip - 9, legs_top - 3, hip - 7, legs_top - 1, L.socks)
+        c.rect(hip - 12, legs_top - 3, hip - 9, legs_top - 1, L.shoes)
+    else:
+        side_leg(c, L, hip, legs_top, swings[0], lift=2 if frame == 'run0' else 0)
+    # shorts
+    half = 5 if L.big else 4
+    c.rect(CX - half - 1, LEGS_TOP - bob, CX + half - 1, LEGS_TOP + 3 - bob, L.shorts)
+    # torso
+    c.rect(CX - half - 1, TORSO_TOP - bob, CX + half - 1, TORSO_TOP + 8 - bob, L.shirt)
+    c.rect(CX - half - 1, TORSO_TOP + 7 - bob, CX + half - 1, TORSO_TOP + 8 - bob, L.shirt_dark)
+    if L.tie:
+        c.rect(CX - half - 1, TORSO_TOP + 1 - bob, CX - half - 1, TORSO_TOP + 4 - bob, L.tie)
+    # arm swings opposite to the near leg
+    arm = {'idle': 0, 'run0': 3, 'run1': 1, 'run2': -3, 'run3': -1, 'kick': 4}[frame]
+    ax = CX - 1 + arm
+    c.rect(CX - 2, TORSO_TOP + 1 - bob, CX, TORSO_TOP + 2 - bob, L.shirt_dark)
+    c.rect(ax - 1, TORSO_TOP + 3 - bob, ax + 1, TORSO_TOP + 7 - bob, L.skin)
+    c.rect(ax - 1, TORSO_TOP + 8 - bob, ax + 1, TORSO_TOP + 8 - bob, L.skin_dark)
+    draw_head(c, L, CX, HEAD_TOP - bob, 'left')
+    return c
+
+
+def flip(img: Image.Image) -> Image.Image:
+    return img.transpose(Image.FLIP_LEFT_RIGHT)
+
+
+def lean(img: Image.Image, amount: float) -> Image.Image:
+    """Shear so the top leans forward (left) — dash/slide feel."""
+    w, h = img.size
+    pad = int(abs(amount) * h) + 2
+    out = Image.new('RGBA', (w + pad, h), (0, 0, 0, 0))
+    for y in range(h):
+        shift = int(round((h - 1 - y) * amount))
+        row = img.crop((0, y, w, y + 1))
+        out.alpha_composite(row, (pad - shift, y))
+    return out
+
+
+def stars(img: Image.Image) -> Image.Image:
+    img = img.copy()
+    yel = rgb('ffe14d')
+    for (x, y) in [(6, 2), (20, 1), (13, 0)]:
+        for dx, dy in ((0, 0), (1, 0), (-1, 0), (0, 1), (0, -1)):
+            if 0 <= x + dx < img.width and 0 <= y + dy < img.height:
+                img.putpixel((x + dx, y + dy), yel)
+    return img
+
+
+# ---------------------------------------------------------------- fx
+
+def ball(level: int) -> Image.Image:
+    """Ball with power aura. level 0 = plain, 1 yellow, 2 orange flame, 3 white-blue."""
+    S = 21
+    img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
+    c = S // 2
+    auras = {1: [rgb('ffe14d')], 2: [rgb('ff9a1f'), rgb('ff5a1f')], 3: [rgb('9fd8ff'), rgb('ffffff')]}
+    if level:
+        cols = auras[level]
+        radius = 6 + level
+        for y in range(S):
+            for x in range(S):
+                d = ((x - c) ** 2 + (y - c) ** 2) ** 0.5
+                if 4.5 < d <= radius:
+                    col = cols[int(d) % len(cols)]
+                    a = int(255 * (1 - (d - 4.5) / (radius - 4.5 + 0.5)))
+                    img.putpixel((x, y), col[:3] + (max(70, a),))
+        if level >= 2:  # flame tail to the right (ball travels left in source)
+            for i, (dx, dy) in enumerate([(7, -1), (8, 0), (9, 1), (8, -2), (10, 0)]):
+                img.putpixel((c + dx, c + dy), cols[i % len(cols)])
+    white, black = rgb('fafafa'), rgb('1b1b1f')
+    for y in range(S):
+        for x in range(S):
+            d = ((x - c) ** 2 + (y - c) ** 2) ** 0.5
+            if d <= 4.2:
+                img.putpixel((x, y), white)
+            elif d <= 5.0:
+                img.putpixel((x, y), OUTLINE)
+    for (x, y) in [(c, c), (c - 1, c), (c, c - 1), (c + 1, c), (c, c + 1), (c - 3, c - 2), (c + 3, c - 2),
+                   (c - 2, c + 3), (c + 2, c + 3)]:
+        img.putpixel((x, y), black)
+    return img
+
+
+def energy_drink() -> Image.Image:
+    c = Canvas(9, 15)
+    c.rect(2, 0, 6, 0, rgb('c0c0c8'))                  # lid
+    c.rect(1, 1, 7, 13, rgb('1e6fe0'))                 # can
+    c.rect(1, 1, 7, 2, rgb('c0c0c8'))
+    c.rect(1, 12, 7, 13, rgb('c0c0c8'))
+    c.rect(2, 3, 2, 11, rgb('6fb0ff'))                 # shine
+    bolt = [(5, 4), (4, 5), (4, 6), (5, 6), (6, 6), (5, 7), (4, 8), (4, 9)]
+    for x, y in bolt:
+        c.put(x, y, rgb('ffe14d'))
+    return c.image()
+
+
+# ---------------------------------------------------------------- main
+
+def save(img: Image.Image, *parts: str):
+    path = os.path.join(ROOT, *parts)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    img.save(path)
+    return img
+
+
+def main():
+    sheet_rows = []
+    for L in LOOKS:
+        d = ('assets', 'characters', L.id)
+        poses = {}
+        poses['front'] = pose_front(L).image()
+        poses['back'] = pose_front(L, back=True).image()
+        poses['left'] = pose_side(L, 'idle').image()
+        poses['right'] = flip(poses['left'])
+        poses['jump'] = pose_front(L, arms='up', bent=True, lift=0).image()
+        poses['catch'] = pose_front(L, arms='catch').image()
+        poses['stunned'] = stars(pose_front(L, eyes='x').image())
+        poses['kick_left'] = pose_side(L, 'kick').image()
+        poses['kick_right'] = flip(poses['kick_left'])
+        for i in range(4):
+            poses[f'run_left_{i}'] = pose_side(L, f'run{i}').image()
+            poses[f'run_right_{i}'] = flip(poses[f'run_left_{i}'])
+        poses['slide'] = lean(pose_side(L, 'run0').image(), 0.35)   # dash pose (facing left)
+        poses['slide_right'] = flip(poses['slide'])
+        for name, img in poses.items():
+            save(img, *d, f'{name}.png')
+        sheet_rows.append(list(poses.values()))
+        assert poses['front'].height == H
+
+    fx = [ball(i) for i in range(4)] + [energy_drink()]
+    for i in range(4):
+        save(fx[i], 'assets', 'fx', f'ball_power{i}.png')
+    save(fx[4], 'assets', 'fx', 'energy_drink.png')
+    sheet_rows.append(fx)
+
+    # preview sheet (x4) for docs / review
+    pad, scale = 4, 4
+    sw = max(sum(i.width + pad for i in r) for r in sheet_rows)
+    sh = sum(max(i.height for i in r) + pad for r in sheet_rows)
+    sheet = Image.new('RGBA', (sw, sh), rgb('3f7d3a'))
+    y = 0
+    for r in sheet_rows:
+        x = 0
+        for i in r:
+            sheet.alpha_composite(i, (x, y))
+            x += i.width + pad
+        y += max(i.height for i in r) + pad
+    save(sheet.resize((sw * scale, sh * scale), Image.NEAREST), 'docs', 'sprite_sheet.png')
+
+
+if __name__ == '__main__':
+    main()

@@ -63,3 +63,39 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 - [x] Mobil dokunmatik kontrollerin son ayarı — çoklu dokunuş açığı bulunup düzeltildi (`input.activePointers`), joystick+zıpla artık aynı anda çalışıyor
 
 **Doğrulama:** ✅ AI rakip kendi yarı sahasında topu kovalıyor, karşı yarıya geçmiyor, top elindeyken dribbling/şut arasında karar veriyor. Artık ne insanın ne rakibin kalesinde duran ayrı bir "kaleci" var — ekranda sadece 2 karakter (Sami'nin şikayetinin doğrudan çözümü). Matrisin 4 hücresi de (bu sefer insanın kendi Aksiyon'undan ve rakibin otomatik savunmasından) deterministik test edildi: power+power tutar, power+normal tutamaz, normal+normal hıza göre şans, yetersiz power'da power tutuş denemesi otomatik normale düşüyor. Sıradan dribbling artık hiçbir zaman tutma denemesi tetiklemiyor (regression). Top artık hiçbir yerde sıkışmıyor — bir şut ya gol olur ya tutulur, ortada takılı kalmıyor. Bir ligi baştan sona oynayıp bitirebiliyorum — **henüz değil, lig/kademe yapısı yok, ama artık gerçek bir rakibe karşı tek maç oynanabiliyor**. Telefonda tek elle oynanabiliyor — ✅ çoklu dokunuş doğrulandı (Playwright + gerçek CDP touch simülasyonu).
+
+## M6 — Yeni tasarım (16.11.2026 kararları, CLAUDE.md bölüm 5)
+Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 madde, build + doğrulama + commit + deploy.
+
+### M6.0 Grafik (pixel art)
+- [x] Prosedürel sprite üreticisi (`tools/pixelart/gen_sprites.py`) — Brezilya + Kongo: 4 yön, jump, slide, catch, stunned, kick, 4 karelik koşu
+- [x] Top aura sprite'ları (güç 0–3) ve enerji içeceği (`assets/fx/`)
+- [x] Kadro 2 karaktere indirildi (`CHARACTER_ORDER`)
+- [ ] Koşu animasyonu (`run_<dir>_0..3`), `slide_right`, `kick_*`, `catch`, `stunned` pozlarını `Character.ts`'e bağla (BootScene yüklemesi + poz seçimi)
+- [ ] Topu `ball_power<N>.png` ile çiz, güç seviyesine göre aura
+- [ ] Saha, tribün ve HUD'u pixel art'a çek (Pixel Cup Soccer havası, `pitchRenderer.ts`)
+- [ ] Sprite kalitesi ikinci tur: gölgelendirme, koşu karelerinde kol/bacak netliği
+
+### M6.1 Enerji ekonomisi
+- [ ] Dash: her zaman 1 enerji, 1 sn bekleme (`config/power.ts`)
+- [ ] Pasif dolum +1 / 5 sn
+- [ ] Enerji içeceği pickup: 12 sn'de bir, iki sahada ayna konumda, +1 (nadiren altın +2)
+- [ ] Gol yiyene +1
+
+### M6.2 Şut
+- [ ] Dokun = normal şut, basılı tut = power shot (tüm enerjiyi harcar), tutarken büyüyen aura
+- [ ] Lob: joystick geri + şut; yavaş, gölge düşüş noktasını gösterir; zıplayıp kafa/vole ile karşılanır
+- [ ] AI rakip yeni şut tiplerini kullanır
+
+### M6.3 Tutma ve güç çatışması
+- [ ] Eski matris yerine fark tablosu (`systems/catchMatrix.ts`): ≤0 tut (+1 geri), 1 tut-sek, 2 düş/sersem + karşıya sek, 3 gol
+- [ ] Mükemmel parry: ~6 karelik pencere, çatışmada +1, +1 enerji, flaş
+- [ ] Sersemleme durumu (stunned pozu, 0.6 sn yavaşlama)
+
+### M6.4 His
+- [ ] Hitstop (4 / 8 / 12 kare), hafif ekran sarsıntısı
+- [ ] Giriş tamponu ~8 kare
+- [ ] Power shot öncesi Tsubasa tarzı portre ara geçişi (0.5 sn)
+- [ ] Gol kutlaması: isim bandı + power gollerinde ağır çekim tekrar
+
+**Doğrulama:** Fark tablosunun 4 satırı da deterministik test edilir. Dash 1 enerji/1 sn kuralı, lob, parry penceresi ve içecek spawn'ı ayrı ayrı doğrulanır. Deploy linki konsol hatasız açılır.

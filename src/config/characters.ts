@@ -91,7 +91,8 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   },
 };
 
-export const CHARACTER_ORDER: CharacterId[] = ['brazil', 'argentina', 'kenya', 'congo'];
+// Roster trimmed to 2 for now (Sami, 16.11) — argentina/kenya data kept, art parked.
+export const CHARACTER_ORDER: CharacterId[] = ['brazil', 'congo'];
 
 /** Real per-character art (M4 art pass) — one PNG per pose, in
  * assets/characters/<id>/<pose>.png, transparent background. `front`/

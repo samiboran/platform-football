@@ -92,22 +92,32 @@ Sanal joystick (sol) + 4 tuş (sağ):
 
 ## 5. Power sistemi
 
-3 segmentli bar, oyun boyunca dolar.
+> **16.11.2026 itibarıyla geçerli kurallar aşağıdadır (Sami'nin kararları). Eski matris M3'te uygulandı, M6'da bu kurallarla değiştirilecek.**
 
-- 1 segment = power şut veya power tutuş
-- Dash segment harcamaz, bir segmentin ~%25'ini eritir (havada dash biraz daha fazla)
-- 3 segment dolu = karakterin süper hareketi
+3 segmentli enerji barı.
 
-**Şut/tutuş matrisi:**
+**Harcama:**
+- **Şut:** dokun = normal şut (0 harcar). Basılı tut = power shot, basıldığı an bardaki enerjinin **tamamını** harcar (1, 2 veya 3). Tutarken top aurası büyür (1 sarı, 2 turuncu alev, 3 beyaz-mavi).
+- **Lob:** joystick geri (kendi kalene doğru) + şut. Basılı tutulursa power lob.
+- **Dash:** her zaman **1 enerji**, iki dash arası **1 sn** bekleme.
 
-| Şut | Tutuş | Sonuç |
-|---|---|---|
-| Normal | Normal | Topun hızına göre şans |
-| Power | Normal | Tutamaz, top seker veya gol |
-| Power | Power | Tutar |
-| Normal | Power | Garanti tutar ama bar boşa gider |
+**Güç çatışması** — fark = şutun gücü − tutanın gücü:
 
-Tutma yeteneği cooldown'lu (örn. 5-8 sn, karaktere göre). Tutma şansı dinamiktir: hızlı topa veya özel şuta karşı düşer.
+| Fark | Sonuç |
+|---|---|
+| 0 veya eksi | Tutar, top kendi sahasında kalır. Tutan otomatik en fazla şut gücü kadar harcar, eşitse **1 enerji geri alır** |
+| 1 | Tutar ama top seker, kendi sahasında başıboş kalır |
+| 2 | Tutan düşer/sersemler (~0.6 sn), top karşı sahaya geri seker |
+| 3 | Gol |
+
+- Tutma tuşuna basılmazsa güç 0.
+- **Mükemmel parry:** temastan önceki ~6 karede tutma = çatışmada +1, ayrıca +1 enerji.
+
+**Kazanım:** pasif +1 / ~5 sn, enerji içeceği (~12 sn'de bir iki sahada ayna konumda, +1; nadiren altın +2), mükemmel parry +1, gol yiyen +1. Ayrı doldurma tuşu yok.
+
+**Kamera:** 3/4 eğik üstten kalıyor (yan görünüm yok). Dikeylik toptan gelir (alçak şut / lob). Zıplama sadece lob karşılamak ve vole için.
+
+**His:** vuruşta hitstop (4 kare, power 8, çatışma 12), giriş tamponu ~8 kare.
 
 ---
 
@@ -124,7 +134,9 @@ Tema: dünyanın farklı yerlerinden sokak çocukları, "Sokak Dünya Kupası"na
 
 Mevcut arketipler (hızlı elektrik, güçlü iri, vurunca alevli, beyzbol sopalı serseri) bu dörtlüye dağıtılabilir. Sopa/taş mekaniği (sahada duran sopa ile topu havalandırma, taş atarak kaleciyi yavaşlatma) **şimdilik ertelendi**, M5'ten sonra.
 
-Sprite pipeline: Adobe Illustrator Turntable ile çok açılı görünüm → pixel art'a dönüştürme. **Sen sprite üretmiyorsun.** M4'e kadar renkli placeholder dikdörtgen/basit sprite kullan, asset yerleşimini `assets/characters/<name>/` yapısına hazırla, ben görselleri sonra koyarım.
+**Kadro şimdilik 2 kişi: Brezilya (hızlı) ve Kongo (güçlü)** — `CHARACTER_ORDER`. Arjantin/Kenya verisi duruyor, sonra açılacak.
+
+**Sprite pipeline (16.11 güncel): grafikleri Claude üretir.** `tools/pixelart/gen_sprites.py` prosedürel pixel art üretir (1 sprite pikseli = 2 ekran pikseli, front pozu tam 35px). Karakter görünümü (renkler, şapka vb.) scriptteki `LOOKS` listesinde. Değişiklik yapınca scripti çalıştır, `docs/sprite_sheet.png` önizlemesine bak. Eski Midjourney görselleri `assets/characters/_legacy_midjourney/` altında.
 
 ---
 

@@ -936,3 +936,9 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - AI reaksiyonu: bir şut tam "tutulabilir" hale geldiği karede artık sonuçlanmıyor (`controller`/hız değişmedi) — eskiden aynı karede tutulur/tutulmazdı.
 - 4 sahanın da ekran görüntüsü alındı: kum (Brezilya, açık bej), toprak (Arjantin, kahve), toprak+çamur lekeleri (Kenya, turuncu-kahve), sokak (Kongo, gri) — hepsi birbirinden görsel olarak ayırt edilebiliyor, konsol hatası yok.
 - `npm run build` temiz.
+
+## Oturum 21 — Yeni tasarım haritası + pixel art (claude.ai sohbetinden)
+- Sami ile 15–16.11 tasarım kararları alındı: 3/4 kamera kalıyor, iki yükseklikli şut (alçak/lob), parry, enerji ekonomisi, güç çatışması fark tablosu. CLAUDE.md bölüm 5 güncellendi, ROADMAP'e M6 eklendi.
+- Grafikler artık Claude tarafından üretiliyor: `tools/pixelart/gen_sprites.py`. Brezilya + Kongo pixel art olarak yeniden çizildi (önizleme: `docs/sprite_sheet.png`). Midjourney görselleri `assets/characters/_legacy_midjourney/`.
+- Kadro 2 karaktere indirildi.
+- Kalan: M6 listesi. Bilinen: yeni koşu/kick/catch/stunned pozları henüz koda bağlı değil, oyun şimdilik 6 temel pozu kullanıyor.
