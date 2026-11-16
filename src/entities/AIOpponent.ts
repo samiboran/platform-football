@@ -116,6 +116,7 @@ export class AIOpponent {
         // the "normal şut, power tutuş — boşa gider" cell too).
         const wantsPowerCatch = this.character.canPowerCatch && (ball.lastShotWasPower || Math.random() < 0.3);
         const { caught } = resolveCatchAttempt(ball, 'right', this.def.catchChance, wantsPowerCatch);
+        this.character.playCatch();
         if (wantsPowerCatch) this.character.startCatchCooldown(this.def.cooldownSeconds);
         if (caught) soundFX.save();
       }
@@ -160,6 +161,7 @@ export class AIOpponent {
       const speed = SHOT_SPEED_NORMAL * this.def.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
       const wobble = OPPONENT_AIM_WOBBLE * (this.def.chaosTouch ? OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER : 1);
       ball.shoot(dirX, dirZ, speed, true, isPower, false, wobble);
+      this.character.playKick(dirX);
       soundFX.kick();
     } else if (holdExpired) {
       // 6 saniye doldu, şut kararı da gelmedi — Ball.update() zaten kontrolü

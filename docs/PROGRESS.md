@@ -942,3 +942,10 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - Grafikler artık Claude tarafından üretiliyor: `tools/pixelart/gen_sprites.py`. Brezilya + Kongo pixel art olarak yeniden çizildi (önizleme: `docs/sprite_sheet.png`). Midjourney görselleri `assets/characters/_legacy_midjourney/`.
 - Kadro 2 karaktere indirildi.
 - Kalan: M6 listesi. Bilinen: yeni koşu/kick/catch/stunned pozları henüz koda bağlı değil, oyun şimdilik 6 temel pozu kullanıyor.
+
+## Oturum 22 — M6.0: pozlar ve top aurası koda bağlandı (zamanlanmış ajan)
+- **Yapıldı:** `Character.ts` artık 19 pozun hepsini kullanıyor: 4 karelik koşu döngüsü (sol/sağ), sağa/sola `slide`, `kick_left/right` (şut sonrası 0.2 sn), `catch` (tutma denemesinde 0.35 sn), `stunned` (`playStunned(sn)` — M6.3 yavaşlamayı ekleyecek). Ön/arka yönde koşarken koşu karesi olmadığı için 2px adım zıplaması var. Top artık `ball_power<N>.png` sprite'ı: seviye 0 düz, 1 sarı, 2 turuncu alev, 3 beyaz-mavi; alev kuyruğu topun yönüne göre aynalanıyor, yuvarlanma 90° adımlarla (pixel-perfect). Aura top tutulunca/kontrole girince/yavaşlayınca söner. Tüm değerler `src/config/animation.ts`'te.
+- Şimdilik power şut = seviye 1, süper = seviye 3. `Ball.shoot()`'a `powerLevel` parametresi eklendi; M6.2 harcanan enerjiye göre 1–3 verecek.
+- **Doğrulama:** Playwright (geçici `window.__game` hook'u, commit'ten önce kaldırıldı): koşu sağ/sol → `run_right_*`/`run_left_*`, yukarı → `back`, kick/catch/stunned pozları zamanlayıcıyla geri dönüyor; top dokusu güç seviyesine göre `ball_power0..3`, yavaşlayınca `ball_power0`. Konsol hatası yok, `npm run build` temiz.
+- **Kalan (M6.0):** saha/tribün/HUD pixel art, sprite kalitesi ikinci tur. Sonra M6.1.
+- **Bilinen:** seviye 3 aurası açık kum zeminde biraz soluk duruyor (sprite kalitesi turunda kontrast artırılabilir).

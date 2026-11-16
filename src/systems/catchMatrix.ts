@@ -54,6 +54,7 @@ export function resolveCatchAttempt(
     ball.vx = 0;
     ball.vz = 0;
     ball.vy = 0;
+    ball.powerLevel = 0;
   } else if (isPowerShot && Math.random() < 0.5) {
     // Half the time a failed power şut deflects instead of a clean pass-through.
     const deflectSign = side === 'right' ? -1 : 1;

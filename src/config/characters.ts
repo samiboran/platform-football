@@ -94,13 +94,25 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
 // Roster trimmed to 2 for now (Sami, 16.11) — argentina/kenya data kept, art parked.
 export const CHARACTER_ORDER: CharacterId[] = ['brazil', 'congo'];
 
-/** Real per-character art (M4 art pass) — one PNG per pose, in
- * assets/characters/<id>/<pose>.png, transparent background. `front`/
- * `back`/`left`/`right` are the idle-facing turnaround; `slide` is the
- * Dash pose, `jump` is the airborne pose. No walk/run cycle frames yet —
- * static pose-swap only (see docs/PROGRESS.md). */
-export type CharacterPose = 'front' | 'back' | 'left' | 'right' | 'slide' | 'jump';
-export const CHARACTER_POSES: CharacterPose[] = ['front', 'back', 'left', 'right', 'slide', 'jump'];
+/** Real per-character art — procedural pixel art from
+ * tools/pixelart/gen_sprites.py, one PNG per pose in
+ * assets/characters/<id>/<pose>.png. `front`/`back`/`left`/`right` are the
+ * idle turnaround, `run_<dir>_0..3` the run cycle (left/right only),
+ * `slide`/`slide_right` the Dash pose (source faces left), plus jump,
+ * kick, catch and stunned. */
+export type CharacterPose =
+  | 'front' | 'back' | 'left' | 'right'
+  | 'slide' | 'slide_right' | 'jump'
+  | 'kick_left' | 'kick_right' | 'catch' | 'stunned'
+  | 'run_left_0' | 'run_left_1' | 'run_left_2' | 'run_left_3'
+  | 'run_right_0' | 'run_right_1' | 'run_right_2' | 'run_right_3';
+export const RUN_FRAME_COUNT = 4;
+export const CHARACTER_POSES: CharacterPose[] = [
+  'front', 'back', 'left', 'right', 'slide', 'slide_right', 'jump',
+  'kick_left', 'kick_right', 'catch', 'stunned',
+  'run_left_0', 'run_left_1', 'run_left_2', 'run_left_3',
+  'run_right_0', 'run_right_1', 'run_right_2', 'run_right_3',
+];
 
 export function characterSpriteKey(id: CharacterId, pose: CharacterPose): string {
   return `${id}_${pose}`;

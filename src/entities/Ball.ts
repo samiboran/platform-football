@@ -11,6 +11,7 @@ import {
   GOAL_MOUTH_Z_MAX,
   projectToScreen,
 } from '../config/arena';
+import { BALL_SPRITE_PIXEL_SCALE, BALL_POWER_LEVEL_MAX, BALL_AURA_MIN_SPEED, ballSpriteKey } from '../config/animation';
 import {
   BALL_GRAVITY,
   BALL_BOUNCE_RESTITUTION,
@@ -110,13 +111,17 @@ export class Ball {
   private controllerFacingX = 1;
   private controllerFacingZ = 0;
   private blinkPhase = 0;
-  private readonly sprite: Phaser.GameObjects.Ellipse;
+  /** Power aura level 0..BALL_POWER_LEVEL_MAX (M6.0) — picks the
+   * ball_power<N> sprite. Set by shoot(), cleared when the ball is caught,
+   * picked up, or slows below BALL_AURA_MIN_SPEED. */
+  powerLevel = 0;
+  private readonly sprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
-  /** A single seam line across the ball, rotated by how far it's actually
-   * rolled (angle += speed/BALL_RADIUS * dt) — without this the ball reads
-   * as "sliding" rather than rolling, however fast it's really going. */
-  private readonly spinMark: Phaser.GameObjects.Line;
+  /** How far the ball has rolled (angle += speed/BALL_RADIUS * dt). The
+   * pixel-art sprite rotates in 90° steps (pixel-perfect) so it reads as
+   * rolling rather than sliding. */
   private spinAngle = 0;
+  private currentLevel = -1;
   private readonly tuning: BallTuning;
 
   constructor(scene: Phaser.Scene, startX: number, startZ: number, startY = 40, tuning: Partial<BallTuning> = {}) {
@@ -126,8 +131,7 @@ export class Ball {
     this.tuning = { ...DEFAULT_TUNING, ...tuning };
 
     this.shadow = scene.add.ellipse(0, 0, BALL_RADIUS * 2.2, BALL_RADIUS * 1.1, 0x000000, 0.35);
-    this.sprite = scene.add.ellipse(0, 0, BALL_RADIUS * 2, BALL_RADIUS * 2, 0xffffff).setStrokeStyle(1, 0x333333);
-    this.spinMark = scene.add.line(0, 0, 0, -BALL_RADIUS * 0.75, 0, BALL_RADIUS * 0.75, 0x333333).setLineWidth(1.5);
+    this.sprite = scene.add.image(0, 0, ballSpriteKey(0));
 
     this.syncTransform();
   }
@@ -143,6 +147,7 @@ export class Ball {
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
     this.spinAngle = 0;
+    this.powerLevel = 0;
     this.controller = null;
     this.holdTimeRemaining = 0;
     this.justReleasedBy = null;
@@ -270,7 +275,16 @@ export class Ball {
    * shooting always ends a hold, with a brief recapture lockout so the
    * shooter can't instantly re-glue it to their own dribble point next
    * frame (see updateControl()). */
-  shoot(dirX: number, dirZ: number, speed: number, chaos = false, isPower = false, isSuper = false, chaosMagnitude = 1): void {
+  shoot(
+    dirX: number,
+    dirZ: number,
+    speed: number,
+    chaos = false,
+    isPower = false,
+    isSuper = false,
+    chaosMagnitude = 1,
+    powerLevel = isSuper ? BALL_POWER_LEVEL_MAX : isPower ? 1 : 0,
+  ): void {
     if (this.controller !== null) {
       this.justReleasedBy = this.controller;
       this.recaptureLockoutRemaining = BALL_RECAPTURE_LOCKOUT;
@@ -288,6 +302,7 @@ export class Ball {
     this.lastShotWasPower = isPower;
     this.lastShotWasSuper = isSuper;
     this.lastTouchWasShot = true;
+    this.powerLevel = Phaser.Math.Clamp(Math.round(powerLevel), 0, BALL_POWER_LEVEL_MAX);
   }
 
   update(delta: number): GoalSide {
@@ -407,26 +422,38 @@ export class Ball {
     const lifted = projectToScreen(this.x, this.z, this.y);
     const scale = ground.scale;
 
+    if (this.powerLevel > 0 && (this.controller !== null || Math.hypot(this.vx, this.vz) < BALL_AURA_MIN_SPEED)) {
+      this.powerLevel = 0;
+    }
+    if (this.powerLevel !== this.currentLevel) {
+      this.currentLevel = this.powerLevel;
+      this.sprite.setTexture(ballSpriteKey(this.powerLevel));
+    }
+
     this.shadow.setPosition(ground.screenX, ground.screenY);
     this.shadow.setScale(scale);
 
-    this.sprite.setScale(scale);
+    this.sprite.setScale(BALL_SPRITE_PIXEL_SCALE * scale);
     this.sprite.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
-
-    this.spinMark.setScale(scale);
-    this.spinMark.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
-    this.spinMark.setRotation(this.spinAngle);
+    if (this.powerLevel >= 2) {
+      // Flame tail is drawn trailing a left-moving ball — mirror it for
+      // rightward shots, and don't spin it (the tail must stay behind).
+      this.sprite.setRotation(0);
+      this.sprite.setFlipX(this.vx > 0);
+    } else {
+      this.sprite.setFlipX(false);
+      const quarterTurns = Math.floor(this.spinAngle / (Math.PI / 2));
+      this.sprite.setRotation(quarterTurns * (Math.PI / 2));
+    }
 
     // Ball renders just above a character standing on the same ground row.
     const depth = Math.round(ground.screenY);
     this.shadow.setDepth(depth - 1);
     this.sprite.setDepth(depth + 1);
-    this.spinMark.setDepth(depth + 2);
   }
 
   destroy(): void {
     this.sprite.destroy();
     this.shadow.destroy();
-    this.spinMark.destroy();
   }
 }

@@ -10,7 +10,14 @@ import {
   DASH_DURATION,
   DASH_RETRIGGER_COOLDOWN,
 } from '../config/power';
-import { type CharacterId, type CharacterPose, characterSpriteKey } from '../config/characters';
+import { type CharacterId, type CharacterPose, RUN_FRAME_COUNT, characterSpriteKey } from '../config/characters';
+import {
+  RUN_FRAME_SECONDS,
+  RUN_SPEED_THRESHOLD,
+  RUN_VERTICAL_BOB_PX,
+  KICK_POSE_SECONDS,
+  CATCH_POSE_SECONDS,
+} from '../config/animation';
 
 export interface CharacterBounds {
   minX: number;
@@ -88,6 +95,15 @@ export class Character {
   facingX = 1;
   facingZ = 0;
 
+  /** Last nonzero horizontal facing sign — picks left/right art for poses
+   * that only exist sideways (run cycle, slide, kick). */
+  private lastHorizFacing = 1;
+  private runPhase = 0;
+  /** A one-shot pose (kick/catch/stunned) overriding the resolved pose
+   * until its timer runs out. */
+  private transientPose: CharacterPose | null = null;
+  private transientPoseRemaining = 0;
+
   private dashTimeRemaining = 0;
   private dashRetriggerTimer = 0;
   private dashVX = 0;
@@ -149,6 +165,31 @@ export class Character {
     return true;
   }
 
+  /** Shot follow-through pose, facing the shot's horizontal direction. */
+  playKick(dirX: number): void {
+    const sign = dirX !== 0 ? Math.sign(dirX) : this.lastHorizFacing;
+    this.playPose(sign > 0 ? 'kick_right' : 'kick_left', KICK_POSE_SECONDS);
+  }
+
+  playCatch(): void {
+    this.playPose('catch', CATCH_POSE_SECONDS);
+  }
+
+  /** Stunned pose for `seconds` (M6.3 adds the actual slowdown). */
+  playStunned(seconds: number): void {
+    this.playPose('stunned', seconds);
+  }
+
+  get currentPoseName(): CharacterPose | null {
+    return this.currentPose;
+  }
+
+  private playPose(pose: CharacterPose, seconds: number): void {
+    this.transientPose = pose;
+    this.transientPoseRemaining = seconds;
+    this.syncTransform();
+  }
+
   get canPowerCatch(): boolean {
     return this.catchCooldownRemaining <= 0;
   }
@@ -169,6 +210,12 @@ export class Character {
     if (input.moveX !== 0 || input.moveZ !== 0) {
       this.facingX = input.moveX;
       this.facingZ = input.moveZ;
+      if (input.moveX !== 0) this.lastHorizFacing = Math.sign(input.moveX);
+    }
+
+    if (this.transientPoseRemaining > 0) {
+      this.transientPoseRemaining -= dt;
+      if (this.transientPoseRemaining <= 0) this.transientPose = null;
     }
 
     if (this.dashRetriggerTimer > 0) this.dashRetriggerTimer -= dt;
@@ -227,6 +274,12 @@ export class Character {
       if (this.y === 0) this.vy = 0;
     }
 
+    if (this.isRunning) {
+      this.runPhase = (this.runPhase + dt / RUN_FRAME_SECONDS) % RUN_FRAME_COUNT;
+    } else {
+      this.runPhase = 0;
+    }
+
     this.syncTransform();
   }
 
@@ -236,16 +289,28 @@ export class Character {
     this.shadow.setVisible(visible);
   }
 
-  /** Dash ("kayma") beats jump, which beats plain directional idle —
-   * matches CLAUDE.md's pose list (idle/koşma reuse the same 4-direction
-   * art; no separate run-cycle frames yet). */
+  /** Priority: one-shot pose (kick/catch/stunned) > Dash slide > jump >
+   * run cycle > idle facing. The run cycle only has left/right art, so
+   * running mostly toward/away from the camera keeps the front/back pose
+   * with a small step bob (see syncTransform). */
   private resolvePose(): CharacterPose {
-    if (this.isDashing) return 'slide';
+    if (this.transientPose) return this.transientPose;
+    if (this.isDashing) {
+      const sign = this.dashVX !== 0 ? Math.sign(this.dashVX) : this.lastHorizFacing;
+      return sign > 0 ? 'slide_right' : 'slide';
+    }
     if (this.y > 0) return 'jump';
-    if (Math.abs(this.facingZ) >= Math.abs(this.facingX)) {
-      return this.facingZ > 0 ? 'back' : 'front';
+    const vertical = Math.abs(this.facingZ) > Math.abs(this.facingX);
+    if (vertical) return this.facingZ > 0 ? 'back' : 'front';
+    if (this.isRunning) {
+      const frame = Math.floor(this.runPhase) % RUN_FRAME_COUNT;
+      return `run_${this.facingX > 0 ? 'right' : 'left'}_${frame}` as CharacterPose;
     }
     return this.facingX > 0 ? 'right' : 'left';
+  }
+
+  private get isRunning(): boolean {
+    return Math.hypot(this.velX, this.velZ) > RUN_SPEED_THRESHOLD && !this.isDashing && this.y === 0;
   }
 
   private syncTransform(): void {
@@ -273,7 +338,12 @@ export class Character {
       // Bottom-center origin — position is the ground-contact point, no
       // manual height offset needed (unlike the old top-anchored container).
       this.spriteImage.setScale(this.spriteBaseScale * depthScale);
-      this.spriteImage.setPosition(lifted.screenX, lifted.screenY);
+      // Step bob for front/back running (no dedicated run frames there).
+      const bob =
+        this.isRunning && (pose === 'front' || pose === 'back') && Math.floor(this.runPhase) % 2 === 1
+          ? RUN_VERTICAL_BOB_PX
+          : 0;
+      this.spriteImage.setPosition(lifted.screenX, lifted.screenY - bob);
       this.spriteImage.setDepth(depth);
     } else if (this.placeholderSprite) {
       this.placeholderSprite.setScale(depthScale);

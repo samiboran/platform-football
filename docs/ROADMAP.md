@@ -71,8 +71,8 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Prosedürel sprite üreticisi (`tools/pixelart/gen_sprites.py`) — Brezilya + Kongo: 4 yön, jump, slide, catch, stunned, kick, 4 karelik koşu
 - [x] Top aura sprite'ları (güç 0–3) ve enerji içeceği (`assets/fx/`)
 - [x] Kadro 2 karaktere indirildi (`CHARACTER_ORDER`)
-- [ ] Koşu animasyonu (`run_<dir>_0..3`), `slide_right`, `kick_*`, `catch`, `stunned` pozlarını `Character.ts`'e bağla (BootScene yüklemesi + poz seçimi)
-- [ ] Topu `ball_power<N>.png` ile çiz, güç seviyesine göre aura
+- [x] Koşu animasyonu (`run_<dir>_0..3`), `slide_right`, `kick_*`, `catch`, `stunned` pozlarını `Character.ts`'e bağla (BootScene yüklemesi + poz seçimi)
+- [x] Topu `ball_power<N>.png` ile çiz, güç seviyesine göre aura
 - [ ] Saha, tribün ve HUD'u pixel art'a çek (Pixel Cup Soccer havası, `pitchRenderer.ts`)
 - [ ] Sprite kalitesi ikinci tur: gölgelendirme, koşu karelerinde kol/bacak netliği
 

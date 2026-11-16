@@ -294,6 +294,7 @@ export class MatchScene extends Phaser.Scene {
       const aimZ = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimZ : this.player.facingZ;
       const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
       this.ball.shoot(aimX, aimZ, speed, this.character.chaosTouch, isPower);
+      this.player.playKick(aimX);
       soundFX.kick();
     } else if (!controllingBall && actionPressed) {
       // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
@@ -306,6 +307,7 @@ export class MatchScene extends Phaser.Scene {
         const wantsPowerCatch =
           this.input1.isSpecialHeld() && this.player.canPowerCatch && this.player.spendPower(POWER_CATCH_SEGMENT_COST);
         const { caught } = resolveCatchAttempt(this.ball, 'left', this.character.catchChance, wantsPowerCatch);
+        this.player.playCatch();
         if (wantsPowerCatch) this.player.startCatchCooldown(this.character.cooldownSeconds);
         if (caught) soundFX.save();
       }
@@ -382,6 +384,7 @@ export class MatchScene extends Phaser.Scene {
     const aimZ = this.player.facingZ;
     const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier;
     soundFX.kick();
+    this.player.playKick(aimX);
 
     switch (this.character.id) {
       case 'brazil':
