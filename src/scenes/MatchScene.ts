@@ -32,6 +32,8 @@ import {
   LOB_SPEED_MULTIPLIER,
   LOB_SPEED_BY_POWER_LEVEL,
   VOLLEY_SPEED_MULTIPLIER,
+  VOLLEY_LAUNCH_VY,
+  BALL_JUMP_CARRY_VY,
   SHOT_CHARGE_MAX_SECONDS,
   SHOT_SPEED_BY_POWER_LEVEL,
   GOAL_CONCEDED_ENERGY_GAIN,
@@ -227,7 +229,15 @@ export class MatchScene extends Phaser.Scene {
     }
     const jumpPressed = this.input1.consumeJumpPressed();
     const dashPressed = this.input1.consumeDashPressed();
+    const hadBallBeforeUpdate = this.ball.controller === 'left';
+    const wasGrounded = this.player.y === 0;
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
+    if (hadBallBeforeUpdate && wasGrounded && this.player.y > 0 && !this.player.isDashing) {
+      // Jumped with the ball at the feet — it pops up with the player.
+      this.shotChargeSeconds = null;
+      this.ball.setChargeLevel(0);
+      this.ball.liftWithOwner(this.player.moveVelX, this.player.moveVelZ, BALL_JUMP_CARRY_VY);
+    }
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
     this.opponent.update(delta, this.ball);
     this.drinks.update(delta, [this.player, this.opponent.character], () => soundFX.pickup());
@@ -413,8 +423,8 @@ export class MatchScene extends Phaser.Scene {
     const aimZ = hasStick ? this.liveMove.z : 0;
     const w = screenDirToWorld(aimX, aimZ);
     const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * VOLLEY_SPEED_MULTIPLIER;
-    // Full overwrite (carry 0) and keep vy — a volley redirects the ball.
-    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, false, false, 1, 0, 0, 0);
+    // Full overwrite (carry 0) plus a small lift for a gentle arc.
+    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, false, false, 1, 0, VOLLEY_LAUNCH_VY, 0);
     this.player.playKick(aimX);
     soundFX.kick();
   }

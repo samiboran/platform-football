@@ -102,13 +102,13 @@ export const CHARACTER_ORDER: CharacterId[] = ['brazil', 'congo'];
  * kick, catch and stunned. */
 export type CharacterPose =
   | 'front' | 'back' | 'left' | 'right'
-  | 'slide' | 'slide_right' | 'jump'
+  | 'slide' | 'slide_right' | 'jump' | 'jump_left' | 'jump_right'
   | 'kick_left' | 'kick_right' | 'catch' | 'stunned'
   | 'run_left_0' | 'run_left_1' | 'run_left_2' | 'run_left_3'
   | 'run_right_0' | 'run_right_1' | 'run_right_2' | 'run_right_3';
 export const RUN_FRAME_COUNT = 4;
 export const CHARACTER_POSES: CharacterPose[] = [
-  'front', 'back', 'left', 'right', 'slide', 'slide_right', 'jump',
+  'front', 'back', 'left', 'right', 'slide', 'slide_right', 'jump', 'jump_left', 'jump_right',
   'kick_left', 'kick_right', 'catch', 'stunned',
   'run_left_0', 'run_left_1', 'run_left_2', 'run_left_3',
   'run_right_0', 'run_right_1', 'run_right_2', 'run_right_3',

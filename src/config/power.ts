@@ -64,8 +64,18 @@ export const LOB_SPEED_BY_POWER_LEVEL = [1, 1.1, 1.2, 1.3];
  * and within this reach of the player (x px / z world units). */
 export const AERIAL_REACH_X = 28;
 export const AERIAL_REACH_Z = 20;
+/** A jumping player can also volley a ball this far below their feet
+ * (a ball popped up with a jump rises a bit slower than the jumper). */
+export const AERIAL_REACH_BELOW_FEET = 30;
 /** Volley speed relative to a normal shot. */
 export const VOLLEY_SPEED_MULTIPLIER = 1.15;
+/** Upward speed a volley/header adds, so it flies in a slight gravity arc
+ * instead of a dead-flat line (Sami: "hafif bombeli"). */
+export const VOLLEY_LAUNCH_VY = 160;
+/** Jumping while dribbling pops the ball up with you (vy px/s): apex
+ * ~64 px, i.e. around the jumper's chest at the top of the jump, so it can
+ * be volleyed in the air. */
+export const BALL_JUMP_CARRY_VY = 300;
 
 /** Energy granted to the side that concedes a goal (comeback help). */
 export const GOAL_CONCEDED_ENERGY_GAIN = 1;

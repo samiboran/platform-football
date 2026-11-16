@@ -438,6 +438,17 @@ export class Ball {
     return scored;
   }
 
+  /** Jumping while dribbling: the ball leaves the feet and rises with the
+   * jumper, keeping their horizontal velocity (no shot, no lockout — it
+   * can be volleyed in the air or re-trapped on landing). */
+  liftWithOwner(ownerVelX: number, ownerVelZ: number, vy: number): void {
+    this.controller = null;
+    this.vx = ownerVelX;
+    this.vz = ownerVelZ;
+    this.vy = vy;
+    this.lastTouchWasShot = false;
+  }
+
   /** Predicted first ground contact of the free ball from its current
    * state (gravity + air drag; wind/walls ignored), or null if it's low.
    * Pure maths, recomputed every frame so wind drift self-corrects. */

@@ -4,7 +4,6 @@ import {
   RIGHT_GOAL_LINE_X,
   LEFT_GOAL_LINE_X,
   DEPTH_BAND_HEIGHT,
-  CHARACTER_WIDTH,
   GOAL_MOUTH_Z_MIN,
   GOAL_MOUTH_Z_MAX,
 } from '../config/arena';
@@ -61,7 +60,10 @@ export class AIOpponent {
 
   constructor(scene: Phaser.Scene, def: CharacterDef) {
     this.def = def;
-    const bounds = { minX: CENTER_LINE_X, maxX: RIGHT_GOAL_LINE_X - CHARACTER_WIDTH };
+    // Same reach as the human (whose bounds run to its own goal line): a
+    // character-width margin here left a ball resting against the AI's end
+    // wall out of control range forever — the AI stood still, game stuck.
+    const bounds = { minX: CENTER_LINE_X, maxX: RIGHT_GOAL_LINE_X };
     this.homeX = (bounds.minX + bounds.maxX) / 2;
     this.homeZ = DEPTH_BAND_HEIGHT / 2;
     this.trackedBallX = this.homeX;

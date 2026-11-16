@@ -342,7 +342,9 @@ export class Character {
       const sign = this.dashVX !== 0 ? Math.sign(this.dashVX) : this.lastHorizFacing;
       return sign > 0 ? 'slide_right' : 'slide';
     }
-    if (this.y > 0) return 'jump';
+    // Airborne keeps a side profile toward the last horizontal facing — the
+    // front-facing 'jump' art made the player turn to the camera mid-air.
+    if (this.y > 0) return this.lastHorizFacing > 0 ? 'jump_right' : 'jump_left';
     const vertical = Math.abs(this.facingZ) > Math.abs(this.facingX);
     if (vertical) return this.facingZ > 0 ? 'back' : 'front';
     if (this.isRunning) {

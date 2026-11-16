@@ -268,9 +268,9 @@ def pose_front(L: Look, back=False, arms='down', eyes='open', bent=False, lift=0
 FAR_LIMB = 0.72   # far-side arm/leg are drawn darker so they read behind the body
 
 SIDE_SWINGS = {'idle': (0, 1), 'run0': (-5, 4), 'run1': (-2, 1), 'run2': (4, -5), 'run3': (1, -2),
-               'kick': (5, 0)}          # (near leg, far leg) foot offset; <0 forward (left)
-SIDE_LIFT = {'run0': (0, 2), 'run1': (0, 0), 'run2': (2, 0), 'run3': (0, 0)}  # back foot kicks up
-SIDE_ARM = {'idle': 0, 'run0': 3, 'run1': 1, 'run2': -3, 'run3': -1, 'kick': 4}  # near arm; far = -arm
+               'kick': (5, 0), 'jump': (-4, 3)}          # (near leg, far leg) foot offset; <0 forward (left)
+SIDE_LIFT = {'run0': (0, 2), 'run1': (0, 0), 'run2': (2, 0), 'run3': (0, 0), 'jump': (3, 2)}  # back foot kicks up
+SIDE_ARM = {'idle': 0, 'run0': 3, 'run1': 1, 'run2': -3, 'run3': -1, 'kick': 4, 'jump': -3}  # near arm; far = -arm
 
 
 def side_leg(c: Canvas, L: Look, hip_x: int, top: int, swing: int, lift: int = 0,
@@ -297,7 +297,7 @@ def side_arm(c: Canvas, L: Look, top: int, offset: int, far: bool):
 
 
 def pose_side(L: Look, frame: str = 'idle') -> Canvas:
-    """Facing left. frame: idle | run0..run3 | kick."""
+    """Facing left. frame: idle | run0..run3 | kick | jump (knees tucked)."""
     c = Canvas()
     bob = 1 if frame in ('run1', 'run3') else 0
     legs_top = LEGS_TOP + 4 - bob
@@ -546,6 +546,10 @@ def main():
         poses['left'] = pose_side(L, 'idle').image()
         poses['right'] = flip(poses['left'])
         poses['jump'] = pose_front(L, arms='up', bent=True, lift=0).image()
+        # Side-facing airborne pose — used for most jumps so the player
+        # doesn't turn to face the camera mid-air (Sami: "ekrana dönüyor").
+        poses['jump_left'] = pose_side(L, 'jump').image()
+        poses['jump_right'] = flip(poses['jump_left'])
         poses['catch'] = pose_front(L, arms='catch').image()
         poses['stunned'] = stars(pose_front(L, eyes='x').image())
         poses['kick_left'] = pose_side(L, 'kick').image()
