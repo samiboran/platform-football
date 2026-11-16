@@ -19,5 +19,7 @@ export const KEEPER_CATCH_RANGE_X = 90;
 /** Base catch probability before the character's catchChance stat and the
  * shot-speed falloff are applied (CLAUDE.md: "dinamik... hızlı topa karşı düşer"). */
 export const CATCH_BASE_CHANCE = 0.6;
-/** Shot speed (px/s) at which the speed-based chance penalty saturates. */
-export const CATCH_SPEED_REFERENCE = 900;
+/** Shot speed (px/s) at which the speed-based chance penalty saturates.
+ * Oturum 26: 900 → 720 to follow the slower shots (480 normal / 720 power),
+ * keeping roughly the old catch-chance balance. */
+export const CATCH_SPEED_REFERENCE = 720;

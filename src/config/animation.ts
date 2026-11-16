@@ -4,7 +4,7 @@
  */
 
 /** Seconds per frame of the 4-frame run cycle (run_<dir>_0..3). */
-export const RUN_FRAME_SECONDS = 0.09;
+export const RUN_FRAME_SECONDS = 0.12;
 /** Ground speed (px/s) above which a character plays the run cycle instead
  * of the idle facing pose. */
 export const RUN_SPEED_THRESHOLD = 40;

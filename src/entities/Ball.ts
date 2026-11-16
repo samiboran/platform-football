@@ -14,6 +14,7 @@ import {
 import { BALL_SPRITE_PIXEL_SCALE, BALL_POWER_LEVEL_MAX, BALL_AURA_MIN_SPEED, ballSpriteKey } from '../config/animation';
 import {
   BALL_GRAVITY,
+  BALL_AIR_DRAG,
   BALL_BOUNCE_RESTITUTION,
   BALL_MIN_BOUNCE_VY,
   BALL_WALL_RESTITUTION,
@@ -330,6 +331,11 @@ export class Ball {
     // Gravity + ground bounce.
     this.vy -= BALL_GRAVITY * dt;
     this.y += this.vy * dt;
+    if (this.y > 0) {
+      const drag = Math.max(0, 1 - BALL_AIR_DRAG * dt);
+      this.vx *= drag;
+      this.vz *= drag;
+    }
     if (this.y <= 0) {
       this.y = 0;
       const restitution = BALL_BOUNCE_RESTITUTION * this.tuning.bounceMultiplier;

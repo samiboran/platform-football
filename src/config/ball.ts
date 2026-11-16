@@ -7,6 +7,10 @@
 /** px/s². Same order as character gravity but tuned separately — the ball
  * should feel snappier/heavier than the floaty character jump. */
 export const BALL_GRAVITY = 700;
+/** Air drag while the ball is off the ground: fraction of horizontal speed
+ * lost per second. Small — just enough that a high ball visibly loses pace
+ * instead of flying dead-straight (YSoccer uses ~0.3/s). */
+export const BALL_AIR_DRAG = 0.2;
 /** Fraction of vertical speed kept after each ground bounce. Lowered from an
  * earlier 0.6 — Sami found the ball too "bouncy"/hard to control after a
  * shot (it kept re-bouncing instead of settling). */

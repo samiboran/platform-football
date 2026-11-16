@@ -1,6 +1,16 @@
 import Phaser from 'phaser';
 import { CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, DEPTH_MIN, DEPTH_MAX, projectToScreen } from '../config/arena';
-import { MOVE_SPEED, GRAVITY, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELERATION, PLAYER_TURN_SPEED } from '../config/movement';
+import {
+  MOVE_SPEED,
+  GRAVITY,
+  JUMP_VELOCITY,
+  FALL_GRAVITY_MULTIPLIER,
+  APEX_HANG_SPEED,
+  APEX_HANG_GRAVITY_MULTIPLIER,
+  PLAYER_ACCELERATION,
+  PLAYER_DECELERATION,
+  PLAYER_TURN_SPEED,
+} from '../config/movement';
 import {
   POWER_MAX_SEGMENTS,
   POWER_FILL_SECONDS_PER_SEGMENT,
@@ -277,13 +287,19 @@ export class Character {
       this.vy = JUMP_VELOCITY;
     }
     if (this.y > 0 || this.vy > 0) {
-      this.vy -= GRAVITY * dt;
+      let g = GRAVITY;
+      if (Math.abs(this.vy) < APEX_HANG_SPEED) g *= APEX_HANG_GRAVITY_MULTIPLIER;
+      else if (this.vy < 0) g *= FALL_GRAVITY_MULTIPLIER;
+      this.vy -= g * dt;
       this.y = Math.max(0, this.y + this.vy * dt);
       if (this.y === 0) this.vy = 0;
     }
 
     if (this.isRunning) {
-      this.runPhase = (this.runPhase + dt / RUN_FRAME_SECONDS) % RUN_FRAME_COUNT;
+      // Leg cycle follows real ground speed — a slow character doesn't
+      // pedal at a sprinter's cadence.
+      const speedRatio = Math.max(0.5, Math.hypot(this.velX, this.velZ) / MOVE_SPEED);
+      this.runPhase = (this.runPhase + (dt * speedRatio) / RUN_FRAME_SECONDS) % RUN_FRAME_COUNT;
     } else {
       this.runPhase = 0;
     }
