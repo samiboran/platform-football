@@ -1011,3 +1011,19 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Doğrulama (Playwright, geçici `__game` hook'u kaldırıldı):** Dokun (60 ms) → hız 446, seviye 0, enerji 2→2. 3 enerjiyle basılı tut: 120 ms'de aura 0, 520 ms'de aura 3; bırakınca enerji 0, seviye 3, hız 813. 1 enerjiyle tut: aura 1'de kaldı, hız 583, enerji 0. Gol: sol yiyince oyuncu 1→2, sağ yiyince AI 1→2. Konsol hatası yok, build temiz.
 - **Kalan:** M6.2 lob (joystick geri + şut) ve AI'ın yeni şut tipleri; sonra M6.3.
 - **Bilinen:** AI hâlâ eski 1 segmentlik power şut kullanıyor. Catch matrisi şimdilik sadece "power mı değil mi"ye bakıyor (seviye M6.3 fark tablosunda kullanılacak).
+
+## Oturum 30 — Şut düzeltmeleri + lob/kafa/vole (Fable incelemesiyle, Sami'nin "uygula" onayı)
+- **Fable incelemesi:** Fable modeli son şut kodunu inceledi ve lob tasarımı önerdi; bulguların çoğu uygulandı.
+- **Şut düzeltmeleri:**
+  - Aura artık basılı tutma power sayılır sayılmaz (0.18 sn) direkt harcanacak seviyeyi gösteriyor (eskiden aura 1 görünüp şut 3 çıkabiliyordu). `SHOT_CHARGE_LEVEL_STEP_SECONDS` kaldırıldı.
+  - Giriş tamponu: Aksiyon'a top ayağa gelmeden 8 kareye kadar önce basılsa da şut/şarj başlıyor (`SHOT_PRESS_BUFFER_SECONDS`).
+  - Dokunmatik: basış `pointerdown`'da kilitleniyor (iki kare arası kısa dokunuşlar kaybolmuyor); bırakma sahne geneli `pointerup` ile, parmak butondan kayınca şut çıkmıyor.
+  - Gol sonrası kilitte basışlar yutuluyor (`InputController.drainPresses()`), kilit bitince hayalet şut/zıplama yok.
+  - Şut sonrası `controllingBall` güncelleniyor (süper hareketle çakışma yok).
+- **Lob:** Joystick geri (sol oyuncu için sola, eşik 0.5) + şut. Yukarı fırlatma `LOB_LAUNCH_VY` 420 (~1.2 sn uçuş, tepe ~126 px), yatay hız normal şutun 0.75'i, momentum taşımıyor. Basılı tut = power lob (tüm enerji, `LOB_SPEED_BY_POWER_LEVEL` ile daha derine). Joystick'in yukarı/aşağı bileşeni derinliği yönlendiriyor.
+- **Düşüş noktası:** Yüksek (30 px üstü) serbest topun ilk yere değeceği noktada sarı halka (`Ball.predictLanding()`, yerçekimi + hava sürtünmesi). Top gölgesi yüksekliğe göre küçülüp soluyor.
+- **Kafa/vole:** `systems/aerialStrike.ts`: kontrol edilemeyecek kadar yüksek top, oyuncunun ayağı ile başı arasında ve yakınındaysa Aksiyon = vole (normal şutun 1.15'i, joystick yönü, yoksa ileri). Ayaktayken sadece alçak top, lobu tepede karşılamak için zıplamak gerekiyor.
+- **Üst direk:** Kale çizgisini `GOAL_HEIGHT` üstünden geçen top duvar gibi geri sekiyor. Tutuş da yükseklik sınırlı: kalecinin ayağından `CATCH_MAX_HEIGHT_ABOVE_FEET` (1 boy) yüksekteki top tutulamıyor (insan ve AI).
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** Dokun → 438 px/s, enerji aynı. Tut 260 ms → aura 3, bırak → seviye 3, 812 px/s, enerji 0. Tamponlu basış serbest topta şut attı. Lob vy 369→ tepe ~126, tahmin 661 / gerçek düşüş 659. Power lob seviye 2, 1.2× yatay. Vole y=45 topta 515 px/s; y=110 topta ayakta vole yok. Üst direk: y=130 top kaleye girmedi, geri sekti, skor değişmedi. Kilitte basılı tutulan Space kilit sonrası şut atmadı. Fareyle butondan kayınca şarj sürdü, bırakınca şut çıktı. Konsol hatası yok, build temiz.
+- **Kalan:** M6.2 AI'ın yeni şut tipleri (ortak şut yardımcısı, power öncesi görünür şarj, lob karşılamak için zıplama, maç başı hızlı gol). Sonra M6.3.
+- **Bilinen:** AI zıplamadığı için lobu sadece yere düştükten sonra alabiliyor. Fable'ın notu: power şut AI'ın 0.15 sn tepki süresinden hızlı geçtiği için her isabetli power şut büyük ihtimalle gol (M6.2 AI / M6.3'te ele alınacak). Enerji basıldığında değil bırakıldığında harcanıyor (bilinçli sapma).

@@ -84,7 +84,7 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 
 ### M6.2 Şut
 - [x] Dokun = normal şut, basılı tut = power shot (tüm enerjiyi harcar), tutarken büyüyen aura
-- [ ] Lob: joystick geri + şut; yavaş, gölge düşüş noktasını gösterir; zıplayıp kafa/vole ile karşılanır
+- [x] Lob: joystick geri + şut; yavaş, gölge düşüş noktasını gösterir; zıplayıp kafa/vole ile karşılanır
 - [ ] AI rakip yeni şut tiplerini kullanır
 
 ### M6.3 Tutma ve güç çatışması
@@ -94,7 +94,7 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 
 ### M6.4 His
 - [ ] Hitstop (4 / 8 / 12 kare), hafif ekran sarsıntısı
-- [ ] Giriş tamponu ~8 kare
+- [x] Giriş tamponu ~8 kare (Aksiyon; M6.2 ile öne alındı)
 - [ ] Power shot öncesi Tsubasa tarzı portre ara geçişi (0.5 sn)
 - [ ] Gol kutlaması: isim bandı + power gollerinde ağır çekim tekrar
 

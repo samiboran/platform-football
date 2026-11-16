@@ -9,7 +9,7 @@ import {
   GOAL_MOUTH_Z_MAX,
 } from '../config/arena';
 import { SHOT_SPEED_NORMAL, SHOT_SPEED_POWER_MULTIPLIER, POWER_SHOT_SEGMENT_COST } from '../config/power';
-import { KEEPER_CATCH_RANGE_X } from '../config/keeper';
+import { KEEPER_CATCH_RANGE_X, CATCH_MAX_HEIGHT_ABOVE_FEET } from '../config/keeper';
 import {
   OPPONENT_SHOT_COOLDOWN_SECONDS,
   OPPONENT_SHOT_CHANCE_PER_TOUCH,
@@ -94,7 +94,8 @@ export class AIOpponent {
     const onTarget = ball.z >= GOAL_MOUTH_Z_MIN && ball.z <= GOAL_MOUTH_Z_MAX;
     const nearGoal = ball.x >= RIGHT_GOAL_LINE_X - KEEPER_CATCH_RANGE_X;
     const approaching = ball.lastTouchWasShot && ball.vx > 0;
-    const catchable = onTarget && nearGoal && approaching;
+    const reachable = ball.y <= this.character.y + CATCH_MAX_HEIGHT_ABOVE_FEET;
+    const catchable = onTarget && nearGoal && approaching && reachable;
 
     if (!catchable) {
       this.resolvedCatchThisApproach = false;

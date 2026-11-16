@@ -1,3 +1,4 @@
+import { CHARACTER_HEIGHT } from './arena';
 /**
  * Minimal AI goalkeeper tuning. There's no second human player yet, so the
  * opponent goal needs *something* defending it to make the shoot/hold
@@ -23,3 +24,7 @@ export const CATCH_BASE_CHANCE = 0.6;
  * Oturum 26: 900 → 720 to follow the slower shots (480 normal / 720 power),
  * keeping roughly the old catch-chance balance. */
 export const CATCH_SPEED_REFERENCE = 720;
+
+/** A catch (tutuş) only reaches a ball no higher than this above the
+ * catcher's own feet — a lob over a standing keeper can't be caught. */
+export const CATCH_MAX_HEIGHT_ABOVE_FEET = CHARACTER_HEIGHT;

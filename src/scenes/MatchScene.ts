@@ -17,14 +17,21 @@ import {
 import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
-import { KEEPER_CATCH_RANGE_X } from '../config/keeper';
+import { KEEPER_CATCH_RANGE_X, CATCH_MAX_HEIGHT_ABOVE_FEET } from '../config/keeper';
+import { canStrikeAerial } from '../systems/aerialStrike';
 import { computeDribbleTarget } from '../systems/dribbleControl';
 import {
   POWER_MAX_SEGMENTS,
   SHOT_SPEED_NORMAL,
   POWER_CATCH_SEGMENT_COST,
   SHOT_CHARGE_TAP_SECONDS,
-  SHOT_CHARGE_LEVEL_STEP_SECONDS,
+  SHOT_PRESS_BUFFER_SECONDS,
+  LOB_STICK_BACK_THRESHOLD,
+  LOB_FORWARD_WEIGHT,
+  LOB_LAUNCH_VY,
+  LOB_SPEED_MULTIPLIER,
+  LOB_SPEED_BY_POWER_LEVEL,
+  VOLLEY_SPEED_MULTIPLIER,
   SHOT_CHARGE_MAX_SECONDS,
   SHOT_SPEED_BY_POWER_LEVEL,
   GOAL_CONCEDED_ENERGY_GAIN,
@@ -103,6 +110,10 @@ export class MatchScene extends Phaser.Scene {
   /** Seconds Aksiyon has been held since a shot charge began, or null when
    * not charging (M6.2 hold-to-charge power shot). */
   private shotChargeSeconds: number | null = null;
+  /** Seconds since the last unused Aksiyon press (input buffer). */
+  private sinceActionPress = Infinity;
+  /** Live stick vector this frame — the lob check reads it at release. */
+  private liveMove = { x: 0, z: 0 };
   /** Counts down after a goal — controls locked, nothing moves, until it
    * hits 0 (CLAUDE.md: "~2 sn kontroller kilitli"). */
   private kickoffFreezeRemaining = 0;
@@ -200,10 +211,16 @@ export class MatchScene extends Phaser.Scene {
       // doesn't run down either. Crowd/HUD keep going, purely cosmetic.
       this.kickoffFreezeRemaining -= delta / 1000;
       this.crowd.update(delta);
+      // Swallow presses during the lock so a held button doesn't fire
+      // the moment play resumes.
+      this.input1.drainPresses();
+      this.sinceActionPress = Infinity;
+      this.shotChargeSeconds = null;
       return;
     }
 
     const move = this.input1.getMoveVector();
+    this.liveMove = move;
     if (move.x !== 0 || move.z !== 0) {
       this.lastAimX = move.x;
       this.lastAimZ = move.z;
@@ -248,14 +265,20 @@ export class MatchScene extends Phaser.Scene {
       this.player.moveVelZ,
     );
 
-    const controllingBall = this.ball.controller === 'left';
-    const actionPressed = this.input1.consumeActionPressed();
+    let controllingBall = this.ball.controller === 'left';
+    const dtSec = delta / 1000;
+    if (this.input1.consumeActionPressed()) this.sinceActionPress = 0;
+    else this.sinceActionPress += dtSec;
+    const actionBuffered = this.sinceActionPress <= SHOT_PRESS_BUFFER_SECONDS;
 
     // M6.2 shot: tap Aksiyon = normal shot (0 energy); hold past
     // SHOT_CHARGE_TAP_SECONDS = power shot that spends the WHOLE bar on
-    // release, with the ball aura climbing while held (CLAUDE.md §5).
-    if (controllingBall && actionPressed && this.shotChargeSeconds === null) {
-      this.shotChargeSeconds = 0;
+    // release (CLAUDE.md §5). The aura shows that full level as soon as the
+    // hold counts as a power shot. A press up to SHOT_PRESS_BUFFER_SECONDS
+    // before the trap still counts (input buffer).
+    if (controllingBall && actionBuffered && this.shotChargeSeconds === null) {
+      this.shotChargeSeconds = this.sinceActionPress;
+      this.sinceActionPress = Infinity;
     }
     if (this.shotChargeSeconds !== null) {
       if (!controllingBall) {
@@ -263,29 +286,31 @@ export class MatchScene extends Phaser.Scene {
         this.shotChargeSeconds = null;
         this.ball.setChargeLevel(0);
       } else {
-        this.shotChargeSeconds += delta / 1000;
-        const held = this.input1.isActionHeld();
-        const charged = this.shotChargeSeconds - SHOT_CHARGE_TAP_SECONDS;
+        this.shotChargeSeconds += dtSec;
+        const isPowerHold = this.shotChargeSeconds >= SHOT_CHARGE_TAP_SECONDS;
         const energy = Math.floor(this.player.powerSegments + 1e-6);
-        const auraLevel =
-          charged >= 0 ? Math.min(energy, 1 + Math.floor(charged / SHOT_CHARGE_LEVEL_STEP_SECONDS)) : 0;
-        this.ball.setChargeLevel(auraLevel);
-        if (!held || this.shotChargeSeconds >= SHOT_CHARGE_MAX_SECONDS) {
-          const level = charged >= 0 ? energy : 0;
+        this.ball.setChargeLevel(isPowerHold ? energy : 0);
+        if (!this.input1.isActionHeld() || this.shotChargeSeconds >= SHOT_CHARGE_MAX_SECONDS) {
           this.shotChargeSeconds = null;
           this.ball.setChargeLevel(0);
-          this.fireShot(level);
+          this.fireShot(isPowerHold ? energy : 0);
+          controllingBall = false;
         }
       }
-    }
-    if (!controllingBall && actionPressed) {
+    } else if (actionBuffered && canStrikeAerial(this.ball, this.ball.controller !== null, this.player)) {
+      // Header / volley on a high free ball (meets lobs).
+      this.sinceActionPress = Infinity;
+      this.fireVolley();
+    } else if (!controllingBall && actionBuffered) {
       // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
       // only meaningful when a real shot is actually incoming on our own
-      // goal; otherwise this is a no-op (nothing to catch).
+      // goal and low enough to reach; otherwise the press stays buffered.
       const onTarget = this.ball.z >= GOAL_MOUTH_Z_MIN && this.ball.z <= GOAL_MOUTH_Z_MAX;
       const nearGoal = this.ball.x <= LEFT_GOAL_LINE_X + KEEPER_CATCH_RANGE_X;
       const approaching = this.ball.lastTouchWasShot && this.ball.vx < 0;
-      if (onTarget && nearGoal && approaching) {
+      const reachable = this.ball.y <= this.player.y + CATCH_MAX_HEIGHT_ABOVE_FEET;
+      if (onTarget && nearGoal && approaching && reachable) {
+        this.sinceActionPress = Infinity;
         const wantsPowerCatch =
           this.input1.isSpecialHeld() && this.player.canPowerCatch && this.player.spendPower(POWER_CATCH_SEGMENT_COST);
         const { caught } = resolveCatchAttempt(this.ball, 'left', this.character.catchChance, wantsPowerCatch);
@@ -351,17 +376,45 @@ export class MatchScene extends Phaser.Scene {
   }
 
   /** Fire the human's shot at `level` (0 = normal, 1..3 = power shot that
-   * spends the whole bar). Aim = latest stick direction, else facing. */
+   * spends the whole bar). Stick pulled back toward our own goal at
+   * release = lob (power lob when level > 0). Otherwise aim = latest stick
+   * direction, else facing. */
   private fireShot(level: number): void {
     if (level > 0 && !this.player.spendPower(level)) level = 0;
+    const base = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier;
+    // Left side attacks +x, so "back" = stick pointing left.
+    if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) {
+      const w = screenDirToWorld(LOB_FORWARD_WEIGHT, this.liveMove.z);
+      const speed = base * LOB_SPEED_MULTIPLIER * LOB_SPEED_BY_POWER_LEVEL[level];
+      // No momentum carry: the player is backing off, and a predictable
+      // landing spot matters more than a realistic kick.
+      this.ball.shoot(w.x, w.z, speed * w.speedScale, false, level > 0, false, 1, level, LOB_LAUNCH_VY, 0);
+      this.player.playKick(1);
+      soundFX.kick();
+      return;
+    }
     const hasAim = this.lastAimX !== 0 || this.lastAimZ !== 0;
     const aimX = hasAim ? this.lastAimX : this.player.facingX;
     const aimZ = hasAim ? this.lastAimZ : this.player.facingZ;
-    const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * SHOT_SPEED_BY_POWER_LEVEL[level];
+    const speed = base * SHOT_SPEED_BY_POWER_LEVEL[level];
     // Stick direction is a screen direction — convert so the shot flies
     // at the stick's on-screen angle and speed (config/movement.ts).
     const w = screenDirToWorld(aimX, aimZ);
     this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, level > 0, false, 1, level);
+    this.player.playKick(aimX);
+    soundFX.kick();
+  }
+
+  /** Header/volley: strike a high free ball where it is, along the stick
+   * (default: forward). Normal power only — no energy involved. */
+  private fireVolley(): void {
+    const hasStick = this.liveMove.x !== 0 || this.liveMove.z !== 0;
+    const aimX = hasStick ? this.liveMove.x : 1;
+    const aimZ = hasStick ? this.liveMove.z : 0;
+    const w = screenDirToWorld(aimX, aimZ);
+    const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * VOLLEY_SPEED_MULTIPLIER;
+    // Full overwrite (carry 0) and keep vy — a volley redirects the ball.
+    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, false, false, 1, 0, 0, 0);
     this.player.playKick(aimX);
     soundFX.kick();
   }

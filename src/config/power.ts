@@ -38,13 +38,34 @@ export const SHOT_SPEED_POWER_MULTIPLIER = 1.5;
  * Holding past it commits to a power shot that spends the WHOLE bar on
  * release; the shot's power level = whole segments spent (1..3). */
 export const SHOT_CHARGE_TAP_SECONDS = 0.18;
-/** While charging, the ball aura climbs one level every this many seconds
- * (1 yellow → 2 orange flame → 3 white-blue), capped at the energy held. */
-export const SHOT_CHARGE_LEVEL_STEP_SECONDS = 0.15;
+/** Input buffer (CLAUDE.md §5, ~8 frames): an Aksiyon press this recent
+ * still starts a shot if the ball is trapped just after the press. */
+export const SHOT_PRESS_BUFFER_SECONDS = 8 / 60;
 /** A charge auto-fires after this long so the ball can't be parked. */
 export const SHOT_CHARGE_MAX_SECONDS = 1.2;
 /** Shot speed multiplier per power level (index = level 0..3). */
 export const SHOT_SPEED_BY_POWER_LEVEL = [1, 1.3, 1.55, 1.8];
+
+/** Lob (M6.2): stick pulled back toward your own goal at least this far
+ * (0..1) when the shot fires turns it into a lob. */
+export const LOB_STICK_BACK_THRESHOLD = 0.5;
+/** Lob goes forward (toward the opponent) with this x weight; the stick's
+ * up/down component steers it in depth. */
+export const LOB_FORWARD_WEIGHT = 1;
+/** Upward launch speed (px/s). With BALL_GRAVITY 700: ~1.2 s flight, apex
+ * ~126 px — a jumping player (jump ~70 + body 70) can just meet it. */
+export const LOB_LAUNCH_VY = 420;
+/** Lob horizontal speed relative to a normal shot (slow, readable arc). */
+export const LOB_SPEED_MULTIPLIER = 0.75;
+/** Power lob: horizontal speed multiplier per power level (lands deeper). */
+export const LOB_SPEED_BY_POWER_LEVEL = [1, 1.1, 1.2, 1.3];
+
+/** Header/volley (M6.2): Aksiyon on a free ball that's above trap height
+ * and within this reach of the player (x px / z world units). */
+export const AERIAL_REACH_X = 28;
+export const AERIAL_REACH_Z = 20;
+/** Volley speed relative to a normal shot. */
+export const VOLLEY_SPEED_MULTIPLIER = 1.15;
 
 /** Energy granted to the side that concedes a goal (comeback help). */
 export const GOAL_CONCEDED_ENERGY_GAIN = 1;

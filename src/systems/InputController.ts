@@ -7,6 +7,8 @@ import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
 class TouchButton {
   private held = false;
   private consumed = false;
+  private pressLatched = false;
+  private pointerId = -1;
   readonly circle: Phaser.GameObjects.Arc;
 
   constructor(scene: Phaser.Scene, x: number, y: number, radius: number, label: string) {
@@ -28,14 +30,22 @@ class TouchButton {
       .setOrigin(0.5)
       .setDepth(10001);
 
-    this.circle.on('pointerdown', () => {
+    // Track the pointer that pressed this button. Release is detected on a
+    // scene-wide pointerup for that pointer, NOT on pointerout — a thumb
+    // sliding a little off the button must not count as letting go (it
+    // would fire a charged shot early).
+    this.circle.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
       this.held = true;
+      this.pointerId = pointer.id;
+      // Latched until consumed, so a tap that goes down and up between two
+      // frames (likely on a slow phone) still registers.
+      this.pressLatched = true;
     });
-    this.circle.on('pointerup', () => {
-      this.held = false;
-    });
-    this.circle.on('pointerout', () => {
-      this.held = false;
+    scene.input.on('pointerup', (pointer: Phaser.Input.Pointer) => {
+      if (pointer.id === this.pointerId) {
+        this.held = false;
+        this.pointerId = -1;
+      }
     });
   }
 
@@ -54,8 +64,9 @@ class TouchButton {
   /** Edge-triggered: true only on the frame this input transitions to down. */
   consumePressed(keyDown: boolean): boolean {
     const down = this.held || keyDown;
-    if (down && !this.consumed) {
-      this.consumed = true;
+    if (this.pressLatched || (down && !this.consumed)) {
+      this.pressLatched = false;
+      this.consumed = down;
       return true;
     }
     if (!down) this.consumed = false;
@@ -181,6 +192,15 @@ export class InputController {
     const fire = !this.actionUsedDuringSpecialHold;
     this.actionUsedDuringSpecialHold = false;
     return fire;
+  }
+
+  /** Throw away any pending presses (used while controls are locked after
+   * a goal, so a button held through the freeze doesn't fire afterwards). */
+  drainPresses(): void {
+    this.consumeActionPressed();
+    this.consumeJumpPressed();
+    this.consumeDashPressed();
+    this.consumeSpecialReleased();
   }
 
   /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */

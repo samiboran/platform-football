@@ -9,10 +9,18 @@ import {
   RIGHT_GOAL_BACK_X,
   GOAL_MOUTH_Z_MIN,
   GOAL_MOUTH_Z_MAX,
+  GOAL_HEIGHT,
   projectToScreen,
 } from '../config/arena';
 import { BALL_SPRITE_PIXEL_SCALE, BALL_POWER_LEVEL_MAX, BALL_AURA_MIN_SPEED, ballSpriteKey } from '../config/animation';
 import {
+  BALL_SHADOW_MIN_SCALE,
+  BALL_SHADOW_GROUND_ALPHA,
+  BALL_SHADOW_MIN_ALPHA,
+  BALL_SHADOW_FADE_HEIGHT,
+  LANDING_MARKER_MIN_HEIGHT,
+  LANDING_MARKER_COLOR,
+  LANDING_MARKER_ALPHA,
   BALL_GRAVITY,
   BALL_AIR_DRAG,
   BALL_BOUNCE_RESTITUTION,
@@ -122,6 +130,8 @@ export class Ball {
   private chargeLevel = 0;
   private readonly sprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
+  /** Ring on the ground where a high free ball will first land (M6.2 lob). */
+  private readonly landingMarker: Phaser.GameObjects.Ellipse;
   /** How far the ball has rolled (angle += speed/BALL_RADIUS * dt). The
    * pixel-art sprite rotates in 90° steps (pixel-perfect) so it reads as
    * rolling rather than sliding. */
@@ -137,6 +147,10 @@ export class Ball {
 
     this.shadow = scene.add.ellipse(0, 0, BALL_RADIUS * 2.2, BALL_RADIUS * 1.1, 0x000000, 0.35);
     this.sprite = scene.add.image(0, 0, ballSpriteKey(0));
+    this.landingMarker = scene.add
+      .ellipse(0, 0, BALL_RADIUS * 3, BALL_RADIUS * 1.5)
+      .setStrokeStyle(2, LANDING_MARKER_COLOR, LANDING_MARKER_ALPHA)
+      .setVisible(false);
 
     this.syncTransform();
   }
@@ -274,6 +288,8 @@ export class Ball {
     isSuper = false,
     chaosMagnitude = 1,
     powerLevel = isSuper ? BALL_POWER_LEVEL_MAX : isPower ? 1 : 0,
+    launchVy = 0,
+    carryMomentum = KICK_CARRY_MOMENTUM,
   ): void {
     if (this.controller !== null) {
       this.justReleasedBy = this.controller;
@@ -287,8 +303,11 @@ export class Ball {
       ix += (Math.random() - 0.5) * 0.6 * chaosMagnitude;
       iz += (Math.random() - 0.5) * 0.6 * chaosMagnitude;
     }
-    this.vx = this.vx * KICK_CARRY_MOMENTUM + ix * speed;
-    this.vz = this.vz * KICK_CARRY_MOMENTUM + iz * speed;
+    this.vx = this.vx * carryMomentum + ix * speed;
+    this.vz = this.vz * carryMomentum + iz * speed;
+    // Lobs launch upward; a flat shot keeps whatever vertical speed the
+    // ball already had (a volley strikes it where it is).
+    if (launchVy > 0) this.vy = launchVy;
     this.lastShotWasPower = isPower;
     this.lastShotWasSuper = isSuper;
     this.lastTouchWasShot = true;
@@ -385,7 +404,11 @@ export class Ball {
     const inGoalMouth = this.z >= GOAL_MOUTH_Z_MIN && this.z <= GOAL_MOUTH_Z_MAX;
 
     if (this.x < LEFT_GOAL_LINE_X) {
-      if (inGoalMouth) {
+      if (inGoalMouth && prevX >= LEFT_GOAL_LINE_X && this.y > GOAL_HEIGHT) {
+        // Over the crossbar — bounces back like the end wall.
+        this.x = LEFT_GOAL_LINE_X;
+        this.vx = -this.vx * BALL_WALL_RESTITUTION;
+      } else if (inGoalMouth) {
         if (prevX >= LEFT_GOAL_LINE_X) scored = 'left';
         if (this.x < LEFT_GOAL_BACK_X) {
           this.x = LEFT_GOAL_BACK_X;
@@ -396,7 +419,10 @@ export class Ball {
         this.vx = -this.vx * BALL_WALL_RESTITUTION;
       }
     } else if (this.x > RIGHT_GOAL_LINE_X) {
-      if (inGoalMouth) {
+      if (inGoalMouth && prevX <= RIGHT_GOAL_LINE_X && this.y > GOAL_HEIGHT) {
+        this.x = RIGHT_GOAL_LINE_X;
+        this.vx = -this.vx * BALL_WALL_RESTITUTION;
+      } else if (inGoalMouth) {
         if (prevX <= RIGHT_GOAL_LINE_X) scored = 'right';
         if (this.x > RIGHT_GOAL_BACK_X) {
           this.x = RIGHT_GOAL_BACK_X;
@@ -410,6 +436,20 @@ export class Ball {
 
     this.syncTransform();
     return scored;
+  }
+
+  /** Predicted first ground contact of the free ball from its current
+   * state (gravity + air drag; wind/walls ignored), or null if it's low.
+   * Pure maths, recomputed every frame so wind drift self-corrects. */
+  predictLanding(): { x: number; z: number } | null {
+    if (this.controller !== null || this.y <= LANDING_MARKER_MIN_HEIGHT) return null;
+    const g = BALL_GRAVITY;
+    const t = (this.vy + Math.sqrt(this.vy * this.vy + 2 * g * this.y)) / g;
+    const travel = BALL_AIR_DRAG > 0 ? (1 - Math.exp(-BALL_AIR_DRAG * t)) / BALL_AIR_DRAG : t;
+    return {
+      x: this.x + this.vx * travel,
+      z: Phaser.Math.Clamp(this.z + this.vz * travel, DEPTH_MIN, DEPTH_MAX),
+    };
   }
 
   /** Show the hold-to-charge aura (0 = none) while the ball is controlled. */
@@ -432,8 +472,19 @@ export class Ball {
       this.sprite.setTexture(ballSpriteKey(shownLevel));
     }
 
+    // Shadow shrinks and fades as the ball rises (CLAUDE.md §3).
+    const lift = Phaser.Math.Clamp(this.y / BALL_SHADOW_FADE_HEIGHT, 0, 1);
     this.shadow.setPosition(ground.screenX, ground.screenY);
-    this.shadow.setScale(scale);
+    this.shadow.setScale(scale * Phaser.Math.Linear(1, BALL_SHADOW_MIN_SCALE, lift));
+    this.shadow.setFillStyle(0x000000, Phaser.Math.Linear(BALL_SHADOW_GROUND_ALPHA, BALL_SHADOW_MIN_ALPHA, lift));
+
+    const landing = this.predictLanding();
+    this.landingMarker.setVisible(landing !== null);
+    if (landing) {
+      const p = projectToScreen(landing.x, landing.z, 0);
+      this.landingMarker.setPosition(p.screenX, p.screenY).setScale(p.scale);
+      this.landingMarker.setDepth(Math.round(p.screenY) - 2);
+    }
 
     this.sprite.setScale(BALL_SPRITE_PIXEL_SCALE * scale);
     this.sprite.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
@@ -457,5 +508,6 @@ export class Ball {
   destroy(): void {
     this.sprite.destroy();
     this.shadow.destroy();
+    this.landingMarker.destroy();
   }
 }

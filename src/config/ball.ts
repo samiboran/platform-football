@@ -116,3 +116,14 @@ export const BALL_HOLD_BLINK_HZ = 4;
  * shooter's dribble point the very next frame. The other side can still
  * intercept immediately — this only blocks the side that just released it. */
 export const BALL_RECAPTURE_LOCKOUT = 0.35;
+
+/** Ball shadow shrinks/fades with height (CLAUDE.md §3): at
+ * BALL_SHADOW_FADE_HEIGHT and above it's this fraction of its ground size. */
+export const BALL_SHADOW_MIN_SCALE = 0.45;
+export const BALL_SHADOW_GROUND_ALPHA = 0.35;
+export const BALL_SHADOW_MIN_ALPHA = 0.22;
+export const BALL_SHADOW_FADE_HEIGHT = 140;
+/** Landing marker ring: shown while a free ball is higher than this. */
+export const LANDING_MARKER_MIN_HEIGHT = 30;
+export const LANDING_MARKER_COLOR = 0xffe14d;
+export const LANDING_MARKER_ALPHA = 0.8;
