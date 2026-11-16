@@ -1,5 +1,7 @@
 import Phaser from 'phaser';
 import { VirtualJoystick } from './VirtualJoystick';
+import * as C from '../config/controls';
+import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
 
 /** One on-screen circular button: tracks held state + edge-triggered press. */
 class TouchButton {
@@ -8,13 +10,21 @@ class TouchButton {
   readonly circle: Phaser.GameObjects.Arc;
 
   constructor(scene: Phaser.Scene, x: number, y: number, radius: number, label: string) {
+    // Hit area is a bit larger than the drawn circle (BUTTON_HIT_SCALE) —
+    // a thumb rarely lands dead center.
+    const hitR = radius * C.BUTTON_HIT_SCALE;
     this.circle = scene.add
-      .circle(x, y, radius, 0xffffff, 0.2)
-      .setStrokeStyle(2, 0xffffff, 0.6)
+      .circle(x, y, radius, C.BUTTON_FILL_COLOR, C.BUTTON_FILL_ALPHA)
+      .setStrokeStyle(2, 0xffffff, 0.7)
       .setDepth(10000)
-      .setInteractive({ useHandCursor: true });
+      .setInteractive({
+        hitArea: new Phaser.Geom.Circle(radius, radius, hitR),
+        hitAreaCallback: Phaser.Geom.Circle.Contains,
+        useHandCursor: true,
+      });
     scene.add
-      .text(x, y, label, { fontFamily: 'monospace', fontSize: '11px', color: '#ffffff' })
+      .bitmapText(x, y + 1, PIXEL_FONT_KEY, toHudText(label))
+      .setScale(C.BUTTON_LABEL_SCALE)
       .setOrigin(0.5)
       .setDepth(10001);
 
@@ -35,7 +45,10 @@ class TouchButton {
 
   /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */
   setActive(active: boolean): void {
-    this.circle.setFillStyle(active ? 0x2ecc71 : 0xffffff, active ? 0.5 : 0.2);
+    this.circle.setFillStyle(
+      active ? C.BUTTON_ACTIVE_COLOR : C.BUTTON_FILL_COLOR,
+      active ? C.BUTTON_ACTIVE_ALPHA : C.BUTTON_FILL_ALPHA,
+    );
   }
 
   /** Edge-triggered: true only on the frame this input transitions to down. */
@@ -79,8 +92,8 @@ export class InputController {
    * request for the 3-segment süper hareket. */
   private actionUsedDuringSpecialHold = false;
 
-  constructor(scene: Phaser.Scene, joystickX: number, joystickY: number, clusterX: number, clusterY: number) {
-    this.joystick = new VirtualJoystick(scene, joystickX, joystickY);
+  constructor(scene: Phaser.Scene) {
+    this.joystick = new VirtualJoystick(scene);
 
     const keyboard = scene.input.keyboard!;
     this.cursors = keyboard.createCursorKeys();
@@ -93,11 +106,13 @@ export class InputController {
     this.specialKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
 
     // Diamond cluster: Zıpla (N), Özellik (E), Aksiyon (S, biggest/primary), Dash (W).
-    const r = 46;
-    this.jumpBtn = new TouchButton(scene, clusterX, clusterY - r, 28, 'ZIPLA');
-    this.specialBtn = new TouchButton(scene, clusterX + r, clusterY, 28, 'ÖZEL');
-    this.actionBtn = new TouchButton(scene, clusterX, clusterY + r, 32, 'AKSİYON');
-    this.dashBtn = new TouchButton(scene, clusterX - r, clusterY, 28, 'DASH');
+    const cx = C.BUTTON_CLUSTER_X;
+    const cy = C.BUTTON_CLUSTER_Y;
+    const r = C.BUTTON_SPACING;
+    this.jumpBtn = new TouchButton(scene, cx, cy - r, C.BUTTON_RADIUS, 'Zıpla');
+    this.specialBtn = new TouchButton(scene, cx + r, cy, C.BUTTON_RADIUS, 'Özel');
+    this.actionBtn = new TouchButton(scene, cx, cy + r, C.BUTTON_ACTION_RADIUS, 'Aksiyon');
+    this.dashBtn = new TouchButton(scene, cx - r, cy, C.BUTTON_RADIUS, 'Dash');
   }
 
   getMoveVector(): { x: number; z: number } {

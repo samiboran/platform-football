@@ -157,7 +157,7 @@ export class MatchScene extends Phaser.Scene {
 
     this.opponent = new AIOpponent(this, this.opponentCharacter);
 
-    this.input1 = new InputController(this, 90, GAME_HEIGHT - 90, GAME_WIDTH - 90, GAME_HEIGHT - 90);
+    this.input1 = new InputController(this);
 
     this.debugGraphics = this.add.graphics().setDepth(20000);
 
