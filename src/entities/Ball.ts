@@ -116,6 +116,10 @@ export class Ball {
    * ball_power<N> sprite. Set by shoot(), cleared when the ball is caught,
    * picked up, or slows below BALL_AURA_MIN_SPEED. */
   powerLevel = 0;
+  /** Charge-up aura shown while the ball is still under dribble control and
+   * the controller is holding Aksiyon for a power shot (M6.2). Purely
+   * visual; shoot() turns it into the real powerLevel. */
+  private chargeLevel = 0;
   private readonly sprite: Phaser.GameObjects.Image;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** How far the ball has rolled (angle += speed/BALL_RADIUS * dt). The
@@ -149,6 +153,7 @@ export class Ball {
     this.lastTouchWasShot = false;
     this.spinAngle = 0;
     this.powerLevel = 0;
+    this.chargeLevel = 0;
     this.controller = null;
     this.holdTimeRemaining = 0;
     this.justReleasedBy = null;
@@ -407,6 +412,11 @@ export class Ball {
     return scored;
   }
 
+  /** Show the hold-to-charge aura (0 = none) while the ball is controlled. */
+  setChargeLevel(level: number): void {
+    this.chargeLevel = Phaser.Math.Clamp(Math.round(level), 0, BALL_POWER_LEVEL_MAX);
+  }
+
   private syncTransform(): void {
     const ground = projectToScreen(this.x, this.z, 0);
     const lifted = projectToScreen(this.x, this.z, this.y);
@@ -415,9 +425,11 @@ export class Ball {
     if (this.powerLevel > 0 && (this.controller !== null || Math.hypot(this.vx, this.vz) < BALL_AURA_MIN_SPEED)) {
       this.powerLevel = 0;
     }
-    if (this.powerLevel !== this.currentLevel) {
-      this.currentLevel = this.powerLevel;
-      this.sprite.setTexture(ballSpriteKey(this.powerLevel));
+    if (this.controller === null) this.chargeLevel = 0;
+    const shownLevel = this.controller !== null ? this.chargeLevel : this.powerLevel;
+    if (shownLevel !== this.currentLevel) {
+      this.currentLevel = shownLevel;
+      this.sprite.setTexture(ballSpriteKey(shownLevel));
     }
 
     this.shadow.setPosition(ground.screenX, ground.screenY);
@@ -425,7 +437,7 @@ export class Ball {
 
     this.sprite.setScale(BALL_SPRITE_PIXEL_SCALE * scale);
     this.sprite.setPosition(lifted.screenX, lifted.screenY - BALL_RADIUS * scale);
-    if (this.powerLevel >= 2) {
+    if (shownLevel >= 2 && this.controller === null) {
       // Flame tail is drawn trailing a left-moving ball — mirror it for
       // rightward shots, and don't spin it (the tail must stay behind).
       this.sprite.setRotation(0);

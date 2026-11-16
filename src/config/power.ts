@@ -29,7 +29,24 @@ export const DASH_COOLDOWN = 1.0;
  * hızlı gidiyor, takip etmesi zor") → 480, about 2.2x MOVE_SPEED: still a
  * clear strike, but the eye can follow it across the fixed camera. */
 export const SHOT_SPEED_NORMAL = 480;
-/** Power şut multiplies that speed and costs a full segment. */
+/** Power şut multiplies that speed and costs a full segment (AI opponent's
+ * legacy 1-segment power shot; the human uses the per-level table below). */
 export const SHOT_SPEED_POWER_MULTIPLIER = 1.5;
+
+/** Hold-to-charge power shot (CLAUDE.md section 5, 16.11.2026; M6.2).
+ * Releasing Aksiyon before this many seconds = normal shot (0 energy).
+ * Holding past it commits to a power shot that spends the WHOLE bar on
+ * release; the shot's power level = whole segments spent (1..3). */
+export const SHOT_CHARGE_TAP_SECONDS = 0.18;
+/** While charging, the ball aura climbs one level every this many seconds
+ * (1 yellow → 2 orange flame → 3 white-blue), capped at the energy held. */
+export const SHOT_CHARGE_LEVEL_STEP_SECONDS = 0.15;
+/** A charge auto-fires after this long so the ball can't be parked. */
+export const SHOT_CHARGE_MAX_SECONDS = 1.2;
+/** Shot speed multiplier per power level (index = level 0..3). */
+export const SHOT_SPEED_BY_POWER_LEVEL = [1, 1.3, 1.55, 1.8];
+
+/** Energy granted to the side that concedes a goal (comeback help). */
+export const GOAL_CONCEDED_ENERGY_GAIN = 1;
 export const POWER_SHOT_SEGMENT_COST = 1;
 export const POWER_CATCH_SEGMENT_COST = 1;

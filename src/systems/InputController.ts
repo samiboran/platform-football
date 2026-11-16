@@ -147,8 +147,14 @@ export class InputController {
     return this.actionBtn.consumePressed(this.actionKey.isDown);
   }
 
+  /** Held state of Aksiyon — hold-to-charge power shot (M6.2). */
+  isActionHeld(): boolean {
+    return this.actionBtn.isHeld(this.actionKey.isDown);
+  }
+
   /** Held state (not edge-triggered) — Aksiyon+Özellik together = power
-   * version of the shot/catch (CLAUDE.md section 4). */
+   * tutuş (legacy M3 catch path until M6.3). Power SHOTS no longer use
+   * Özellik: they're hold-to-charge on Aksiyon (M6.2). */
   isSpecialHeld(): boolean {
     return this.specialBtn.isHeld(this.specialKey.isDown);
   }

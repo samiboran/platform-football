@@ -22,9 +22,12 @@ import { computeDribbleTarget } from '../systems/dribbleControl';
 import {
   POWER_MAX_SEGMENTS,
   SHOT_SPEED_NORMAL,
-  SHOT_SPEED_POWER_MULTIPLIER,
-  POWER_SHOT_SEGMENT_COST,
   POWER_CATCH_SEGMENT_COST,
+  SHOT_CHARGE_TAP_SECONDS,
+  SHOT_CHARGE_LEVEL_STEP_SECONDS,
+  SHOT_CHARGE_MAX_SECONDS,
+  SHOT_SPEED_BY_POWER_LEVEL,
+  GOAL_CONCEDED_ENERGY_GAIN,
 } from '../config/power';
 import {
   SUPER_MOVE_SEGMENT_COST,
@@ -97,6 +100,9 @@ export class MatchScene extends Phaser.Scene {
   private timeText!: Phaser.GameObjects.BitmapText;
   private matchOver = false;
   private wasControllingBall = false;
+  /** Seconds Aksiyon has been held since a shot charge began, or null when
+   * not charging (M6.2 hold-to-charge power shot). */
+  private shotChargeSeconds: number | null = null;
   /** Counts down after a goal — controls locked, nothing moves, until it
    * hits 0 (CLAUDE.md: "~2 sn kontroller kilitli"). */
   private kickoffFreezeRemaining = 0;
@@ -245,18 +251,34 @@ export class MatchScene extends Phaser.Scene {
     const controllingBall = this.ball.controller === 'left';
     const actionPressed = this.input1.consumeActionPressed();
 
-    if (controllingBall && actionPressed) {
-      const isPower = this.input1.isSpecialHeld() && this.player.spendPower(POWER_SHOT_SEGMENT_COST);
-      const aimX = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimX : this.player.facingX;
-      const aimZ = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimZ : this.player.facingZ;
-      const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
-      // Stick direction is a screen direction — convert so the shot flies
-      // at the stick's on-screen angle and speed (config/movement.ts).
-      const w = screenDirToWorld(aimX, aimZ);
-      this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, isPower);
-      this.player.playKick(aimX);
-      soundFX.kick();
-    } else if (!controllingBall && actionPressed) {
+    // M6.2 shot: tap Aksiyon = normal shot (0 energy); hold past
+    // SHOT_CHARGE_TAP_SECONDS = power shot that spends the WHOLE bar on
+    // release, with the ball aura climbing while held (CLAUDE.md §5).
+    if (controllingBall && actionPressed && this.shotChargeSeconds === null) {
+      this.shotChargeSeconds = 0;
+    }
+    if (this.shotChargeSeconds !== null) {
+      if (!controllingBall) {
+        // Lost the ball mid-charge — cancel, nothing spent.
+        this.shotChargeSeconds = null;
+        this.ball.setChargeLevel(0);
+      } else {
+        this.shotChargeSeconds += delta / 1000;
+        const held = this.input1.isActionHeld();
+        const charged = this.shotChargeSeconds - SHOT_CHARGE_TAP_SECONDS;
+        const energy = Math.floor(this.player.powerSegments + 1e-6);
+        const auraLevel =
+          charged >= 0 ? Math.min(energy, 1 + Math.floor(charged / SHOT_CHARGE_LEVEL_STEP_SECONDS)) : 0;
+        this.ball.setChargeLevel(auraLevel);
+        if (!held || this.shotChargeSeconds >= SHOT_CHARGE_MAX_SECONDS) {
+          const level = charged >= 0 ? energy : 0;
+          this.shotChargeSeconds = null;
+          this.ball.setChargeLevel(0);
+          this.fireShot(level);
+        }
+      }
+    }
+    if (!controllingBall && actionPressed) {
       // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
       // only meaningful when a real shot is actually incoming on our own
       // goal; otherwise this is a no-op (nothing to catch).
@@ -287,6 +309,7 @@ export class MatchScene extends Phaser.Scene {
       // conceded, so kickoff goes to the center of the LEFT half
       // (CLAUDE.md: "gol yiyene, kendi yarısının ortasında verilsin").
       this.scoreRight += 1;
+      this.player.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
       this.updateHud();
       soundFX.goal();
       this.crowd.celebrate();
@@ -294,6 +317,7 @@ export class MatchScene extends Phaser.Scene {
       this.kickoffFreezeRemaining = GOAL_RESET_FREEZE_SECONDS;
     } else if (scored === 'right') {
       this.scoreLeft += 1;
+      this.opponent.character.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
       this.updateHud();
       soundFX.goal();
       this.crowd.celebrate();
@@ -324,6 +348,22 @@ export class MatchScene extends Phaser.Scene {
       this.debugGraphics.closePath();
       this.debugGraphics.strokePath();
     }
+  }
+
+  /** Fire the human's shot at `level` (0 = normal, 1..3 = power shot that
+   * spends the whole bar). Aim = latest stick direction, else facing. */
+  private fireShot(level: number): void {
+    if (level > 0 && !this.player.spendPower(level)) level = 0;
+    const hasAim = this.lastAimX !== 0 || this.lastAimZ !== 0;
+    const aimX = hasAim ? this.lastAimX : this.player.facingX;
+    const aimZ = hasAim ? this.lastAimZ : this.player.facingZ;
+    const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * SHOT_SPEED_BY_POWER_LEVEL[level];
+    // Stick direction is a screen direction — convert so the shot flies
+    // at the stick's on-screen angle and speed (config/movement.ts).
+    const w = screenDirToWorld(aimX, aimZ);
+    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, level > 0, false, 1, level);
+    this.player.playKick(aimX);
+    soundFX.kick();
   }
 
   /** Kongo's "doğru anda basınca power bonusu" — a short recurring sweet

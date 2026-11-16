@@ -80,10 +80,10 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Dash: her zaman 1 enerji, 1 sn bekleme (`config/power.ts`)
 - [x] Pasif dolum +1 / 5 sn
 - [x] Enerji içeceği pickup: 12 sn'de bir, iki sahada ayna konumda, +1 (nadiren altın +2)
-- [ ] Gol yiyene +1
+- [x] Gol yiyene +1
 
 ### M6.2 Şut
-- [ ] Dokun = normal şut, basılı tut = power shot (tüm enerjiyi harcar), tutarken büyüyen aura
+- [x] Dokun = normal şut, basılı tut = power shot (tüm enerjiyi harcar), tutarken büyüyen aura
 - [ ] Lob: joystick geri + şut; yavaş, gölge düşüş noktasını gösterir; zıplayıp kafa/vole ile karşılanır
 - [ ] AI rakip yeni şut tiplerini kullanır
 
