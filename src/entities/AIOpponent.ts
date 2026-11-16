@@ -143,6 +143,8 @@ export class AIOpponent {
       this.character.y > 0,
       dt,
       this.def.chaosTouch,
+      this.character.moveVelX,
+      this.character.moveVelZ,
     );
 
     if (ball.controller !== 'right') return;

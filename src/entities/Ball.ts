@@ -21,10 +21,11 @@ import {
   BALL_MAX_SPEED,
   BALL_CONTROL_RADIUS,
   BALL_CONTROL_STRENGTH,
-  BALL_MASS,
-  BALL_CONTROL_FORCE,
   DRIBBLE_POINT_LERP_SPEED,
-  AIR_CONTROL_MULTIPLIER,
+  DRIBBLE_STICK_LERP_SPEED,
+  DRIBBLE_CHAOS_WOBBLE,
+  BALL_TRAP_MAX_HEIGHT,
+  BALL_TRAP_MAX_RELATIVE_SPEED,
   KICK_CARRY_MOMENTUM,
   BALL_HOLD_SECONDS,
   BALL_HOLD_WARNING_SECONDS,
@@ -105,7 +106,6 @@ export class Ball {
    * same smoothing for free just by calling updateControl() each frame. */
   private controlPointX = 0;
   private controlPointZ = 0;
-  private controlPointInitialized = false;
   /** The controller's facing direction as of the last updateControl() call
    * — used only for the forced hold-timeout release push (see update()). */
   private controllerFacingX = 1;
@@ -152,7 +152,6 @@ export class Ball {
     this.holdTimeRemaining = 0;
     this.justReleasedBy = null;
     this.recaptureLockoutRemaining = 0;
-    this.controlPointInitialized = false;
     this.sprite.setAlpha(1);
     this.syncTransform();
   }
@@ -164,15 +163,22 @@ export class Ball {
   }
 
   /**
-   * Steers the ball toward `side`'s dribble point (world coords, already
-   * offset ahead of them by systems/dribbleControl.ts) if it's within
-   * BALL_CONTROL_RADIUS — a force/lerp on velocity, never a position
-   * assignment (CLAUDE.md: "top asla oyuncunun child objesi olmamalı").
-   * Call this once per frame for EACH side, before ball.update(); whichever
-   * side is in range (and not locked out) gets/keeps control. `isDashing`
-   * and `airborne` both suppress or weaken control (a Dash's burst speed
-   * outruns the dribble point on purpose; a jumping character barely
-   * steers the ball at all).
+   * Dribble control (reworked after Sami's "top ayakta durmuyor" feedback,
+   * modeled on YSoccer/Sensible Soccer's possession rule — see
+   * docs/PROGRESS.md Oturum 24).
+   *
+   * Two phases:
+   * 1. **Trap.** A free ball is only taken under control when it is near
+   *    the character's raw dribble point, low enough (BALL_TRAP_MAX_HEIGHT)
+   *    and NOT moving much faster than the character
+   *    (BALL_TRAP_MAX_RELATIVE_SPEED). A fast shot rolls past instead of
+   *    being magnetized onto the feet — the old "magnet" complaint stays
+   *    fixed without the steering force that made the ball drift away.
+   * 2. **Carry.** Once trapped the ball moves WITH the character: its
+   *    velocity is the character's velocity and its position is pulled
+   *    firmly (DRIBBLE_STICK_LERP_SPEED) onto a dribble point that swings
+   *    around with the facing direction. It stays there until a shot, a
+   *    Dash, the hold timeout, or the character leaves the ground.
    */
   updateControl(
     side: 'left' | 'right',
@@ -184,77 +190,55 @@ export class Ball {
     airborne: boolean,
     dt: number,
     chaos = false,
+    ownerVelX = 0,
+    ownerVelZ = 0,
   ): void {
-    if (isDashing) {
-      if (this.controller === side) this.controller = null;
+    const isMine = this.controller === side;
+    if (isDashing || airborne) {
+      if (isMine) this.controller = null;
       return;
     }
 
-    if (!this.controlPointInitialized) {
-      this.controlPointX = rawTargetX;
-      this.controlPointZ = rawTargetZ;
-      this.controlPointInitialized = true;
-    } else if (this.controller === side) {
-      // Only smooth-follow the target while WE hold control — otherwise an
-      // idle far-away character's raw target would still drag the shared
-      // control point around and distort the distance check below.
-      this.controlPointX = Phaser.Math.Linear(this.controlPointX, rawTargetX, DRIBBLE_POINT_LERP_SPEED * dt);
-      this.controlPointZ = Phaser.Math.Linear(this.controlPointZ, rawTargetZ, DRIBBLE_POINT_LERP_SPEED * dt);
-    }
-
-    const checkX = this.controller === side ? this.controlPointX : rawTargetX;
-    const checkZ = this.controller === side ? this.controlPointZ : rawTargetZ;
-    const dist = Math.hypot(this.x - checkX, this.z - checkZ);
-    const lockedOut = this.justReleasedBy === side && this.recaptureLockoutRemaining > 0;
-
-    if (dist > BALL_CONTROL_RADIUS || lockedOut) {
-      if (this.controller === side) this.controller = null;
-      return;
-    }
-
-    if (this.controller !== side) {
+    if (!isMine) {
+      const lockedOut = this.justReleasedBy === side && this.recaptureLockoutRemaining > 0;
+      const dist = Math.hypot(this.x - rawTargetX, this.z - rawTargetZ);
+      const relSpeed = Math.hypot(this.vx - ownerVelX, this.vz - ownerVelZ);
+      if (lockedOut || dist > BALL_CONTROL_RADIUS || this.y > BALL_TRAP_MAX_HEIGHT || relSpeed > BALL_TRAP_MAX_RELATIVE_SPEED) {
+        return;
+      }
       this.controller = side;
       this.holdTimeRemaining = BALL_HOLD_SECONDS;
       this.controlPointX = rawTargetX;
       this.controlPointZ = rawTargetZ;
+    } else {
+      // The dribble point slides (never teleports) when facing flips, so
+      // the ball visibly swings around the feet to the new direction.
+      const k = Math.min(1, DRIBBLE_POINT_LERP_SPEED * dt);
+      this.controlPointX = Phaser.Math.Linear(this.controlPointX, rawTargetX, k);
+      this.controlPointZ = Phaser.Math.Linear(this.controlPointZ, rawTargetZ, k);
     }
-    // Remembered for the forced hold-timeout release (see update()) — a
-    // standing-still holder's control point sits almost exactly on the
-    // ball at equilibrium, so the ball-to-point vector alone degenerates
-    // to near-zero right when we'd need a real "ileri" direction the most.
+
+    // Remembered for the forced hold-timeout release (see update()).
     this.controllerFacingX = facingX;
     this.controllerFacingZ = facingZ;
 
-    const airControl = airborne || this.y > 0 ? AIR_CONTROL_MULTIPLIER : 1;
-
-    const toX = this.controlPointX - this.x;
-    const toZ = this.controlPointZ - this.z;
-    const toLen = Math.hypot(toX, toZ) || 1;
-    let desiredVX = (toX / toLen) * BALL_CONTROL_STRENGTH;
-    let desiredVZ = (toZ / toLen) * BALL_CONTROL_STRENGTH;
+    let targetX = this.controlPointX;
+    let targetZ = this.controlPointZ;
     if (chaos) {
-      // Kenya's poşet top: dribbling it is a little unpredictable too, not
-      // just shots (M4's chaosTouch carried over into the new control model).
-      desiredVX += (Math.random() - 0.5) * BALL_CONTROL_STRENGTH * 0.5;
-      desiredVZ += (Math.random() - 0.5) * BALL_CONTROL_STRENGTH * 0.5;
+      // Kenya's poşet top: the carried ball wobbles around the feet.
+      targetX += (Math.random() - 0.5) * DRIBBLE_CHAOS_WOBBLE;
+      targetZ += (Math.random() - 0.5) * DRIBBLE_CHAOS_WOBBLE;
     }
-
-    // Real force/mass steering, not an unbounded lerp: the velocity can
-    // only change by at most (force/mass)*dt this frame, however big the
-    // gap to the desired velocity is. This is what actually kills the
-    // "magnet" feel — a fast ball can't be yanked to a dead stop toward
-    // the dribble point in one frame, it has to visibly curve in over a
-    // few frames (or simply can't be fully caught at all if it's moving
-    // too fast and passes through the control radius too quickly).
-    const steerX = desiredVX - this.vx;
-    const steerZ = desiredVZ - this.vz;
-    const steerLen = Math.hypot(steerX, steerZ);
-    const maxDeltaV = (BALL_CONTROL_FORCE / BALL_MASS) * airControl * dt;
-    if (steerLen > 0) {
-      const applied = Math.min(steerLen, maxDeltaV);
-      this.vx += (steerX / steerLen) * applied;
-      this.vz += (steerZ / steerLen) * applied;
-    }
+    const stick = Math.min(1, DRIBBLE_STICK_LERP_SPEED * dt);
+    this.x = Phaser.Math.Linear(this.x, targetX, stick);
+    this.z = Phaser.Math.Linear(this.z, targetZ, stick);
+    // Move with the owner; update() integrates this, so the ball never lags
+    // a frame behind a running character.
+    this.vx = ownerVelX;
+    this.vz = ownerVelZ;
+    // Keep it on the ground while carried.
+    if (this.y > 0) this.y = Math.max(0, this.y - BALL_TRAP_MAX_HEIGHT * stick);
+    this.vy = 0;
 
     // Actively controlled = not "the ball a shot left behind" anymore.
     this.lastShotWasPower = false;

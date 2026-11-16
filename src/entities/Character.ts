@@ -71,6 +71,9 @@ export class Character {
    * character's actual current speed to decide how far ahead the ball sits. */
   velX = 0;
   velZ = 0;
+  /** Velocity actually travelled last frame (boundary clamps included). */
+  moveVelX = 0;
+  moveVelZ = 0;
   private readonly bounds: CharacterBounds;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
@@ -261,8 +264,15 @@ export class Character {
             : PLAYER_ACCELERATION;
       this.velX = moveToward(this.velX, targetVX, rateX * dt);
       this.velZ = moveToward(this.velZ, targetVZ, rateZ * dt);
+      const prevX = this.x;
+      const prevZ = this.z;
       this.x = Phaser.Math.Clamp(this.x + this.velX * dt, this.bounds.minX, this.bounds.maxX);
       this.z = Phaser.Math.Clamp(this.z + this.velZ * dt, DEPTH_MIN, DEPTH_MAX);
+      // Actual displacement velocity — velX/velZ stay "intended" (for the
+      // run animation) even when pinned against a boundary; a carried ball
+      // must follow where the character really went, not where it pushed.
+      this.moveVelX = dt > 0 ? (this.x - prevX) / dt : 0;
+      this.moveVelZ = dt > 0 ? (this.z - prevZ) / dt : 0;
     }
 
     if (input.jumpPressed && this.y === 0) {

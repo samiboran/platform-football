@@ -21,11 +21,11 @@ export const DASH_RETRIGGER_COOLDOWN = 0.25;
 
 /** Ball speed (px/s) on a normal Aksiyon shot — notably harder than the
  * ball ever moves under dribble control (see BALL_CONTROL_STRENGTH,
- * config/ball.ts). Raised from an earlier 420 — Sami found shots too slow
- * to feel like a real strike. Crosses HALF_FIELD_WIDTH (arena.ts) in well
- * under a second now. */
-export const SHOT_SPEED_NORMAL = 620;
+ * config/ball.ts). History: 420 (too slow, Sami) → 620 (Oturum 24: "çok
+ * hızlı gidiyor, takip etmesi zor") → 480, about 2.2x MOVE_SPEED: still a
+ * clear strike, but the eye can follow it across the fixed camera. */
+export const SHOT_SPEED_NORMAL = 480;
 /** Power şut multiplies that speed and costs a full segment. */
-export const SHOT_SPEED_POWER_MULTIPLIER = 1.6;
+export const SHOT_SPEED_POWER_MULTIPLIER = 1.5;
 export const POWER_SHOT_SEGMENT_COST = 1;
 export const POWER_CATCH_SEGMENT_COST = 1;

@@ -35,26 +35,19 @@ export const BALL_GROUND_FRICTION = 150;
  * KICK_CARRY_MOMENTUM on an already-moving ball) — this isn't meant to
  * clip a real shot, only to stop the ball from accumulating runaway speed
  * from repeated wall bounces or wind over many frames. */
-export const BALL_MAX_SPEED = 1400;
+export const BALL_MAX_SPEED = 1100;
 
-// --- Dribble control (force-based, not a position lock) -------------------
-// The ball is never the player's child object and its position is never
-// assigned directly. Instead, while within BALL_CONTROL_RADIUS of a
-// character's (smoothed) dribble point, a bounded STEERING FORCE nudges
-// its velocity toward a "desired velocity" pointing at that dribble point
-// — real force/mass, not an unbounded lerp. An earlier lerp-based version
-// (`vel = lerp(vel, desiredVel, response*dt)`) had no cap on how much the
-// velocity could change in one frame, so a fast ball passing near a player
-// got yanked toward them instantly — Sami described it as "magnet"-like.
-// Capping the per-frame velocity change to BALL_CONTROL_FORCE/BALL_MASS
-// (a real acceleration limit) means redirecting a fast ball now visibly
-// takes a beat, and a ball moving fast enough simply can't be full-force
-// trapped in one frame, however close it passes — it has to actually slow
-// down or the player has to stay near it for a moment. This keeps every
-// bit of existing free physics (gravity, friction, bounce, wall/goal
-// checks) running underneath control at all times; control is additive,
-// never a separate mode that replaces physics. See
-// systems/dribbleControl.ts and Ball.updateControl().
+// --- Dribble control (trap + carry) -------------------------------------
+// Reworked in Oturum 24 after Sami: "futbolcu topa gidince top ayağa
+// gelmeli, tekrar çıkmamalı, oyuncunun yönüyle birlikte hareket etmeli".
+// The earlier force-based steering (seek speed 260 px/s, 900 px/s² cap)
+// could not keep up with a 220 px/s character that turned, so the ball
+// drifted out of the control radius and got dropped. Modeled on YSoccer
+// (open-source Sensible Soccer remake): a ball is TRAPPED only if it is
+// close, low, and not much faster than the character (so fast shots are
+// not magnetized), and once trapped it is CARRIED — it moves with the
+// character's velocity and is held on a dribble point ahead of the feet
+// that swings with the facing direction. See Ball.updateControl().
 
 /** How close the ball must be to a character's dribble point to be under
  * that character's control at all. Shrunk from an earlier 45 (roughly half
@@ -64,32 +57,24 @@ export const BALL_MAX_SPEED = 1400;
  * broad body-collision box (this project doesn't do rigid-body collision
  * between characters and the ball, see docs/PROGRESS.md). */
 export const BALL_CONTROL_RADIUS = 30;
-/** The "seek speed" (px/s) the desired-velocity vector is scaled to when
- * steering the ball toward the dribble point — a target speed, not an
- * instant velocity; BALL_CONTROL_FORCE/BALL_MASS below decide how fast the
- * ball's real velocity can actually climb toward it. */
+/** Seek speed used only for the forced hold-timeout release push (see
+ * Ball.update()). */
 export const BALL_CONTROL_STRENGTH = 260;
-/** The ball's "mass" for dribble-control purposes: divides
- * BALL_CONTROL_FORCE to get the actual acceleration cap
- * (`accel = force / mass`). Doesn't affect gravity/bounce/wall physics —
- * those already have their own separate tuning — only how sluggishly the
- * ball responds to a player's control force. Higher = heavier/harder to
- * redirect, lower = lighter/more eager to follow. */
-export const BALL_MASS = 1;
-/** Maximum steering force (in the same px/s² units as an acceleration,
- * before dividing by BALL_MASS) the dribble-control system can apply to
- * the ball's velocity per frame. This is the actual fix for the "magnet"
- * feel — it hard-caps how much the ball's velocity can change in one
- * frame no matter how far off it starts, so control always ramps in over
- * a handful of frames instead of snapping. */
-export const BALL_CONTROL_FORCE = 900;
-/** Multiplies the effective control force while either the ball or its
- * controlling character is airborne (y > 0) — a jumping player barely
- * steers the ball, it isn't glued to their feet mid-air. */
-export const AIR_CONTROL_MULTIPLIER = 0.15;
+/** A free ball above this height (world px) can't be trapped — it has to
+ * come down first (or be headed/volleyed). */
+export const BALL_TRAP_MAX_HEIGHT = 22;
+/** A free ball moving faster than this RELATIVE to the character (px/s)
+ * rolls past instead of being trapped — this is what keeps a hard shot
+ * from being magnetized onto the feet. YSoccer uses ~220-290. */
+export const BALL_TRAP_MAX_RELATIVE_SPEED = 340;
+/** How firmly (1/s) a carried ball is pulled onto the dribble point each
+ * frame. High = glued to the feet, low = loose touches. */
+export const DRIBBLE_STICK_LERP_SPEED = 22;
+/** Kenya poşet top: random jitter (world px) on the carried ball's target. */
+export const DRIBBLE_CHAOS_WOBBLE = 10;
 /** How far in front of a character's feet (world px, along facing) the
  * dribble point sits while standing still/walking slowly. */
-export const DRIBBLE_DISTANCE_WALK = 10;
+export const DRIBBLE_DISTANCE_WALK = 14;
 /** ...at full running speed (MOVE_SPEED). */
 export const DRIBBLE_DISTANCE_RUN = 24;
 /** ...right after a Dash — deliberately further than BALL_CONTROL_RADIUS:
@@ -102,7 +87,7 @@ export const DRIBBLE_DISTANCE_DASH = 48;
  * *target* the control force steers toward) uses to follow the character's
  * raw feet+facing position — never teleports when facing direction
  * flips, always slides there. */
-export const DRIBBLE_POINT_LERP_SPEED = 10;
+export const DRIBBLE_POINT_LERP_SPEED = 14;
 /** Fraction of a moving ball's existing velocity carried into a shot,
  * added to (not replacing) the shot's own velocity: `shotVel = ball.vel *
  * KICK_CARRY_MOMENTUM + shootDir * shootSpeed`. Hitting a ball already
