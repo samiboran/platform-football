@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { CHARACTER_ORDER, CHARACTER_POSES, characterSpriteKey } from '../config/characters';
 import { BALL_POWER_LEVEL_MAX, ballSpriteKey } from '../config/animation';
 import { FAN_VARIANTS } from '../config/pitchArt';
+import { DRINK_TEXTURE_KEY, DRINK_GOLD_TEXTURE_KEY } from '../config/pickups';
 import { fanTextureKey } from '../systems/CrowdBand';
 import {
   HUD_TEXTURES,
@@ -26,6 +27,7 @@ export class BootScene extends Phaser.Scene {
     for (let level = 0; level <= BALL_POWER_LEVEL_MAX; level++) {
       this.load.image(ballSpriteKey(level), `fx/ball_power${level}.png`);
     }
+    for (const key of [DRINK_TEXTURE_KEY, DRINK_GOLD_TEXTURE_KEY]) this.load.image(key, `fx/${key}.png`);
     for (let v = 0; v < FAN_VARIANTS; v++) {
       for (const cheer of [false, true]) {
         const key = fanTextureKey(v, cheer);

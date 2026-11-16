@@ -78,8 +78,8 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 
 ### M6.1 Enerji ekonomisi
 - [x] Dash: her zaman 1 enerji, 1 sn bekleme (`config/power.ts`)
-- [ ] Pasif dolum +1 / 5 sn
-- [ ] Enerji içeceği pickup: 12 sn'de bir, iki sahada ayna konumda, +1 (nadiren altın +2)
+- [x] Pasif dolum +1 / 5 sn
+- [x] Enerji içeceği pickup: 12 sn'de bir, iki sahada ayna konumda, +1 (nadiren altın +2)
 - [ ] Gol yiyene +1
 
 ### M6.2 Şut

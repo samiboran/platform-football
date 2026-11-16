@@ -41,6 +41,7 @@ import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
+import { EnergyDrinks } from '../systems/EnergyDrinks';
 import * as HUD from '../config/hud';
 import { resolveCatchAttempt } from '../systems/catchMatrix';
 import { Character } from '../entities/Character';
@@ -72,6 +73,7 @@ export class MatchScene extends Phaser.Scene {
   private opponent!: AIOpponent;
   private opponentCharacter: CharacterDef = CHARACTERS.kenya;
   private crowd!: CrowdBand;
+  private drinks!: EnergyDrinks;
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
   private powerSegmentBoxes: Phaser.GameObjects.Image[] = [];
@@ -156,6 +158,7 @@ export class MatchScene extends Phaser.Scene {
     });
 
     this.opponent = new AIOpponent(this, this.opponentCharacter);
+    this.drinks = new EnergyDrinks(this);
 
     this.input1 = new InputController(this);
 
@@ -203,6 +206,7 @@ export class MatchScene extends Phaser.Scene {
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
     this.opponent.update(delta, this.ball);
+    this.drinks.update(delta, [this.player, this.opponent.character], () => soundFX.pickup());
     this.crowd.update(delta);
 
     this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;

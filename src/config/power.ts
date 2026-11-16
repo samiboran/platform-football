@@ -6,8 +6,11 @@
 
 /** 3-segment bar (CLAUDE.md section 5). */
 export const POWER_MAX_SEGMENTS = 3;
-/** Seconds of passive fill to go from 0 to 1 full segment. */
-export const POWER_FILL_SECONDS_PER_SEGMENT = 8;
+/** Passive gain (CLAUDE.md section 5, 16.11.2026): +1 whole segment every
+ * this many seconds while the bar isn't full. Discrete steps, not a
+ * continuous trickle — the timer pauses (and resets) while the bar is full. */
+export const POWER_PASSIVE_GAIN_SECONDS = 5;
+export const POWER_PASSIVE_GAIN_AMOUNT = 1;
 
 /** Dash always costs exactly 1 energy segment, on the ground or in the air
  * (CLAUDE.md section 5, 16.11.2026 rules — replaces the old 0.25/0.35

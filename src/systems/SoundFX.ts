@@ -52,6 +52,12 @@ export class SoundFX {
   }
 
   /** Keeper catches the ball. */
+  /** Energy drink picked up — short rising blip. */
+  pickup(): void {
+    this.tone(660, 0.06, 'square', 0.1);
+    this.tone(990, 0.08, 'square', 0.1, 0.05);
+  }
+
   save(): void {
     this.tone(140, 0.1, 'square', 0.18);
     this.tone(90, 0.15, 'square', 0.15, 0.05);

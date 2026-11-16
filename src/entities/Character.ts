@@ -13,7 +13,8 @@ import {
 } from '../config/movement';
 import {
   POWER_MAX_SEGMENTS,
-  POWER_FILL_SECONDS_PER_SEGMENT,
+  POWER_PASSIVE_GAIN_SECONDS,
+  POWER_PASSIVE_GAIN_AMOUNT,
   DASH_ENERGY_COST,
   DASH_SPEED,
   DASH_DURATION,
@@ -100,8 +101,10 @@ export class Character {
   /** Placeholder fallback mode (no characterId — F1 debug reference only). */
   private readonly placeholderSprite?: Phaser.GameObjects.Container;
 
-  /** 0..POWER_MAX_SEGMENTS. */
+  /** 0..POWER_MAX_SEGMENTS, whole segments only. */
   powerSegments = 0;
+  /** Seconds accumulated toward the next passive +1 (0 while full). */
+  passiveGainTimer = 0;
   /** Last nonzero move direction — where Dash goes when the joystick is
    * neutral (CLAUDE.md section 4). */
   facingX = 1;
@@ -177,6 +180,11 @@ export class Character {
     return true;
   }
 
+  /** Add energy (passive tick, drink pickup, …), clamped to the bar. */
+  gainPower(amount: number): void {
+    this.powerSegments = Phaser.Math.Clamp(this.powerSegments + amount, 0, POWER_MAX_SEGMENTS);
+  }
+
   /** Shot follow-through pose, facing the shot's horizontal direction. */
   playKick(dirX: number): void {
     const sign = dirX !== 0 ? Math.sign(dirX) : this.lastHorizFacing;
@@ -213,11 +221,15 @@ export class Character {
   update(delta: number, input: CharacterInput): void {
     const dt = delta / 1000;
 
-    this.powerSegments = Phaser.Math.Clamp(
-      this.powerSegments + dt / POWER_FILL_SECONDS_PER_SEGMENT,
-      0,
-      POWER_MAX_SEGMENTS,
-    );
+    if (this.powerSegments >= POWER_MAX_SEGMENTS) {
+      this.passiveGainTimer = 0;
+    } else {
+      this.passiveGainTimer += dt;
+      if (this.passiveGainTimer >= POWER_PASSIVE_GAIN_SECONDS) {
+        this.passiveGainTimer -= POWER_PASSIVE_GAIN_SECONDS;
+        this.gainPower(POWER_PASSIVE_GAIN_AMOUNT);
+      }
+    }
 
     if (input.moveX !== 0 || input.moveZ !== 0) {
       this.facingX = input.moveX;

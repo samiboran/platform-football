@@ -394,16 +394,22 @@ def ball(level: int) -> Image.Image:
     return img
 
 
-def energy_drink() -> Image.Image:
+def energy_drink(gold: bool = False) -> Image.Image:
+    """Blue can (+1 energy) or the rare golden can (+2), CLAUDE.md section 5."""
+    body, shine, rim, bolt_c = (('e0a81e', 'fff0a0', 'fff6d0', 'ffffff') if gold
+                                else ('1e6fe0', '6fb0ff', 'c0c0c8', 'ffe14d'))
     c = Canvas(9, 15)
-    c.rect(2, 0, 6, 0, rgb('c0c0c8'))                  # lid
-    c.rect(1, 1, 7, 13, rgb('1e6fe0'))                 # can
-    c.rect(1, 1, 7, 2, rgb('c0c0c8'))
-    c.rect(1, 12, 7, 13, rgb('c0c0c8'))
-    c.rect(2, 3, 2, 11, rgb('6fb0ff'))                 # shine
+    c.rect(2, 0, 6, 0, rgb(rim))                       # lid
+    c.rect(1, 1, 7, 13, rgb(body))                     # can
+    c.rect(1, 1, 7, 2, rgb(rim))
+    c.rect(1, 12, 7, 13, rgb(rim))
+    c.rect(2, 3, 2, 11, rgb(shine))                    # shine
     bolt = [(5, 4), (4, 5), (4, 6), (5, 6), (6, 6), (5, 7), (4, 8), (4, 9)]
     for x, y in bolt:
-        c.put(x, y, rgb('ffe14d'))
+        c.put(x, y, rgb(bolt_c))
+    if gold:                                           # sparkle pixels
+        c.put(7, 4, rgb('ffffff'))
+        c.put(1, 10, rgb('ffffff'))
     return c.image()
 
 
@@ -554,10 +560,11 @@ def main():
         sheet_rows.append(list(poses.values()))
         assert poses['front'].height == H
 
-    fx = [ball(i) for i in range(4)] + [energy_drink()]
+    fx = [ball(i) for i in range(4)] + [energy_drink(), energy_drink(gold=True)]
     for i in range(4):
         save(fx[i], 'assets', 'fx', f'ball_power{i}.png')
     save(fx[4], 'assets', 'fx', 'energy_drink.png')
+    save(fx[5], 'assets', 'fx', 'energy_drink_gold.png')
     sheet_rows.append(fx)
 
     fans = []
