@@ -74,10 +74,10 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Koşu animasyonu (`run_<dir>_0..3`), `slide_right`, `kick_*`, `catch`, `stunned` pozlarını `Character.ts`'e bağla (BootScene yüklemesi + poz seçimi)
 - [x] Topu `ball_power<N>.png` ile çiz, güç seviyesine göre aura
 - [x] Saha, tribün ve HUD'u pixel art'a çek (Pixel Cup Soccer havası, `pitchRenderer.ts`)
-- [ ] Sprite kalitesi ikinci tur: gölgelendirme, koşu karelerinde kol/bacak netliği
+- [x] Sprite kalitesi ikinci tur: gölgelendirme, koşu karelerinde kol/bacak netliği
 
 ### M6.1 Enerji ekonomisi
-- [ ] Dash: her zaman 1 enerji, 1 sn bekleme (`config/power.ts`)
+- [x] Dash: her zaman 1 enerji, 1 sn bekleme (`config/power.ts`)
 - [ ] Pasif dolum +1 / 5 sn
 - [ ] Enerji içeceği pickup: 12 sn'de bir, iki sahada ayna konumda, +1 (nadiren altın +2)
 - [ ] Gol yiyene +1

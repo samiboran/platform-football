@@ -9,15 +9,16 @@ export const POWER_MAX_SEGMENTS = 3;
 /** Seconds of passive fill to go from 0 to 1 full segment. */
 export const POWER_FILL_SECONDS_PER_SEGMENT = 8;
 
-/** Dash doesn't cost a whole segment, just eats into one (CLAUDE.md: "bir
- * segmentin ~%25'ini eritir, havada dash biraz daha fazla"). */
-export const DASH_SEGMENT_COST_GROUND = 0.25;
-export const DASH_SEGMENT_COST_AIR = 0.35;
+/** Dash always costs exactly 1 energy segment, on the ground or in the air
+ * (CLAUDE.md section 5, 16.11.2026 rules — replaces the old 0.25/0.35
+ * fractional slice). No energy → no dash. */
+export const DASH_ENERGY_COST = 1;
 /** px/s burst speed and how long the burst lasts. */
 export const DASH_SPEED = 480;
 export const DASH_DURATION = 0.18;
-/** Minimum gap between dashes so holding the button doesn't spam-drain power. */
-export const DASH_RETRIGGER_COOLDOWN = 0.25;
+/** Seconds that must pass between two dashes (measured from the start of the
+ * previous dash), so a full bar can't be dumped in three instant bursts. */
+export const DASH_COOLDOWN = 1.0;
 
 /** Ball speed (px/s) on a normal Aksiyon shot — notably harder than the
  * ball ever moves under dribble control (see BALL_CONTROL_STRENGTH,

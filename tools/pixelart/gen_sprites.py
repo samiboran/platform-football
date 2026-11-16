@@ -45,6 +45,20 @@ def rgb(h: str) -> tuple:
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), 255)
 
 
+def shade(c: tuple, f: float) -> tuple:
+    """Darken (f<1) or lighten (f>1) a colour; lightening blends toward white."""
+    if f <= 1:
+        return tuple(int(v * f) for v in c[:3]) + (c[3],)
+    t = f - 1
+    return tuple(min(255, int(v + (255 - v) * t)) for v in c[:3]) + (c[3],)
+
+
+# Light comes from the top-left: right/bottom silhouette edges get a shadow
+# rim, top-left edges a soft highlight. Applied to every character pose.
+RIM_SHADOW = 0.74
+RIM_LIGHT = 1.22
+
+
 LOOKS = [
     Look('brazil', skin=rgb('e8b48a'), skin_dark=rgb('c98d64'), hair=rgb('6b3f22'),
          shirt=rgb('f7d117'), shirt_dark=rgb('d4a90c'), trim=rgb('1f9b48'),
@@ -77,6 +91,36 @@ class Canvas:
         for (x, y) in [(x0, y0), (x1, y0), (x0, y1), (x1, y1)]:
             self.px[y][x] = None
         self.rect(x0 + 1, y0, x1 - 1, y0, c)
+
+    def light(self):
+        """Top-left key light: shadow rim on the right edge, highlight on the
+        top-left edge. Outline-coloured detail pixels (eyes etc.) are skipped."""
+        src = [row[:] for row in self.px]
+
+        def empty(x, y):
+            return not (0 <= x < self.w and 0 <= y < self.h) or src[y][x] is None
+
+        for y in range(self.h):
+            for x in range(self.w):
+                c = src[y][x]
+                if c is None or c == OUTLINE:
+                    continue
+                if empty(x + 1, y) or empty(x, y + 1) and empty(x + 1, y + 1):
+                    self.px[y][x] = shade(c, RIM_SHADOW)
+                elif empty(x - 1, y) and empty(x, y - 1) or empty(x, y - 1) and empty(x - 1, y - 1):
+                    self.px[y][x] = shade(c, RIM_LIGHT)
+        return self
+
+    def rect_cut(self, x0: int, y0: int, x1: int, y1: int, c, over: tuple = ()):
+        """Rectangle that cuts an outline into the pixels it borders whose colour
+        is in `over`, so a limb drawn over the body (or the far limb) stays
+        readable instead of melting into it."""
+        for y in range(y0 - 1, y1 + 2):
+            for x in range(x0 - 1, x1 + 2):
+                inside = x0 <= x <= x1 and y0 <= y <= y1
+                if not inside and 0 <= x < self.w and 0 <= y < self.h and self.px[y][x] in over:
+                    self.px[y][x] = OUTLINE
+        self.rect(x0, y0, x1, y1, c)
 
     def image(self, outline: bool = True) -> Image.Image:
         img = Image.new('RGBA', (self.w, self.h), (0, 0, 0, 0))
@@ -167,9 +211,13 @@ def draw_torso_front(c: Canvas, L: Look, cx: int, top: int, back: bool = False, 
             c.rect(ax, top + 3, ax + 1, top + 7, L.skin)
             c.rect(ax, top + 8, ax + 1, top + 8, L.skin_dark)
     elif arms == 'up':
-        for ax in (ax0, ax1):
-            c.rect(ax, top - 6, ax + 1, top - 1, L.skin)
+        # arms thrown up and out in a V so they clear the head silhouette
+        for ax, out in ((ax0, -1), (ax1, 1)):
             c.rect(ax, top, ax + 1, top + 1, L.shirt)
+            c.rect(ax, top - 3, ax + 1, top - 1, L.skin)
+            c.rect(ax + out, top - 6, ax + 1 + out, top - 4, L.skin)
+            c.rect(ax + 2 * out, top - 9, ax + 1 + 2 * out, top - 7, L.skin)
+            c.rect(ax + 2 * out, top - 9, ax + 1 + 2 * out, top - 9, L.skin_dark)  # fist
     elif arms == 'catch':
         c.rect(ax0 - 3, top - 2, ax0 + 1, top - 1, L.skin)
         c.rect(ax0, top, ax0 + 1, top + 1, L.shirt)
@@ -214,16 +262,38 @@ def pose_front(L: Look, back=False, arms='down', eyes='open', bent=False, lift=0
     draw_legs_front(c, L, CX, LEGS_TOP - lift, bent)
     draw_torso_front(c, L, CX, TORSO_TOP - lift, back, arms)
     draw_head(c, L, CX, HEAD_TOP - lift, 'back' if back else 'front', eyes)
-    return c
+    return c.light()
 
 
-def side_leg(c: Canvas, L: Look, hip_x: int, top: int, swing: int, lift: int = 0):
-    """One leg in profile; swing <0 forward (left), >0 back. lift raises foot."""
+FAR_LIMB = 0.72   # far-side arm/leg are drawn darker so they read behind the body
+
+SIDE_SWINGS = {'idle': (0, 1), 'run0': (-5, 4), 'run1': (-2, 1), 'run2': (4, -5), 'run3': (1, -2),
+               'kick': (5, 0)}          # (near leg, far leg) foot offset; <0 forward (left)
+SIDE_LIFT = {'run0': (0, 2), 'run1': (0, 0), 'run2': (2, 0), 'run3': (0, 0)}  # back foot kicks up
+SIDE_ARM = {'idle': 0, 'run0': 3, 'run1': 1, 'run2': -3, 'run3': -1, 'kick': 4}  # near arm; far = -arm
+
+
+def side_leg(c: Canvas, L: Look, hip_x: int, top: int, swing: int, lift: int = 0,
+             far: bool = False):
+    """One leg in profile; swing <0 forward (left), >0 back. lift raises foot.
+    The near leg cuts an outline into the far one so the two stay separate."""
+    f = FAR_LIMB if far else 1.0
+    skin, socks, shoes = shade(L.skin, f), shade(L.socks, f), shade(L.shoes, f * (0.9 if far else 1))
+    far_cols = tuple(shade(col, FAR_LIMB) for col in (L.skin, L.socks)) + (shade(L.shoes, FAR_LIMB * 0.9),)
+    draw = c.rect if far else (lambda *a: c.rect_cut(*a, over=far_cols))
     fx = hip_x + swing
-    for i in range(2):
-        c.rect(hip_x + (swing * i) // 3, top + i, hip_x + (swing * i) // 3 + 2, top + i, L.skin)
-    c.rect(fx, top + 2 - lift, fx + 2, top + 3 - lift, L.socks)
-    c.rect(fx - 1, top + 4 - lift, fx + 2, top + 5 - lift, L.shoes)
+    mx = hip_x + swing // 2
+    draw(mx, top, mx + 2, top + 1, skin)                         # thigh/knee
+    draw(fx, top + 2 - lift, fx + 2, top + 3 - lift, socks)       # shin + sock
+    draw(fx - 1, top + 4 - lift, fx + 2, top + 5 - lift, shoes)   # boot (toe forward)
+
+
+def side_arm(c: Canvas, L: Look, top: int, offset: int, far: bool):
+    f = FAR_LIMB if far else 1.0
+    ax = CX - 1 + offset
+    draw = c.rect if far else (lambda *a: c.rect_cut(*a, over=(L.shirt, L.shirt_dark)))
+    draw(ax - 1, top + 3, ax + 1, top + 6, shade(L.skin, f))
+    c.rect(ax - 1, top + 7, ax + 1, top + 7, shade(L.skin_dark, f))  # fist
 
 
 def pose_side(L: Look, frame: str = 'idle') -> Canvas:
@@ -231,33 +301,36 @@ def pose_side(L: Look, frame: str = 'idle') -> Canvas:
     c = Canvas()
     bob = 1 if frame in ('run1', 'run3') else 0
     legs_top = LEGS_TOP + 4 - bob
-    swings = {'idle': (0, 1), 'run0': (-4, 4), 'run1': (-1, 1), 'run2': (4, -4), 'run3': (1, -1),
-              'kick': (5, 0)}[frame]
+    near, far = SIDE_SWINGS[frame]
+    lift_near, lift_far = SIDE_LIFT.get(frame, (0, 0))
+    arm = SIDE_ARM[frame]
     hip = CX - 2
-    # far leg first (darker), near leg on top
-    side_leg(c, L, hip + 1, legs_top, swings[1], lift=2 if frame == 'run2' else 0)
+    half = 5 if L.big else 4
+    torso_top = TORSO_TOP - bob
+    # far arm swings opposite the near arm, behind the torso
+    if frame != 'idle':
+        side_arm(c, L, torso_top, -arm, far=True)
+    side_leg(c, L, hip + 1, legs_top, far, lift=lift_far, far=True)
+    # shorts + torso
+    c.rect(CX - half - 1, LEGS_TOP - bob, CX + half - 1, LEGS_TOP + 3 - bob, L.shorts)
+    c.rect(CX - half - 1, torso_top, CX + half - 1, torso_top + 8, L.shirt)
+    c.rect(CX - half - 1, torso_top + 7, CX + half - 1, torso_top + 8, L.shirt_dark)
+    c.rect(CX + half - 2, torso_top + 1, CX + half - 1, torso_top + 6, L.shirt_dark)   # back shadow
+    if L.tie:
+        c.rect(CX - half - 1, torso_top + 1, CX - half - 1, torso_top + 4, L.tie)
+    else:
+        c.rect(CX - half - 1, torso_top, CX - half, torso_top, L.trim)                 # collar
     if frame == 'kick':
-        c.rect(hip - 7, legs_top - 2, hip, legs_top - 1, L.skin)       # extended kicking leg
+        c.rect(hip - 7, legs_top - 2, hip, legs_top - 1, L.skin)        # extended kicking leg
         c.rect(hip - 9, legs_top - 3, hip - 7, legs_top - 1, L.socks)
         c.rect(hip - 12, legs_top - 3, hip - 9, legs_top - 1, L.shoes)
     else:
-        side_leg(c, L, hip, legs_top, swings[0], lift=2 if frame == 'run0' else 0)
-    # shorts
-    half = 5 if L.big else 4
-    c.rect(CX - half - 1, LEGS_TOP - bob, CX + half - 1, LEGS_TOP + 3 - bob, L.shorts)
-    # torso
-    c.rect(CX - half - 1, TORSO_TOP - bob, CX + half - 1, TORSO_TOP + 8 - bob, L.shirt)
-    c.rect(CX - half - 1, TORSO_TOP + 7 - bob, CX + half - 1, TORSO_TOP + 8 - bob, L.shirt_dark)
-    if L.tie:
-        c.rect(CX - half - 1, TORSO_TOP + 1 - bob, CX - half - 1, TORSO_TOP + 4 - bob, L.tie)
-    # arm swings opposite to the near leg
-    arm = {'idle': 0, 'run0': 3, 'run1': 1, 'run2': -3, 'run3': -1, 'kick': 4}[frame]
-    ax = CX - 1 + arm
-    c.rect(CX - 2, TORSO_TOP + 1 - bob, CX, TORSO_TOP + 2 - bob, L.shirt_dark)
-    c.rect(ax - 1, TORSO_TOP + 3 - bob, ax + 1, TORSO_TOP + 7 - bob, L.skin)
-    c.rect(ax - 1, TORSO_TOP + 8 - bob, ax + 1, TORSO_TOP + 8 - bob, L.skin_dark)
+        side_leg(c, L, hip, legs_top, near, lift=lift_near)
+    # near arm: sleeve + forearm, outlined against the shirt
+    side_arm(c, L, torso_top, arm, far=False)
+    c.rect(CX - 2, torso_top + 1, CX, torso_top + 2, L.shirt_dark)
     draw_head(c, L, CX, HEAD_TOP - bob, 'left')
-    return c
+    return c.light()
 
 
 def flip(img: Image.Image) -> Image.Image:

@@ -4,11 +4,10 @@ import { MOVE_SPEED, GRAVITY, JUMP_VELOCITY, PLAYER_ACCELERATION, PLAYER_DECELER
 import {
   POWER_MAX_SEGMENTS,
   POWER_FILL_SECONDS_PER_SEGMENT,
-  DASH_SEGMENT_COST_GROUND,
-  DASH_SEGMENT_COST_AIR,
+  DASH_ENERGY_COST,
   DASH_SPEED,
   DASH_DURATION,
-  DASH_RETRIGGER_COOLDOWN,
+  DASH_COOLDOWN,
 } from '../config/power';
 import { type CharacterId, type CharacterPose, RUN_FRAME_COUNT, characterSpriteKey } from '../config/characters';
 import {
@@ -56,7 +55,7 @@ const PLACEHOLDER_HEAD_COLOR = 0xe0ac69;
  * F1 debug reference character, which isn't any real identity).
  *
  * Also owns the M3 power bar (CLAUDE.md section 5): it fills passively and
- * Dash spends a slice of it directly. Power şut/tutuş spend it through
+ * Dash spends 1 full segment directly (1 s cooldown). Power şut/tutuş spend it through
  * `spendPower()`, called from MatchScene/AIOpponent — there's no separate
  * keeper entity, catching is this same character's own contextual action.
  */
@@ -228,12 +227,11 @@ export class Character {
       const dirX = input.moveX !== 0 || input.moveZ !== 0 ? input.moveX : this.facingX;
       const dirZ = input.moveX !== 0 || input.moveZ !== 0 ? input.moveZ : this.facingZ;
       const len = Math.hypot(dirX, dirZ) || 1;
-      const cost = this.y > 0 ? DASH_SEGMENT_COST_AIR : DASH_SEGMENT_COST_GROUND;
-      if (this.spendPower(cost)) {
+      if (this.spendPower(DASH_ENERGY_COST)) {
         this.dashVX = (dirX / len) * DASH_SPEED;
         this.dashVZ = (dirZ / len) * DASH_SPEED;
         this.dashTimeRemaining = DASH_DURATION;
-        this.dashRetriggerTimer = DASH_RETRIGGER_COOLDOWN;
+        this.dashRetriggerTimer = DASH_COOLDOWN;
       }
     }
 
