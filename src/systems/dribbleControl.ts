@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { MOVE_SPEED } from '../config/movement';
+import { MOVE_SPEED, DEPTH_SPEED_FACTOR } from '../config/movement';
 import { DASH_SPEED } from '../config/power';
 import { DRIBBLE_DISTANCE_WALK, DRIBBLE_DISTANCE_RUN, DRIBBLE_DISTANCE_DASH } from '../config/ball';
 
@@ -37,6 +37,8 @@ export function computeDribbleTarget(
   const len = Math.hypot(facingX, facingZ) || 1;
   return {
     x: characterX + (facingX / len) * distance,
-    z: characterZ + (facingZ / len) * distance,
+    // Depth offset converted like movement (config/movement.ts), so the ball
+    // sits the same on-screen distance ahead when running up/down.
+    z: characterZ + (facingZ / len) * distance * DEPTH_SPEED_FACTOR,
   };
 }

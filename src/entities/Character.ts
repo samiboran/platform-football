@@ -10,6 +10,7 @@ import {
   PLAYER_ACCELERATION,
   PLAYER_DECELERATION,
   PLAYER_TURN_SPEED,
+  DEPTH_SPEED_FACTOR,
 } from '../config/movement';
 import {
   POWER_MAX_SEGMENTS,
@@ -46,10 +47,6 @@ export interface CharacterInput {
  * starting/stopping/turning has real acceleration instead of an instant
  * snap (needed for the ball-dribble feel rework: the dribble point's
  * distance is derived from the character's actual current speed). */
-function moveToward(current: number, target: number, maxDelta: number): number {
-  if (Math.abs(target - current) <= maxDelta) return target;
-  return current + Math.sign(target - current) * maxDelta;
-}
 
 /** Placeholder-only skin tone for the head, used only when no characterId
  * is given (the F1 debug reference character) — real sprites (M4 art pass)
@@ -78,7 +75,9 @@ export class Character {
   /** Current ground velocity (px/s) — real acceleration/deceleration now
    * (see movement.ts's PLAYER_ACCELERATION/DECELERATION/TURN_SPEED), not an
    * instant snap to input. Public so the ball-dribble system can read the
-   * character's actual current speed to decide how far ahead the ball sits. */
+   * character's actual current speed to decide how far ahead the ball sits.
+   * Both in screen-equivalent px/s: z is turned into world units with
+   * DEPTH_SPEED_FACTOR only when the position moves (movement.ts). */
   velX = 0;
   velZ = 0;
   /** Velocity actually travelled last frame (boundary clamps included). */
@@ -261,33 +260,41 @@ export class Character {
       this.velX = this.dashVX;
       this.velZ = this.dashVZ;
       this.x = Phaser.Math.Clamp(this.x + this.dashVX * dt, this.bounds.minX, this.bounds.maxX);
-      this.z = Phaser.Math.Clamp(this.z + this.dashVZ * dt, DEPTH_MIN, DEPTH_MAX);
+      this.z = Phaser.Math.Clamp(this.z + this.dashVZ * DEPTH_SPEED_FACTOR * dt, DEPTH_MIN, DEPTH_MAX);
       this.dashTimeRemaining -= dt;
     } else {
       const topSpeed = MOVE_SPEED * this.speedMultiplier;
       const targetVX = input.moveX * topSpeed;
       const targetVZ = input.moveZ * topSpeed;
-      // Reversing direction (a pivot) uses PLAYER_TURN_SPEED instead of the
-      // plain accel/decel rate — a real player changes direction faster
-      // than they build up speed from a standstill.
-      const rateX =
-        targetVX === 0
+      // Radial (vector) acceleration — one rate for the whole velocity
+      // vector, not per axis. The old per-axis version reached full speed
+      // on each axis independently, so diagonals and direction changes
+      // curved and felt different from straight runs. Rate choice:
+      // stopping → deceleration, turning more than 90° (a pivot) → turn
+      // speed (a real player changes direction faster than they build up
+      // speed), otherwise → acceleration.
+      const dot = this.velX * targetVX + this.velZ * targetVZ;
+      const rate =
+        targetVX === 0 && targetVZ === 0
           ? PLAYER_DECELERATION
-          : Math.sign(this.velX) !== 0 && Math.sign(this.velX) !== Math.sign(targetVX)
+          : dot < 0
             ? PLAYER_TURN_SPEED
             : PLAYER_ACCELERATION;
-      const rateZ =
-        targetVZ === 0
-          ? PLAYER_DECELERATION
-          : Math.sign(this.velZ) !== 0 && Math.sign(this.velZ) !== Math.sign(targetVZ)
-            ? PLAYER_TURN_SPEED
-            : PLAYER_ACCELERATION;
-      this.velX = moveToward(this.velX, targetVX, rateX * dt);
-      this.velZ = moveToward(this.velZ, targetVZ, rateZ * dt);
+      const dvx = targetVX - this.velX;
+      const dvz = targetVZ - this.velZ;
+      const dvLen = Math.hypot(dvx, dvz);
+      const step = rate * dt;
+      if (dvLen <= step) {
+        this.velX = targetVX;
+        this.velZ = targetVZ;
+      } else {
+        this.velX += (dvx / dvLen) * step;
+        this.velZ += (dvz / dvLen) * step;
+      }
       const prevX = this.x;
       const prevZ = this.z;
       this.x = Phaser.Math.Clamp(this.x + this.velX * dt, this.bounds.minX, this.bounds.maxX);
-      this.z = Phaser.Math.Clamp(this.z + this.velZ * dt, DEPTH_MIN, DEPTH_MAX);
+      this.z = Phaser.Math.Clamp(this.z + this.velZ * DEPTH_SPEED_FACTOR * dt, DEPTH_MIN, DEPTH_MAX);
       // Actual displacement velocity — velX/velZ stay "intended" (for the
       // run animation) even when pinned against a boundary; a carried ball
       // must follow where the character really went, not where it pushed.

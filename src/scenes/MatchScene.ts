@@ -37,6 +37,7 @@ import {
   KONGO_RHYTHM_PERIOD_SECONDS,
   KONGO_RHYTHM_WINDOW_SECONDS,
 } from '../config/super';
+import { screenDirToWorld } from '../config/movement';
 import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
@@ -249,7 +250,10 @@ export class MatchScene extends Phaser.Scene {
       const aimX = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimX : this.player.facingX;
       const aimZ = this.lastAimX !== 0 || this.lastAimZ !== 0 ? this.lastAimZ : this.player.facingZ;
       const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * (isPower ? SHOT_SPEED_POWER_MULTIPLIER : 1);
-      this.ball.shoot(aimX, aimZ, speed, this.character.chaosTouch, isPower);
+      // Stick direction is a screen direction — convert so the shot flies
+      // at the stick's on-screen angle and speed (config/movement.ts).
+      const w = screenDirToWorld(aimX, aimZ);
+      this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, isPower);
       this.player.playKick(aimX);
       soundFX.kick();
     } else if (!controllingBall && actionPressed) {
@@ -336,9 +340,10 @@ export class MatchScene extends Phaser.Scene {
     if (this.player.powerSegments < SUPER_MOVE_SEGMENT_COST) return;
     if (!this.player.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
 
-    const aimX = this.player.facingX;
-    const aimZ = this.player.facingZ;
-    const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier;
+    const aim = screenDirToWorld(this.player.facingX, this.player.facingZ);
+    const aimX = aim.x;
+    const aimZ = aim.z;
+    const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * aim.speedScale;
     soundFX.kick();
     this.player.playKick(aimX);
 
@@ -352,7 +357,8 @@ export class MatchScene extends Phaser.Scene {
         this.ball.shoot(
           RIGHT_GOAL_LINE_X - this.player.x,
           DEPTH_BAND_HEIGHT / 2 - this.player.z,
-          baseSpeed * SUPER_CONTROL_SPEED_MULTIPLIER,
+          // World-space aim at a world point — no screen conversion.
+          SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * SUPER_CONTROL_SPEED_MULTIPLIER,
           false,
           true,
           true,
