@@ -1,60 +1,75 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, FAR_Y } from '../config/arena';
+import { PITCH_PIXEL_SIZE } from '../config/pitchArt';
+import * as ART from '../config/pitchArt';
 
-const FAN_COUNT = 26;
-const FAN_COLORS = [0xe74c3c, 0xf1c40f, 0x3498db, 0x2ecc71, 0xffffff, 0xe67e22];
+export function fanTextureKey(variant: number, cheer: boolean): string {
+  return `fan_${variant}_${cheer ? 'cheer' : 'idle'}`;
+}
 
 /**
- * Placeholder crowd (M5: "seyirci tepkileri") — a row of small dots in the
- * thin stands band that idle-bob and pulse/jump together on a goal. Real
- * crowd sprites/animation are future work; this is just enough to make the
- * stands feel alive.
+ * Pixel-art crowd (M6.0): two rows of tiny spectator sprites standing in
+ * the stands band above the advertising boards. Idle fans hop now and then
+ * (in whole art pixels, so nothing goes sub-pixel); on a goal everyone
+ * throws their arms up and jumps in a wave across the row.
  */
 export class CrowdBand {
   private readonly scene: Phaser.Scene;
-  private readonly dots: Phaser.GameObjects.Arc[] = [];
-  private readonly baseY: number[] = [];
+  private readonly fans: { img: Phaser.GameObjects.Image; baseY: number; variant: number; next: number; hopUntil: number }[] = [];
   private time = 0;
   private celebrateUntil = 0;
 
   constructor(scene: Phaser.Scene) {
     this.scene = scene;
-    const margin = 20;
-    const usableWidth = GAME_WIDTH - margin * 2;
-
-    for (let i = 0; i < FAN_COUNT; i += 1) {
-      const x = margin + (usableWidth * i) / (FAN_COUNT - 1);
-      const y = FAR_Y * 0.3 + (Math.random() - 0.5) * FAR_Y * 0.4;
-      const color = FAN_COLORS[i % FAN_COLORS.length];
-      const dot = scene.add.circle(x, y, 3, color, 0.9);
-      this.dots.push(dot);
-      this.baseY.push(y);
-    }
+    const hoardingTop = FAR_Y - ART.HOARDING_HEIGHT;
+    ART.FAN_ROW_OFFSETS.forEach((offset, row) => {
+      const baseY = hoardingTop + offset;
+      const shift = row % 2 === 0 ? 0 : ART.FAN_SPACING / 2;
+      for (let x = ART.FAN_SPACING / 2 + shift; x < GAME_WIDTH; x += ART.FAN_SPACING) {
+        const variant = Phaser.Math.Between(0, ART.FAN_VARIANTS - 1);
+        const img = scene.add
+          .image(Math.round(x / PITCH_PIXEL_SIZE) * PITCH_PIXEL_SIZE + PITCH_PIXEL_SIZE / 2, baseY, fanTextureKey(variant, false))
+          .setOrigin(0.5, 1)
+          .setScale(PITCH_PIXEL_SIZE);
+        this.fans.push({ img, baseY, variant, next: Math.random() * ART.FAN_IDLE_HOP_INTERVAL * 2, hopUntil: 0 });
+      }
+    });
   }
 
   update(delta: number): void {
     this.time += delta / 1000;
     if (this.time < this.celebrateUntil) return; // celebration tweens own `y` right now
 
-    this.dots.forEach((dot, i) => {
-      dot.y = this.baseY[i] + Math.sin(this.time * 2 + i) * 1.2;
-    });
+    for (const fan of this.fans) {
+      if (this.time >= fan.next) {
+        fan.hopUntil = this.time + ART.FAN_IDLE_HOP_SECONDS;
+        fan.next = this.time + ART.FAN_IDLE_HOP_INTERVAL * (0.5 + Math.random());
+      }
+      fan.img.y = fan.baseY - (this.time < fan.hopUntil ? ART.FAN_HOP_PX : 0);
+    }
   }
 
-  /** A goal — the crowd jumps and flashes in a little wave across the row. */
+  /** A goal — arms up, jump in a wave across the stands. */
   celebrate(): void {
-    this.celebrateUntil = this.time + 0.9;
-    this.dots.forEach((dot, i) => {
-      const delay = i * 8;
+    this.celebrateUntil = this.time + ART.FAN_CHEER_SECONDS;
+    this.fans.forEach((fan) => {
+      fan.img.setTexture(fanTextureKey(fan.variant, true));
+      fan.img.y = fan.baseY;
       this.scene.tweens.add({
-        targets: dot,
-        y: this.baseY[i] - 10,
-        scale: 1.8,
-        duration: 140,
+        targets: fan.img,
+        y: fan.baseY - ART.FAN_CHEER_HOP_PX,
+        duration: 120,
         yoyo: true,
-        repeat: 2,
-        delay,
-        ease: 'Sine.easeOut',
+        repeat: 3,
+        delay: (fan.img.x / GAME_WIDTH) * 300,
+        ease: 'Stepped',
+        easeParams: [2],
+      });
+    });
+    this.scene.time.delayedCall(ART.FAN_CHEER_SECONDS * 1000, () => {
+      this.fans.forEach((fan) => {
+        fan.img.setTexture(fanTextureKey(fan.variant, false));
+        fan.img.y = fan.baseY;
       });
     });
   }

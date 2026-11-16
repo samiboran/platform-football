@@ -334,6 +334,120 @@ def energy_drink() -> Image.Image:
     return c.image()
 
 
+# ---------------------------------------------------------------- crowd + HUD
+
+FAN_SHIRTS = ['e74c3c', 'f1c40f', '3498db', '2ecc71', 'f2f2f2', 'e67e22']
+FAN_SKINS = ['e8b48a', '7a4a2c', 'c98d64']
+
+
+def fan(variant: int, cheer: bool) -> Image.Image:
+    """Tiny stands spectator (6x9). Idle = arms down, cheer = arms up."""
+    c = Canvas(7, 10)
+    skin = rgb(FAN_SKINS[variant % len(FAN_SKINS)])
+    shirt = rgb(FAN_SHIRTS[variant % len(FAN_SHIRTS)])
+    hair = rgb('231710') if variant % 2 else rgb('6b3f22')
+    top = 3 if cheer else 4
+    c.rect(2, top, 4, top + 2, skin)                    # head
+    c.rect(2, top, 4, top, hair)
+    c.rect(1, top + 3, 5, 9, shirt)                     # body (cut off by the row in front)
+    if cheer:
+        c.rect(0, top - 1, 0, top + 3, skin)
+        c.rect(6, top - 1, 6, top + 3, skin)
+    return c.image()
+
+
+def hud_scoreboard() -> Image.Image:
+    """Scoreboard panel (sprite px): two team slots + a center score slot."""
+    w, h = 110, 18
+    c = Canvas(w, h)
+    c.rect(0, 0, w - 1, h - 1, rgb('1b1f2a'))
+    c.rect(1, 1, w - 2, 1, rgb('3a4256'))                 # top bevel
+    c.rect(1, h - 2, w - 2, h - 2, rgb('0d0f15'))         # bottom bevel
+    c.rect(32, 2, 77, h - 3, rgb('0b0d12'))               # score well
+    c.rect(32, 2, 77, 2, rgb('000000'))
+    for x in (31, 78):
+        c.rect(x, 2, x, h - 3, rgb('ffe066'))
+    return c.image()
+
+
+def hud_energy_cell(full: bool) -> Image.Image:
+    c = Canvas(12, 8)
+    c.rect(0, 0, 11, 7, rgb('1b1f2a'))
+    if full:
+        c.rect(1, 1, 10, 6, rgb('ffcf33'))
+        c.rect(1, 1, 10, 2, rgb('fff3a0'))
+        c.rect(1, 6, 10, 6, rgb('d48a00'))
+        for (x, y) in [(6, 1), (5, 2), (5, 3), (6, 3), (7, 3), (6, 4), (5, 5)]:
+            c.put(x, y, rgb('ffffff'))
+    else:
+        c.rect(1, 1, 10, 6, rgb('2e3444'))
+        c.rect(1, 6, 10, 6, rgb('232836'))
+    return c.image()
+
+
+def hud_button() -> Image.Image:
+    w, h = 40, 12
+    c = Canvas(w, h)
+    c.rect(0, 0, w - 1, h - 1, rgb('2c3e50'))
+    c.rect(1, 1, w - 2, 1, rgb('4f6b86'))
+    c.rect(1, h - 2, w - 2, h - 2, rgb('1a2633'))
+    return c.image()
+
+
+# 3x5 caps font in a 4x8 cell: rows 0-1 accents, rows 2-6 glyph, row 7 cedilla.
+FONT_GLYPHS = {
+    'A': ['.#.', '#.#', '###', '#.#', '#.#'], 'B': ['##.', '#.#', '##.', '#.#', '##.'],
+    'C': ['.##', '#..', '#..', '#..', '.##'], 'D': ['##.', '#.#', '#.#', '#.#', '##.'],
+    'E': ['###', '#..', '##.', '#..', '###'], 'F': ['###', '#..', '##.', '#..', '#..'],
+    'G': ['.##', '#..', '#.#', '#.#', '.##'], 'H': ['#.#', '#.#', '###', '#.#', '#.#'],
+    'I': ['###', '.#.', '.#.', '.#.', '###'], 'J': ['..#', '..#', '..#', '#.#', '.#.'],
+    'K': ['#.#', '#.#', '##.', '#.#', '#.#'], 'L': ['#..', '#..', '#..', '#..', '###'],
+    'M': ['#.#', '###', '###', '#.#', '#.#'], 'N': ['##.', '#.#', '#.#', '#.#', '#.#'],
+    'O': ['.#.', '#.#', '#.#', '#.#', '.#.'], 'P': ['##.', '#.#', '##.', '#..', '#..'],
+    'Q': ['.#.', '#.#', '#.#', '##.', '.##'], 'R': ['##.', '#.#', '##.', '#.#', '#.#'],
+    'S': ['.##', '#..', '.#.', '..#', '##.'], 'T': ['###', '.#.', '.#.', '.#.', '.#.'],
+    'U': ['#.#', '#.#', '#.#', '#.#', '###'], 'V': ['#.#', '#.#', '#.#', '#.#', '.#.'],
+    'W': ['#.#', '#.#', '###', '###', '#.#'], 'X': ['#.#', '#.#', '.#.', '#.#', '#.#'],
+    'Y': ['#.#', '#.#', '.#.', '.#.', '.#.'], 'Z': ['###', '..#', '.#.', '#..', '###'],
+    '0': ['###', '#.#', '#.#', '#.#', '###'], '1': ['.#.', '##.', '.#.', '.#.', '###'],
+    '2': ['##.', '..#', '.#.', '#..', '###'], '3': ['##.', '..#', '.#.', '..#', '##.'],
+    '4': ['#.#', '#.#', '###', '..#', '..#'], '5': ['###', '#..', '##.', '..#', '##.'],
+    '6': ['.##', '#..', '###', '#.#', '###'], '7': ['###', '..#', '.#.', '.#.', '.#.'],
+    '8': ['###', '#.#', '###', '#.#', '###'], '9': ['###', '#.#', '###', '..#', '##.'],
+    ' ': ['...'] * 5, ':': ['...', '.#.', '...', '.#.', '...'], '-': ['...', '...', '###', '...', '...'],
+    '.': ['...', '...', '...', '...', '.#.'], '!': ['.#.', '.#.', '.#.', '...', '.#.'],
+    '?': ['##.', '..#', '.#.', '...', '.#.'], '/': ['..#', '..#', '.#.', '#..', '#..'],
+    '(': ['.#.', '#..', '#..', '#..', '.#.'], ')': ['.#.', '..#', '..#', '..#', '.#.'],
+    '=': ['...', '###', '...', '###', '...'], '+': ['...', '.#.', '###', '.#.', '...'],
+    '|': ['.#.', '.#.', '.#.', '.#.', '.#.'],
+}
+# Turkish letters: (base glyph, accent) — accent drawn above or below.
+FONT_ACCENTED = {'Ç': ('C', 'cedilla'), 'Ş': ('S', 'cedilla'), 'Ğ': ('G', 'breve'),
+                 'İ': ('I', 'dot'), 'Ö': ('O', 'umlaut'), 'Ü': ('U', 'umlaut')}
+FONT_CHARS = ''.join(FONT_GLYPHS.keys()) + ''.join(FONT_ACCENTED.keys())
+FONT_CELL_W, FONT_CELL_H, FONT_PER_ROW = 4, 8, 16
+
+
+def pixel_font() -> Image.Image:
+    """White-on-transparent fixed-width font sheet, parsed by Phaser's RetroFont
+    (the char list is mirrored in src/config/hud.ts — keep them in sync)."""
+    rows = (len(FONT_CHARS) + FONT_PER_ROW - 1) // FONT_PER_ROW
+    img = Image.new('RGBA', (FONT_CELL_W * FONT_PER_ROW, FONT_CELL_H * rows), (0, 0, 0, 0))
+    white = (255, 255, 255, 255)
+    for i, ch in enumerate(FONT_CHARS):
+        ox, oy = (i % FONT_PER_ROW) * FONT_CELL_W, (i // FONT_PER_ROW) * FONT_CELL_H
+        base, accent = FONT_ACCENTED.get(ch, (ch, None))
+        for y, row in enumerate(FONT_GLYPHS[base]):
+            for x, v in enumerate(row):
+                if v == '#':
+                    img.putpixel((ox + x, oy + 2 + y), white)
+        marks = {'dot': [(1, 1)], 'umlaut': [(0, 1), (2, 1)], 'breve': [(0, 0), (2, 0), (1, 1)],
+                 'cedilla': [(1, 7)]}.get(accent, [])
+        for (x, y) in marks:
+            img.putpixel((ox + x, oy + y), white)
+    return img
+
+
 # ---------------------------------------------------------------- main
 
 def save(img: Image.Image, *parts: str):
@@ -372,6 +486,25 @@ def main():
         save(fx[i], 'assets', 'fx', f'ball_power{i}.png')
     save(fx[4], 'assets', 'fx', 'energy_drink.png')
     sheet_rows.append(fx)
+
+    fans = []
+    for v in range(len(FAN_SHIRTS)):
+        for cheer in (False, True):
+            img = fan(v, cheer)
+            save(img, 'assets', 'fx', f'fan_{v}_{"cheer" if cheer else "idle"}.png')
+            fans.append(img)
+    sheet_rows.append(fans)
+
+    hud = {
+        'hud_scoreboard': hud_scoreboard(),
+        'hud_energy_full': hud_energy_cell(True),
+        'hud_energy_empty': hud_energy_cell(False),
+        'hud_button': hud_button(),
+        'pixel_font': pixel_font(),
+    }
+    for name, img in hud.items():
+        save(img, 'assets', 'hud', f'{name}.png')
+    sheet_rows.append(list(hud.values()))
 
     # preview sheet (x4) for docs / review
     pad, scale = 4, 4

@@ -1,9 +1,13 @@
 import Phaser from 'phaser';
 import {
   GAME_WIDTH,
+  GAME_HEIGHT,
   FAR_Y,
+  BASE_Y,
+  CENTER_X,
   DEPTH_MIN,
   DEPTH_MAX,
+  DEPTH_SCALE,
   LEFT_GOAL_LINE_X,
   RIGHT_GOAL_LINE_X,
   LEFT_GOAL_BACK_X,
@@ -13,112 +17,191 @@ import {
   GOAL_MOUTH_Z_MAX,
   GOAL_HEIGHT,
   depthScaleAt,
+  widthScaleAt,
   projectToScreen,
 } from '../config/arena';
+import * as ART from '../config/pitchArt';
 import type { StadiumDef } from '../config/stadiums';
+
+/**
+ * Pixel-art pitch (M6.0). Everything static — stands, advertising boards,
+ * ground, markings, goals — is rasterized per pixel into a low-res canvas
+ * (1 art pixel = PITCH_PIXEL_SIZE screen pixels, the characters' grid) and
+ * shown scaled with nearest filtering. Deterministic: the same stadium
+ * always draws the same pixels.
+ */
 
 type Point = { x: number; y: number };
 
-const GRASS_STRIPE_COUNT = 6;
-const STANDS_COLOR = 0x2b2f3a;
-const STANDS_EDGE = 0x555b6e;
-const NET_FILL = 0xeaf4ff;
-const NET_LINE = 0xffffff;
+const P = ART.PITCH_PIXEL_SIZE;
+const W = Math.ceil(GAME_WIDTH / P);
+const H = Math.ceil(GAME_HEIGHT / P);
 
-function project(x: number, z: number, y: number): Point {
+// --- tiny color helpers (0xRRGGBB ints) ---------------------------------------
+function shade(c: number, percent: number): number {
+  const f = 1 - percent / 100;
+  const r = Math.min(255, Math.max(0, Math.round(((c >> 16) & 255) * f)));
+  const g = Math.min(255, Math.max(0, Math.round(((c >> 8) & 255) * f)));
+  const b = Math.min(255, Math.max(0, Math.round((c & 255) * f)));
+  return (r << 16) | (g << 8) | b;
+}
+
+function mix(a: number, b: number, t: number): number {
+  const ch = (s: number) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/** Deterministic per-pixel hash in [0,1). */
+function hash01(x: number, y: number, seed: number): number {
+  let h = (x * 374761393 + y * 668265263 + seed * 2147483647) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  h ^= h >>> 16;
+  return (h >>> 0) / 4294967296;
+}
+
+class PixelBuffer {
+  readonly data = new Uint32Array(W * H); // 0xRRGGBB per art pixel
+
+  get(x: number, y: number): number {
+    return this.data[y * W + x];
+  }
+
+  set(x: number, y: number, c: number): void {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    this.data[y * W + x] = c;
+  }
+
+  blend(x: number, y: number, c: number, alpha: number): void {
+    if (x < 0 || y < 0 || x >= W || y >= H) return;
+    this.data[y * W + x] = mix(this.data[y * W + x], c, alpha);
+  }
+
+  /** Bresenham line in art pixels. */
+  line(a: Point, b: Point, plot: (x: number, y: number) => void): void {
+    let x0 = Math.round(a.x);
+    let y0 = Math.round(a.y);
+    const x1 = Math.round(b.x);
+    const y1 = Math.round(b.y);
+    const dx = Math.abs(x1 - x0);
+    const dy = -Math.abs(y1 - y0);
+    const sx = x0 < x1 ? 1 : -1;
+    const sy = y0 < y1 ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      plot(x0, y0);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
+  }
+}
+
+/** World (x, z, y) → art-pixel coords. */
+function art(x: number, z: number, y = 0): Point {
   const { screenX, screenY } = projectToScreen(x, z, y);
-  return { x: screenX, y: screenY };
+  return { x: (screenX - P / 2) / P, y: (screenY - P / 2) / P };
 }
 
-function fillQuad(g: Phaser.GameObjects.Graphics, pts: Point[], color: number, alpha: number): void {
-  g.fillStyle(color, alpha);
-  g.beginPath();
-  g.moveTo(pts[0].x, pts[0].y);
-  for (let i = 1; i < pts.length; i += 1) g.lineTo(pts[i].x, pts[i].y);
-  g.closePath();
-  g.fillPath();
-}
-
-function lerpPoint(a: Point, b: Point, t: number): Point {
-  return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
-}
-
-/** Simple net mesh inside quad a(bottom-near/left) b(bottom-far/right)
- * c(top, above b) d(top, above a). */
-function drawNetGrid(g: Phaser.GameObjects.Graphics, a: Point, b: Point, c: Point, d: Point): void {
-  const cols = 4;
-  const rows = 3;
-  g.lineStyle(1, NET_LINE, 0.35);
-  for (let i = 1; i < cols; i += 1) {
-    const t = i / cols;
-    const bottom = lerpPoint(a, b, t);
-    const top = lerpPoint(d, c, t);
-    g.beginPath();
-    g.moveTo(bottom.x, bottom.y);
-    g.lineTo(top.x, top.y);
-    g.strokePath();
+function insideConvex(poly: Point[], x: number, y: number): boolean {
+  let sign = 0;
+  for (let i = 0; i < poly.length; i += 1) {
+    const a = poly[i];
+    const b = poly[(i + 1) % poly.length];
+    const cross = (b.x - a.x) * (y - a.y) - (b.y - a.y) * (x - a.x);
+    if (cross !== 0) {
+      const s = Math.sign(cross);
+      if (sign === 0) sign = s;
+      else if (s !== sign) return false;
+    }
   }
-  for (let i = 1; i < rows; i += 1) {
-    const t = i / rows;
-    const left = lerpPoint(a, d, t);
-    const right = lerpPoint(b, c, t);
-    g.beginPath();
-    g.moveTo(left.x, left.y);
-    g.lineTo(right.x, right.y);
-    g.strokePath();
+  return true;
+}
+
+function forEachInPoly(poly: Point[], fn: (x: number, y: number, u: number, v: number) => void): void {
+  const xs = poly.map((p) => p.x);
+  const ys = poly.map((p) => p.y);
+  const minX = Math.max(0, Math.floor(Math.min(...xs)));
+  const maxX = Math.min(W - 1, Math.ceil(Math.max(...xs)));
+  const minY = Math.max(0, Math.floor(Math.min(...ys)));
+  const maxY = Math.min(H - 1, Math.ceil(Math.max(...ys)));
+  for (let y = minY; y <= maxY; y += 1) {
+    for (let x = minX; x <= maxX; x += 1) {
+      if (insideConvex(poly, x, y)) fn(x, y, x - minX, y - minY);
+    }
   }
 }
 
-const POST_COLOR = 0xffe066;
+// --- layers -------------------------------------------------------------------
 
-/**
- * A volumetric-ish goal: a ground footprint, a back net panel with a mesh
- * texture set back GOAL_ZONE_DEPTH behind the goal line, and a solid frame
- * (posts + crossbar) in front. The far post is shorter than the near one —
- * perspective shrink applies to goal height exactly like it does to
- * characters/ball (depthScaleAt). Side/roof net panels are deliberately
- * skipped: at this screen size they just muddy the silhouette.
- */
-function drawGoal(g: Phaser.GameObjects.Graphics, lineX: number, backX: number): void {
-  const nearZ = GOAL_MOUTH_Z_MIN;
-  const farZ = GOAL_MOUTH_Z_MAX;
-  const nearHeight = GOAL_HEIGHT * depthScaleAt(nearZ);
-  const farHeight = GOAL_HEIGHT * depthScaleAt(farZ);
-
-  const frontNearGround = project(lineX, nearZ, 0);
-  const frontFarGround = project(lineX, farZ, 0);
-  const backNearGround = project(backX, nearZ, 0);
-  const backFarGround = project(backX, farZ, 0);
-  const frontNearTop = project(lineX, nearZ, nearHeight);
-  const frontFarTop = project(lineX, farZ, farHeight);
-  const backNearTop = project(backX, nearZ, nearHeight);
-  const backFarTop = project(backX, farZ, farHeight);
-
-  // Ground footprint — grounds the structure visually.
-  fillQuad(g, [frontNearGround, frontFarGround, backFarGround, backNearGround], 0x0d3d1f, 0.6);
-
-  // Back net panel.
-  fillQuad(g, [backNearGround, backFarGround, backFarTop, backNearTop], NET_FILL, 0.16);
-  drawNetGrid(g, backNearGround, backFarGround, backFarTop, backNearTop);
-
-  // Frame — posts + crossbar + goal-line base, drawn last, in a distinct
-  // color so it never blends into the pitch's own white lines.
-  g.lineStyle(3, POST_COLOR, 1);
-  g.beginPath();
-  g.moveTo(frontNearGround.x, frontNearGround.y);
-  g.lineTo(frontNearTop.x, frontNearTop.y);
-  g.moveTo(frontFarGround.x, frontFarGround.y);
-  g.lineTo(frontFarTop.x, frontFarTop.y);
-  g.moveTo(frontNearTop.x, frontNearTop.y);
-  g.lineTo(frontFarTop.x, frontFarTop.y);
-  g.strokePath();
+function drawStands(buf: PixelBuffer, stadium: StadiumDef): void {
+  const tierA = shade(stadium.tintColor, ART.STANDS_DARKEN_A);
+  const tierB = shade(stadium.tintColor, ART.STANDS_DARKEN_B);
+  const hoardingTop = FAR_Y - ART.HOARDING_HEIGHT;
+  for (let py = 0; py < H; py += 1) {
+    const sy = py * P;
+    if (sy >= FAR_Y) break;
+    for (let px = 0; px < W; px += 1) {
+      const sx = px * P;
+      if (sy < hoardingTop) {
+        const tier = Math.floor(sy / ART.STANDS_TIER_HEIGHT);
+        const edge = sy % ART.STANDS_TIER_HEIGHT < P;
+        const base = tier % 2 === 0 ? tierA : tierB;
+        buf.set(px, py, edge ? shade(base, -25) : base);
+      } else {
+        const panel = Math.floor(sx / ART.HOARDING_PANEL_WIDTH);
+        const color = ART.HOARDING_COLORS[panel % ART.HOARDING_COLORS.length];
+        const local = sx % ART.HOARDING_PANEL_WIDTH;
+        const row = sy - hoardingTop;
+        let c = color;
+        if (row < P) c = shade(color, -30);
+        else if (row >= ART.HOARDING_HEIGHT - P) c = shade(color, 45);
+        else if (local < P) c = 0x1b1f2a; // panel seam
+        else if (local > ART.HOARDING_PANEL_WIDTH * 0.25 && local < ART.HOARDING_PANEL_WIDTH * 0.75 && row === P * 2)
+          c = mix(color, 0xffffff, 0.7); // abstract "logo" bar — no real brands
+        buf.set(px, py, c);
+      }
+    }
+  }
 }
 
-/** Fixed relative (x-fraction across the pitch, z-fraction across the
- * depth band) spots for MUDDY stadiums' darker patches — a visual tell for
- * why this ground's frictionMultiplier is so much higher than usual.
- * Fixed rather than randomized so the pitch doesn't redraw differently
- * every match. */
+function drawGround(buf: PixelBuffer, stadium: StadiumDef): void {
+  const fieldW = RIGHT_GOAL_LINE_X - LEFT_GOAL_LINE_X;
+  const stripeW = fieldW / ART.PITCH_STRIPE_COUNT;
+  const apronLight = shade(stadium.groundLight, ART.APRON_DARKEN);
+  const apronDark = shade(stadium.groundDark, ART.APRON_DARKEN);
+  const startRow = Math.floor(FAR_Y / P);
+  for (let py = startRow; py < H; py += 1) {
+    const sy = py * P + P / 2;
+    const z = (BASE_Y - sy) / DEPTH_SCALE;
+    const ws = widthScaleAt(z);
+    for (let px = 0; px < W; px += 1) {
+      const sx = px * P + P / 2;
+      const x = CENTER_X + (sx - CENTER_X) / ws;
+      const onPitch = z >= DEPTH_MIN && z <= DEPTH_MAX && x >= LEFT_GOAL_LINE_X && x <= RIGHT_GOAL_LINE_X;
+      let c: number;
+      if (onPitch) {
+        const stripe = Math.floor((x - LEFT_GOAL_LINE_X) / stripeW);
+        c = stripe % 2 === 0 ? stadium.groundLight : stadium.groundDark;
+      } else {
+        c = (Math.floor(px / 4) + Math.floor(py / 4)) % 2 === 0 ? apronLight : apronDark;
+      }
+      const h = hash01(px, py, 1);
+      if (h < ART.GROUND_SPECK_CHANCE) {
+        c = shade(c, h < ART.GROUND_SPECK_CHANCE / 2 ? ART.GROUND_SPECK_SHIFT : -ART.GROUND_SPECK_SHIFT);
+      }
+      buf.set(px, py, c);
+    }
+  }
+}
+
+/** Fixed (not random) mud spots so the pitch never redraws differently. */
 const MUD_PATCH_SPOTS: { fracX: number; fracZ: number; radius: number }[] = [
   { fracX: 0.28, fracZ: 0.22, radius: 34 },
   { fracX: 0.62, fracZ: 0.35, radius: 26 },
@@ -127,81 +210,155 @@ const MUD_PATCH_SPOTS: { fracX: number; fracZ: number; radius: number }[] = [
   { fracX: 0.18, fracZ: 0.8, radius: 24 },
 ];
 
-function drawMudPatches(g: Phaser.GameObjects.Graphics): void {
+function drawMud(buf: PixelBuffer): void {
   for (const spot of MUD_PATCH_SPOTS) {
     const x = LEFT_GOAL_LINE_X + (RIGHT_GOAL_LINE_X - LEFT_GOAL_LINE_X) * spot.fracX;
     const z = DEPTH_MIN + (DEPTH_MAX - DEPTH_MIN) * spot.fracZ;
-    const center = project(x, z, 0);
-    const scale = depthScaleAt(z);
-    g.fillStyle(0x4a3018, 0.4);
-    g.fillEllipse(center.x, center.y, spot.radius * 2 * scale, spot.radius * scale);
+    const c = art(x, z);
+    const s = depthScaleAt(z);
+    const rx = (spot.radius * s) / P;
+    const ry = (spot.radius * s * 0.5) / P;
+    for (let py = Math.floor(c.y - ry); py <= Math.ceil(c.y + ry); py += 1) {
+      for (let px = Math.floor(c.x - rx); px <= Math.ceil(c.x + rx); px += 1) {
+        const d = ((px - c.x) / rx) ** 2 + ((py - c.y) / ry) ** 2;
+        if (d > 1) continue;
+        // Dithered rim: outer ring only fills a checkerboard.
+        if (d > 0.7 && (px + py) % 2 === 0) continue;
+        buf.blend(px, py, ART.MUD_COLOR, ART.MUD_ALPHA);
+      }
+    }
+  }
+}
+
+function drawMarkings(buf: PixelBuffer): void {
+  const plot = (x: number, y: number) => buf.blend(x, y, ART.LINE_COLOR, ART.LINE_ALPHA);
+  const nl = art(LEFT_GOAL_LINE_X, DEPTH_MIN);
+  const nr = art(RIGHT_GOAL_LINE_X, DEPTH_MIN);
+  const fr = art(RIGHT_GOAL_LINE_X, DEPTH_MAX);
+  const fl = art(LEFT_GOAL_LINE_X, DEPTH_MAX);
+
+  // Shadow edge under the near touchline — reads as a raised pitch.
+  buf.line({ x: nl.x, y: nl.y + 1 }, { x: nr.x, y: nr.y + 1 }, (x, y) => buf.set(x, y, shade(buf.get(x, y), ART.NEAR_EDGE_DARKEN)));
+
+  buf.line(nl, nr, plot);
+  buf.line(nr, fr, plot);
+  buf.line(fr, fl, plot);
+  buf.line(fl, nl, plot);
+  buf.line(art(CENTER_LINE_X, DEPTH_MIN), art(CENTER_LINE_X, DEPTH_MAX), plot);
+
+  // Center circle — perspective ellipse (see CENTER_CIRCLE_SCREEN_ASPECT).
+  const zc = (DEPTH_MIN + DEPTH_MAX) / 2;
+  const rz = (ART.CENTER_CIRCLE_RADIUS * ART.CENTER_CIRCLE_SCREEN_ASPECT) / DEPTH_SCALE;
+  let prev: Point | null = null;
+  for (let i = 0; i <= ART.CENTER_CIRCLE_SEGMENTS; i += 1) {
+    const a = (i / ART.CENTER_CIRCLE_SEGMENTS) * Math.PI * 2;
+    const p = art(CENTER_LINE_X + Math.cos(a) * ART.CENTER_CIRCLE_RADIUS, zc + Math.sin(a) * rz);
+    if (prev) buf.line(prev, p, plot);
+    prev = p;
+  }
+  const spot = art(CENTER_LINE_X, zc);
+  for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) buf.set(Math.round(spot.x) + dx - 1, Math.round(spot.y) + dy, ART.LINE_COLOR);
+
+  // Goal areas.
+  const z0 = GOAL_MOUTH_Z_MIN - ART.GOAL_AREA_Z_MARGIN;
+  const z1 = GOAL_MOUTH_Z_MAX + ART.GOAL_AREA_Z_MARGIN;
+  for (const [lineX, dir] of [[LEFT_GOAL_LINE_X, 1], [RIGHT_GOAL_LINE_X, -1]] as const) {
+    const ix = lineX + dir * ART.GOAL_AREA_DEPTH;
+    buf.line(art(lineX, z0), art(ix, z0), plot);
+    buf.line(art(ix, z0), art(ix, z1), plot);
+    buf.line(art(ix, z1), art(lineX, z1), plot);
   }
 }
 
 /**
- * Draws the M0/M1 placeholder pitch as a proper trapezoid in perspective:
- * a stands band behind the far touchline, grass stripes and outline that
- * taper toward the far edge, a center line (stays vertical — it's the
- * trapezoid's axis of symmetry), and two volumetric goals. Every
- * measurement comes from config/arena.ts.
+ * Goal: darkened footprint, lattice back net, grey depth frame, and a
+ * white front frame (posts + crossbar) with a 1px shade so it never
+ * blends into the pitch's own lines. The far post is shorter — perspective
+ * shrink applies to goal height like to characters (depthScaleAt).
  */
-export function drawPitch(scene: Phaser.Scene, stadium: StadiumDef): void {
-  const g = scene.add.graphics();
+function drawGoal(buf: PixelBuffer, lineX: number, backX: number): void {
+  const nearZ = GOAL_MOUTH_Z_MIN;
+  const farZ = GOAL_MOUTH_Z_MAX;
+  const nearH = GOAL_HEIGHT * depthScaleAt(nearZ);
+  const farH = GOAL_HEIGHT * depthScaleAt(farZ);
 
-  // Backdrop behind everything — darkened version of this stadium's own
-  // ground tone, so the whole scene reads as one place instead of a green
-  // pitch with a colored sticker on top.
-  const backdrop = Phaser.Display.Color.ValueToColor(stadium.groundDark).darken(55).color;
-  g.fillStyle(backdrop, 1);
-  g.fillRect(0, 0, GAME_WIDTH, scene.scale.height);
+  const fNG = art(lineX, nearZ);
+  const fFG = art(lineX, farZ);
+  const bNG = art(backX, nearZ);
+  const bFG = art(backX, farZ);
+  const fNT = art(lineX, nearZ, nearH);
+  const fFT = art(lineX, farZ, farH);
+  const bNT = art(backX, nearZ, nearH);
+  const bFT = art(backX, farZ, farH);
 
-  // Stands band behind the far touchline.
-  g.fillStyle(STANDS_COLOR, 1);
-  g.fillRect(0, 0, GAME_WIDTH, FAR_Y);
-  g.lineStyle(2, STANDS_EDGE, 0.8);
-  g.beginPath();
-  g.moveTo(0, FAR_Y);
-  g.lineTo(GAME_WIDTH, FAR_Y);
-  g.strokePath();
+  forEachInPoly([fNG, fFG, bFG, bNG], (x, y) => buf.set(x, y, shade(buf.get(x, y), ART.GOAL_FOOTPRINT_DARKEN)));
 
-  // Grass stripes — trapezoidal bands across the whole depth range.
-  const step = (DEPTH_MAX - DEPTH_MIN) / GRASS_STRIPE_COUNT;
-  for (let i = 0; i < GRASS_STRIPE_COUNT; i += 1) {
-    const z0 = DEPTH_MIN + i * step;
-    const z1 = z0 + step;
-    const nearLeft = project(LEFT_GOAL_LINE_X, z0, 0);
-    const nearRight = project(RIGHT_GOAL_LINE_X, z0, 0);
-    const farRight = project(RIGHT_GOAL_LINE_X, z1, 0);
-    const farLeft = project(LEFT_GOAL_LINE_X, z1, 0);
-    fillQuad(g, [nearLeft, nearRight, farRight, farLeft], i % 2 === 0 ? stadium.groundLight : stadium.groundDark, 1);
+  // Back + roof panels, diamond lattice.
+  const net = (x: number, y: number) => {
+    const n = ART.GOAL_NET_PERIOD;
+    const onLine = (((x + y) % n) + n) % n === 0 || (((x - y) % n) + n) % n === 0;
+    buf.blend(x, y, ART.GOAL_NET_COLOR, onLine ? ART.GOAL_NET_LINE_ALPHA : ART.GOAL_NET_FILL_ALPHA);
+  };
+  forEachInPoly([bNG, bFG, bFT, bNT], net);
+  forEachInPoly([fNT, fFT, bFT, bNT], net);
+
+  const back = (x: number, y: number) => buf.set(x, y, ART.GOAL_FRAME_BACK_COLOR);
+  buf.line(bNG, bNT, back);
+  buf.line(bFG, bFT, back);
+  buf.line(bNT, bFT, back);
+  buf.line(fNT, bNT, back);
+  buf.line(fFT, bFT, back);
+  buf.line(fNG, bNG, back);
+  buf.line(fFG, bFG, back);
+
+  // Front frame: 2-px-wide white posts, shade on the inner column.
+  const outward = backX < lineX ? -1 : 1;
+  const post = (x: number, y: number) => {
+    buf.set(x, y, ART.GOAL_POST_COLOR);
+    buf.set(x - outward, y, ART.GOAL_POST_SHADE);
+  };
+  buf.line(fFG, fFT, post);
+  buf.line(fNG, fNT, post);
+  buf.line(fNT, fFT, (x, y) => {
+    buf.set(x, y, ART.GOAL_POST_COLOR);
+    buf.set(x, y + 1, ART.GOAL_POST_SHADE);
+  });
+}
+
+function pitchTextureKey(stadium: StadiumDef): string {
+  return `pitch_${stadium.id}`;
+}
+
+function buildPitchTexture(scene: Phaser.Scene, stadium: StadiumDef): string {
+  const key = pitchTextureKey(stadium);
+  if (scene.textures.exists(key)) return key; // deterministic → cache per stadium
+
+  const buf = new PixelBuffer();
+  drawStands(buf, stadium);
+  drawGround(buf, stadium);
+  if (stadium.muddy) drawMud(buf);
+  drawMarkings(buf);
+  drawGoal(buf, LEFT_GOAL_LINE_X, LEFT_GOAL_BACK_X);
+  drawGoal(buf, RIGHT_GOAL_LINE_X, RIGHT_GOAL_BACK_X);
+
+  const tex = scene.textures.createCanvas(key, W, H);
+  if (!tex) throw new Error(`could not create pitch texture ${key}`);
+  const ctx = tex.getContext();
+  const img = ctx.createImageData(W, H);
+  for (let i = 0; i < buf.data.length; i += 1) {
+    const c = buf.data[i];
+    img.data[i * 4] = (c >> 16) & 255;
+    img.data[i * 4 + 1] = (c >> 8) & 255;
+    img.data[i * 4 + 2] = c & 255;
+    img.data[i * 4 + 3] = 255;
   }
+  ctx.putImageData(img, 0, 0);
+  tex.refresh();
+  return key;
+}
 
-  if (stadium.muddy) drawMudPatches(g);
-
-  // Pitch outline (touchlines + goal-line edges — the latter read as
-  // slanted, converging toward the far/top edge).
-  const outlineNearLeft = project(LEFT_GOAL_LINE_X, DEPTH_MIN, 0);
-  const outlineNearRight = project(RIGHT_GOAL_LINE_X, DEPTH_MIN, 0);
-  const outlineFarRight = project(RIGHT_GOAL_LINE_X, DEPTH_MAX, 0);
-  const outlineFarLeft = project(LEFT_GOAL_LINE_X, DEPTH_MAX, 0);
-  g.lineStyle(2, 0xffffff, 0.85);
-  g.beginPath();
-  g.moveTo(outlineNearLeft.x, outlineNearLeft.y);
-  g.lineTo(outlineNearRight.x, outlineNearRight.y);
-  g.lineTo(outlineFarRight.x, outlineFarRight.y);
-  g.lineTo(outlineFarLeft.x, outlineFarLeft.y);
-  g.closePath();
-  g.strokePath();
-
-  // Center line — stays a straight vertical (trapezoid's axis of symmetry).
-  const centerNear = project(CENTER_LINE_X, DEPTH_MIN, 0);
-  const centerFar = project(CENTER_LINE_X, DEPTH_MAX, 0);
-  g.lineStyle(3, 0xffffff, 0.9);
-  g.beginPath();
-  g.moveTo(centerNear.x, centerNear.y);
-  g.lineTo(centerFar.x, centerFar.y);
-  g.strokePath();
-
-  drawGoal(g, LEFT_GOAL_LINE_X, LEFT_GOAL_BACK_X);
-  drawGoal(g, RIGHT_GOAL_LINE_X, RIGHT_GOAL_BACK_X);
+/** Draws the whole static arena as one nearest-scaled pixel-art image. */
+export function drawPitch(scene: Phaser.Scene, stadium: StadiumDef): Phaser.GameObjects.Image {
+  const key = buildPitchTexture(scene, stadium);
+  return scene.add.image(0, 0, key).setOrigin(0, 0).setScale(P);
 }

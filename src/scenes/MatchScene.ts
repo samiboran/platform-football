@@ -41,6 +41,7 @@ import { drawPitch } from '../systems/pitchRenderer';
 import { InputController } from '../systems/InputController';
 import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
+import * as HUD from '../config/hud';
 import { resolveCatchAttempt } from '../systems/catchMatrix';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
@@ -73,7 +74,7 @@ export class MatchScene extends Phaser.Scene {
   private crowd!: CrowdBand;
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
-  private powerSegmentBoxes: Phaser.GameObjects.Rectangle[] = [];
+  private powerSegmentBoxes: Phaser.GameObjects.Image[] = [];
   /** Aim direction captured at the moment Aksiyon is pressed — CLAUDE.md:
    * "Şut yönü, Aksiyon'a basıldığı andaki joystick yönünden gelir." Falls
    * back to facing when the stick is neutral. */
@@ -89,8 +90,8 @@ export class MatchScene extends Phaser.Scene {
   private scoreLeft = 0;
   private scoreRight = 0;
   private timeRemaining = MATCH_DURATION_SECONDS;
-  private scoreText!: Phaser.GameObjects.Text;
-  private timeText!: Phaser.GameObjects.Text;
+  private scoreText!: Phaser.GameObjects.BitmapText;
+  private timeText!: Phaser.GameObjects.BitmapText;
   private matchOver = false;
   private wasControllingBall = false;
   /** Counts down after a goal — controls locked, nothing moves, until it
@@ -123,51 +124,13 @@ export class MatchScene extends Phaser.Scene {
     drawPitch(this, this.stadium);
     soundFX.whistle();
 
-    // Stadium mood tint — a stand-in for real per-stadium art (M5).
-    if (this.stadium.rhythmVisual) {
-      this.addRhythmPulse();
-    } else {
-      this.add.rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, this.stadium.tintColor, 0.06);
-    }
+    // The stands already carry the stadium tint (pitchRenderer.ts); Kongo
+    // additionally pulses to the street rhythm.
+    if (this.stadium.rhythmVisual) this.addRhythmPulse();
 
     this.crowd = new CrowdBand(this);
 
-    this.scoreText = this.add
-      .text(GAME_WIDTH / 2, 20, '0 — 0', {
-        fontFamily: 'monospace',
-        fontSize: '20px',
-        color: '#ffe066',
-      })
-      .setOrigin(0.5);
-    this.timeText = this.add
-      .text(GAME_WIDTH / 2, 44, '', {
-        fontFamily: 'monospace',
-        fontSize: '13px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    this.add
-      .text(
-        10,
-        GAME_HEIGHT - 20,
-        `Karakter: ${this.character.name}  |  Saha: ${this.stadium.name}  |  Rakip: ${this.opponentCharacter.name}`,
-        {
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          color: '#888888',
-        },
-      )
-      .setOrigin(0, 1);
-    // Klavye eşlemesi ekranda görünsün — tuşlar dokunmatik tuşlarla aynı
-    // sırada değil (Zıpla=Z, Aksiyon=Space, Dash=X, Özel=C) ve bilmeyen
-    // biri klavyede bunları bulamaz.
-    this.add
-      .text(10, GAME_HEIGHT - 10, `Klavye: Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel`, {
-        fontFamily: 'monospace',
-        fontSize: '10px',
-        color: '#666666',
-      })
-      .setOrigin(0, 1);
+    this.createHud();
     this.updateHud();
 
     const leftHalfX = (LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2;
@@ -198,18 +161,6 @@ export class MatchScene extends Phaser.Scene {
 
     this.debugGraphics = this.add.graphics().setDepth(20000);
 
-    // 3-segment power bar, bottom-left (CLAUDE.md section 5).
-    const barX = 16;
-    const barY = GAME_HEIGHT - 40;
-    for (let i = 0; i < POWER_MAX_SEGMENTS; i += 1) {
-      const box = this.add
-        .rectangle(barX + i * 26, barY, 20, 14, 0x333333)
-        .setStrokeStyle(1, 0xffffff)
-        .setOrigin(0, 0.5)
-        .setDepth(10000);
-      this.powerSegmentBoxes.push(box);
-    }
-
     this.input.keyboard?.on('keydown-F1', () => {
       this.debugVisible = !this.debugVisible;
       this.depthSortRef.setVisible(this.debugVisible);
@@ -218,16 +169,15 @@ export class MatchScene extends Phaser.Scene {
 
     // Manual early-end button, handy for testing without waiting out the clock.
     const endBtn = this.add
-      .rectangle(GAME_WIDTH - 90, 24, 140, 32, 0x2c3e50)
-      .setStrokeStyle(1, 0xffffff)
+      .image(HUD.END_BUTTON_X, HUD.END_BUTTON_Y, 'hud_button')
+      .setScale(HUD.HUD_PIXEL_SCALE)
+      .setDepth(10000)
       .setInteractive({ useHandCursor: true });
     this.add
-      .text(GAME_WIDTH - 90, 24, 'Bitir (test)', {
-        fontFamily: 'monospace',
-        fontSize: '12px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
+      .bitmapText(HUD.END_BUTTON_X, HUD.END_BUTTON_Y + 1, HUD.PIXEL_FONT_KEY, 'BİTİR (TEST)')
+      .setScale(HUD.FOOTER_FONT_SCALE)
+      .setOrigin(0.5)
+      .setDepth(10001);
     endBtn.on('pointerup', () => this.endMatch());
   }
 
@@ -424,18 +374,91 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  /** Pixel-art HUD (M6.0): scoreboard + timer top center, energy cells
+   * bottom left, footer info — all sprites/bitmap font from assets/hud/. */
+  private createHud(): void {
+    const s = HUD.HUD_PIXEL_SCALE;
+    const board = this.add
+      .image(GAME_WIDTH / 2, HUD.SCOREBOARD_Y, 'hud_scoreboard')
+      .setOrigin(0.5, 0)
+      .setScale(s)
+      .setDepth(10000);
+    const boardLeft = board.x - board.displayWidth / 2;
+    const midY = HUD.SCOREBOARD_Y + (HUD.SCOREBOARD_HEIGHT * s) / 2;
+    const code = (def: CharacterDef) => HUD.toHudText(def.name).slice(0, HUD.TEAM_CODE_LENGTH);
+    this.add
+      .bitmapText(boardLeft + HUD.SCOREBOARD_SLOT_LEFT_X * s, midY, HUD.PIXEL_FONT_KEY, code(this.character))
+      .setScale(HUD.TEAM_CODE_FONT_SCALE)
+      .setOrigin(0.5)
+      .setTint(HUD.TEAM_CODE_COLOR)
+      .setDepth(10001);
+    this.add
+      .bitmapText(boardLeft + HUD.SCOREBOARD_SLOT_RIGHT_X * s, midY, HUD.PIXEL_FONT_KEY, code(this.opponentCharacter))
+      .setScale(HUD.TEAM_CODE_FONT_SCALE)
+      .setOrigin(0.5)
+      .setTint(HUD.TEAM_CODE_COLOR)
+      .setDepth(10001);
+    this.scoreText = this.add
+      .bitmapText(boardLeft + HUD.SCOREBOARD_WELL_X * s, midY, HUD.PIXEL_FONT_KEY, '0-0')
+      .setScale(HUD.SCORE_FONT_SCALE)
+      .setOrigin(0.5)
+      .setTint(HUD.SCORE_COLOR)
+      .setDepth(10001);
+    this.timeText = this.add
+      .bitmapText(GAME_WIDTH / 2, HUD.SCOREBOARD_Y + HUD.SCOREBOARD_HEIGHT * s + 2, HUD.PIXEL_FONT_KEY, '')
+      .setScale(HUD.TIMER_FONT_SCALE)
+      .setOrigin(0.5, 0)
+      .setDepth(10001);
+
+    // Energy bar (CLAUDE.md section 5) — 3 cells.
+    this.powerSegmentBoxes = [];
+    this.add
+      .bitmapText(HUD.ENERGY_BAR_X, HUD.ENERGY_BAR_Y - 10, HUD.PIXEL_FONT_KEY, HUD.ENERGY_LABEL)
+      .setScale(HUD.ENERGY_LABEL_SCALE)
+      .setOrigin(0, 1)
+      .setTint(HUD.ENERGY_LABEL_COLOR)
+      .setDepth(10000);
+    for (let i = 0; i < POWER_MAX_SEGMENTS; i += 1) {
+      const cell = this.add
+        .image(0, HUD.ENERGY_BAR_Y, 'hud_energy_empty')
+        .setScale(s)
+        .setOrigin(0, 0.5)
+        .setDepth(10000);
+      cell.x = HUD.ENERGY_BAR_X + i * (cell.displayWidth + HUD.ENERGY_CELL_GAP);
+      this.powerSegmentBoxes.push(cell);
+    }
+
+    // Footer: who's playing where + the keyboard map (touch buttons and
+    // keys aren't in the same order, so show it on screen).
+    const footer = (y: number, text: string, color: number) =>
+      this.add
+        .bitmapText(10, y, HUD.PIXEL_FONT_KEY, HUD.toHudText(text))
+        .setScale(HUD.FOOTER_FONT_SCALE)
+        .setOrigin(0, 1)
+        .setTint(color)
+        .setDepth(10000);
+    footer(
+      GAME_HEIGHT - 12,
+      `Karakter: ${this.character.name} | Saha: ${this.stadium.name} | Rakip: ${this.opponentCharacter.name}`,
+      HUD.FOOTER_INFO_COLOR,
+    );
+    footer(GAME_HEIGHT + 2, 'Klavye: Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel', HUD.FOOTER_KEYS_COLOR);
+  }
+
   private updatePowerBar(): void {
     const filled = Math.floor(this.player.powerSegments + 1e-6);
-    this.powerSegmentBoxes.forEach((box, i) => {
-      box.setFillStyle(i < filled ? 0xffe066 : 0x333333);
+    this.powerSegmentBoxes.forEach((cell, i) => {
+      const key = i < filled ? 'hud_energy_full' : 'hud_energy_empty';
+      if (cell.texture.key !== key) cell.setTexture(key);
     });
   }
 
   private updateHud(): void {
-    this.scoreText.setText(`${this.scoreLeft} — ${this.scoreRight}`);
+    this.scoreText.setText(`${this.scoreLeft}-${this.scoreRight}`);
     const minutes = Math.floor(this.timeRemaining / 60);
     const seconds = Math.floor(this.timeRemaining % 60);
     this.timeText.setText(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    this.timeText.setTint(this.timeRemaining <= HUD.TIMER_LOW_SECONDS ? HUD.TIMER_LOW_COLOR : HUD.TIMER_COLOR);
   }
 
   private endMatch(): void {

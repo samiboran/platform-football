@@ -73,7 +73,7 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Kadro 2 karaktere indirildi (`CHARACTER_ORDER`)
 - [x] Koşu animasyonu (`run_<dir>_0..3`), `slide_right`, `kick_*`, `catch`, `stunned` pozlarını `Character.ts`'e bağla (BootScene yüklemesi + poz seçimi)
 - [x] Topu `ball_power<N>.png` ile çiz, güç seviyesine göre aura
-- [ ] Saha, tribün ve HUD'u pixel art'a çek (Pixel Cup Soccer havası, `pitchRenderer.ts`)
+- [x] Saha, tribün ve HUD'u pixel art'a çek (Pixel Cup Soccer havası, `pitchRenderer.ts`)
 - [ ] Sprite kalitesi ikinci tur: gölgelendirme, koşu karelerinde kol/bacak netliği
 
 ### M6.1 Enerji ekonomisi
