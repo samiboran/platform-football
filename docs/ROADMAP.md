@@ -89,8 +89,8 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 
 ### M6.3 Tutma ve güç çatışması
 - [x] Eski matris yerine fark tablosu (`systems/catchMatrix.ts`): ≤0 tut (+1 geri), 1 tut-sek, 2 düş/sersem + karşıya sek, 3 gol
-- [ ] Mükemmel parry: ~6 karelik pencere, çatışmada +1, +1 enerji, flaş
-- [ ] Sersemleme durumu (stunned pozu, 0.6 sn yavaşlama)
+- [x] Mükemmel parry: ~6 karelik pencere, çatışmada +1, +1 enerji, flaş
+- [x] Sersemleme durumu (stunned pozu, 0.6 sn yavaşlama)
 
 ### M6.4 His
 - [ ] Hitstop (4 / 8 / 12 kare), hafif ekran sarsıntısı

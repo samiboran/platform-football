@@ -44,3 +44,19 @@ export const CLASH_REBOUND_VY = 220;
 export const CLASH_DEPTH_SPREAD = 160;
 /** Diff ≥ 3: the shot goes through, losing this fraction of its speed. */
 export const CLASH_GOAL_SPEED_KEEP = 0.85;
+
+/** Perfect parry (M6.3, CLAUDE.md §5): tut pressed no more than this long
+ * before the shot makes contact (~6 frames at 60 fps). */
+export const PARRY_WINDOW_SECONDS = 6 / 60;
+/** A perfect parry adds this much catch power in the clash (free — it is
+ * not spent from the bar)… */
+export const PARRY_CLASH_BONUS = 1;
+/** …and grants this much energy on top. */
+export const PARRY_ENERGY_GAIN = 1;
+/** White screen-flash on a perfect parry (ms, peak alpha). */
+export const PARRY_FLASH_MS = 140;
+export const PARRY_FLASH_ALPHA = 0.55;
+
+/** Stunned state (M6.3): while stunned the character moves at this
+ * fraction of normal speed and can't dash, jump, shoot or catch. */
+export const STUN_MOVE_MULTIPLIER = 0.3;

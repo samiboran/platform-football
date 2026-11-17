@@ -30,6 +30,7 @@ import {
   OPPONENT_MOVE_DEADZONE,
   OPPONENT_TRACKING_LERP_SPEED,
   OPPONENT_CATCH_REACTION_SECONDS,
+  OPPONENT_PERFECT_PARRY_CHANCE,
 } from '../config/opponent';
 import { POWER_MAX_SEGMENTS } from '../config/power';
 import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
@@ -68,6 +69,10 @@ export class AIOpponent {
    * "holding tut" until that shot is resolved or stops being a threat. */
   private shotReactionRemaining: number | null = null;
   private interceptZError = 0;
+  /** Rolled per incoming shot: this tut will be a perfect parry. */
+  private perfectParry = false;
+  /** Called when the AI lands a perfect parry (scene flash). */
+  onPerfectParry?: () => void;
   /** Power-shot charge in progress: seconds left before release, or null. */
   private chargeRemaining: number | null = null;
   private chargeKind: ShotKind = 'ground';
@@ -103,10 +108,12 @@ export class AIOpponent {
     } else if (this.shotReactionRemaining === null) {
       this.shotReactionRemaining = OPPONENT_CATCH_REACTION_SECONDS;
       this.interceptZError = (Math.random() * 2 - 1) * OPPONENT_INTERCEPT_Z_ERROR;
+      this.perfectParry = Math.random() < OPPONENT_PERFECT_PARRY_CHANCE;
     } else if (this.shotReactionRemaining > 0) {
       this.shotReactionRemaining -= dt;
     }
-    const holdingTut = this.shotReactionRemaining !== null && this.shotReactionRemaining <= 0;
+    const stunned = this.character.isStunned;
+    const holdingTut = !stunned && this.shotReactionRemaining !== null && this.shotReactionRemaining <= 0;
 
     // --- Movement target.
     const target = this.chooseTarget(ball, holdingTut);
@@ -117,14 +124,15 @@ export class AIOpponent {
     this.character.update(delta, { moveX, moveZ, jumpPressed: this.wantsJump(ball), dashPressed: false });
 
     if (holdingTut && isCatchableShot(ball, 'right', this.character)) {
-      const { outcome } = applyCatchAttempt(ball, 'right', this.character);
+      const { outcome, perfect } = applyCatchAttempt(ball, 'right', this.character, this.perfectParry);
       if (outcome === 'hold' || outcome === 'spill') soundFX.save();
+      if (perfect) this.onPerfectParry?.();
       this.shotReactionRemaining = null;
       return;
     }
 
     // --- Header / volley on a high free ball.
-    if (canStrikeAerial(ball, ball.controller !== null, this.character)) {
+    if (!stunned && canStrikeAerial(ball, ball.controller !== null, this.character)) {
       const aim = this.aimAtGoal();
       strikeBall(ball, 'volley', aim.x, aim.z, {
         level: 0,
@@ -182,6 +190,7 @@ export class AIOpponent {
       return;
     }
 
+    if (stunned) return;
     if (this.shotCooldownRemaining > 0 || Math.random() >= OPPONENT_SHOT_CHANCE_PER_TOUCH) return;
     this.shotCooldownRemaining = OPPONENT_SHOT_COOLDOWN_SECONDS;
 

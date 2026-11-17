@@ -15,6 +15,8 @@ import {
   CLASH_REBOUND_VY,
   CLASH_DEPTH_SPREAD,
   CLASH_GOAL_SPEED_KEEP,
+  PARRY_CLASH_BONUS,
+  PARRY_ENERGY_GAIN,
 } from '../config/keeper';
 import type { Ball } from '../entities/Ball';
 import type { Character } from '../entities/Character';
@@ -29,8 +31,11 @@ export interface ClashResult {
   /** shot power − catch power */
   diff: number;
   outcome: ClashOutcome;
-  /** Energy handed back to the catcher (exact match on a power shot). */
+  /** Energy handed back to the catcher (exact match on a power shot, plus
+   * the perfect-parry bonus). */
   refund: number;
+  /** Tut landed inside the perfect-parry window. */
+  perfect: boolean;
 }
 
 /**
@@ -46,15 +51,27 @@ export interface ClashResult {
  *
  * Pressing tut commits min(energy, shot power) automatically — never more
  * than needed. Not pressing = catch power 0.
+ *
+ * Perfect parry (tut within ~6 frames of contact): +PARRY_CLASH_BONUS free
+ * catch power (so the auto-commit needs that much less energy) and
+ * +PARRY_ENERGY_GAIN energy afterwards.
  */
-export function resolveClash(shotPower: number, catcherEnergy: number, pressed: boolean): ClashResult {
+export function resolveClash(
+  shotPower: number,
+  catcherEnergy: number,
+  pressed: boolean,
+  perfect = false,
+): ClashResult {
   const shot = Math.max(0, Math.min(POWER_MAX_SEGMENTS, Math.round(shotPower)));
-  const catchPower = pressed ? Math.max(0, Math.min(Math.floor(catcherEnergy + 1e-6), shot)) : 0;
-  const diff = shot - catchPower;
+  const isPerfect = pressed && perfect;
+  const bonus = isPerfect ? PARRY_CLASH_BONUS : 0;
+  const needed = Math.max(0, shot - bonus);
+  const catchPower = pressed ? Math.max(0, Math.min(Math.floor(catcherEnergy + 1e-6), needed)) : 0;
+  const diff = shot - catchPower - bonus;
   const outcome: ClashOutcome =
     diff >= CLASH_DIFF_GOAL ? 'goal' : diff >= CLASH_DIFF_STUN ? 'stun' : diff >= CLASH_DIFF_BOUNCE ? 'spill' : 'hold';
-  const refund = diff === 0 && catchPower > 0 ? CLASH_EQUAL_REFUND : 0;
-  return { catchPower, diff, outcome, refund };
+  const refund = (diff === 0 && catchPower > 0 ? CLASH_EQUAL_REFUND : 0) + (isPerfect ? PARRY_ENERGY_GAIN : 0);
+  return { catchPower, diff, outcome, refund, perfect: isPerfect };
 }
 
 /** Is `ball` a live shot heading at `side`'s goal that the catcher can
@@ -72,8 +89,8 @@ export function isCatchableShot(ball: Ball, side: GoalSide, catcher: Character):
  * Resolve a catch attempt on contact and apply its outcome to the ball and
  * catcher. Energy: the catcher spends `catchPower`, gets `refund` back.
  */
-export function applyCatchAttempt(ball: Ball, side: GoalSide, catcher: Character): ClashResult {
-  const result = resolveClash(ball.powerLevel, catcher.powerSegments, true);
+export function applyCatchAttempt(ball: Ball, side: GoalSide, catcher: Character, perfect = false): ClashResult {
+  const result = resolveClash(ball.powerLevel, catcher.powerSegments, true, perfect);
   if (result.catchPower > 0) catcher.spendPower(result.catchPower);
   if (result.refund > 0) catcher.gainPower(result.refund);
   ball.clashResolved = true;

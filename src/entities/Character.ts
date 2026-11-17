@@ -21,6 +21,7 @@ import {
   DASH_DURATION,
   DASH_COOLDOWN,
 } from '../config/power';
+import { STUN_MOVE_MULTIPLIER } from '../config/keeper';
 import { type CharacterId, type CharacterPose, RUN_FRAME_COUNT, characterSpriteKey } from '../config/characters';
 import {
   RUN_FRAME_SECONDS,
@@ -119,6 +120,8 @@ export class Character {
   private transientPoseRemaining = 0;
 
   private dashTimeRemaining = 0;
+  /** Seconds left knocked down/stunned (M6.3): slowed, no dash/jump. */
+  private stunRemaining = 0;
   private dashRetriggerTimer = 0;
   private dashVX = 0;
   private dashVZ = 0;
@@ -194,9 +197,17 @@ export class Character {
     this.playPose('catch', CATCH_POSE_SECONDS);
   }
 
-  /** Stunned pose for `seconds` (M6.3 adds the actual slowdown). */
+  /** Knocked down/stunned for `seconds` (M6.3): stunned pose, slowed to
+   * STUN_MOVE_MULTIPLIER, no dash or jump; the scene/AI also block
+   * shooting and catching while `isStunned`. Cancels a running dash. */
   playStunned(seconds: number): void {
+    this.stunRemaining = Math.max(this.stunRemaining, seconds);
+    this.dashTimeRemaining = 0;
     this.playPose('stunned', seconds);
+  }
+
+  get isStunned(): boolean {
+    return this.stunRemaining > 0;
   }
 
   get currentPoseName(): CharacterPose | null {
@@ -243,8 +254,10 @@ export class Character {
 
     if (this.dashRetriggerTimer > 0) this.dashRetriggerTimer -= dt;
     if (this.catchCooldownRemaining > 0) this.catchCooldownRemaining -= dt;
+    const stunned = this.stunRemaining > 0;
+    if (stunned) this.stunRemaining = Math.max(0, this.stunRemaining - dt);
 
-    if (input.dashPressed && !this.isDashing && this.dashRetriggerTimer <= 0) {
+    if (input.dashPressed && !stunned && !this.isDashing && this.dashRetriggerTimer <= 0) {
       const dirX = input.moveX !== 0 || input.moveZ !== 0 ? input.moveX : this.facingX;
       const dirZ = input.moveX !== 0 || input.moveZ !== 0 ? input.moveZ : this.facingZ;
       const len = Math.hypot(dirX, dirZ) || 1;
@@ -263,7 +276,7 @@ export class Character {
       this.z = Phaser.Math.Clamp(this.z + this.dashVZ * DEPTH_SPEED_FACTOR * dt, DEPTH_MIN, DEPTH_MAX);
       this.dashTimeRemaining -= dt;
     } else {
-      const topSpeed = MOVE_SPEED * this.speedMultiplier;
+      const topSpeed = MOVE_SPEED * this.speedMultiplier * (stunned ? STUN_MOVE_MULTIPLIER : 1);
       const targetVX = input.moveX * topSpeed;
       const targetVZ = input.moveZ * topSpeed;
       // Radial (vector) acceleration — one rate for the whole velocity
@@ -302,7 +315,7 @@ export class Character {
       this.moveVelZ = dt > 0 ? (this.z - prevZ) / dt : 0;
     }
 
-    if (input.jumpPressed && this.y === 0) {
+    if (input.jumpPressed && !stunned && this.y === 0) {
       this.vy = JUMP_VELOCITY;
     }
     if (this.y > 0 || this.vy > 0) {

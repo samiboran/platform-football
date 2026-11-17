@@ -72,3 +72,6 @@ export const OPPONENT_TRACKING_LERP_SPEED = 6;
  * (M6.3). Without it the AI read the shot before it was struck. A shot
  * that reaches the AI before this elapses beats it outright. */
 export const OPPONENT_CATCH_REACTION_SECONDS = 0.15;
+/** Chance (per incoming shot) that the AI times its tut as a perfect parry
+ * (M6.3). Kept low — the human should be the one landing most parries. */
+export const OPPONENT_PERFECT_PARRY_CHANCE = 0.15;

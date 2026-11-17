@@ -15,7 +15,13 @@ import {
 import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
-import { CATCH_ARM_SECONDS, CATCH_WHIFF_COOLDOWN_SECONDS } from '../config/keeper';
+import {
+  CATCH_ARM_SECONDS,
+  CATCH_WHIFF_COOLDOWN_SECONDS,
+  PARRY_WINDOW_SECONDS,
+  PARRY_FLASH_MS,
+  PARRY_FLASH_ALPHA,
+} from '../config/keeper';
 import { canStrikeAerial } from '../systems/aerialStrike';
 import { computeDribbleTarget } from '../systems/dribbleControl';
 import {
@@ -110,6 +116,9 @@ export class MatchScene extends Phaser.Scene {
    * ball, M6.3) and the cooldown after a window that caught nothing. */
   private catchArmRemaining = 0;
   private catchWhiffCooldown = 0;
+  /** Seconds since the tut press that opened the current window (counts the
+   * input-buffer delay too) — inside PARRY_WINDOW_SECONDS = perfect parry. */
+  private catchArmElapsed = 0;
   /** Live stick vector this frame — the lob check reads it at release. */
   private liveMove = { x: 0, z: 0 };
   /** Counts down after a goal — controls locked, nothing moves, until it
@@ -174,6 +183,7 @@ export class MatchScene extends Phaser.Scene {
     });
 
     this.opponent = new AIOpponent(this, this.opponentCharacter);
+    this.opponent.onPerfectParry = () => this.flashParry();
     this.drinks = new EnergyDrinks(this);
 
     this.input1 = new InputController(this);
@@ -276,7 +286,8 @@ export class MatchScene extends Phaser.Scene {
     const dtSec = delta / 1000;
     if (this.input1.consumeActionPressed()) this.sinceActionPress = 0;
     else this.sinceActionPress += dtSec;
-    const actionBuffered = this.sinceActionPress <= SHOT_PRESS_BUFFER_SECONDS;
+    // Stunned (M6.3): presses are kept in the buffer but nothing fires.
+    const actionBuffered = this.sinceActionPress <= SHOT_PRESS_BUFFER_SECONDS && !this.player.isStunned;
 
     // M6.2 shot: tap Aksiyon = normal shot (0 energy); hold past
     // SHOT_CHARGE_TAP_SECONDS = power shot that spends the WHOLE bar on
@@ -311,6 +322,7 @@ export class MatchScene extends Phaser.Scene {
     } else if (!controllingBall && actionBuffered && this.catchArmRemaining <= 0 && this.catchWhiffCooldown <= 0) {
       // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md §4): opens a
       // short tut window; the clash resolves on contact (M6.3).
+      this.catchArmElapsed = this.sinceActionPress;
       this.sinceActionPress = Infinity;
       this.catchArmRemaining = CATCH_ARM_SECONDS;
     }
@@ -378,12 +390,23 @@ export class MatchScene extends Phaser.Scene {
     if (this.catchArmRemaining <= 0) return;
     if (isCatchableShot(this.ball, 'left', this.player)) {
       this.catchArmRemaining = 0;
-      const { outcome } = applyCatchAttempt(this.ball, 'left', this.player);
-      if (outcome === 'hold' || outcome === 'spill') soundFX.save();
+      const perfect = this.catchArmElapsed <= PARRY_WINDOW_SECONDS;
+      const result = applyCatchAttempt(this.ball, 'left', this.player, perfect);
+      if (result.outcome === 'hold' || result.outcome === 'spill') soundFX.save();
+      if (result.perfect) this.flashParry();
       return;
     }
     this.catchArmRemaining -= dt;
+    this.catchArmElapsed += dt;
     if (this.catchArmRemaining <= 0) this.catchWhiffCooldown = CATCH_WHIFF_COOLDOWN_SECONDS;
+  }
+
+  /** Perfect-parry feedback: brief white flash (fixed camera, no shake). */
+  flashParry(): void {
+    const flash = this.add
+      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, PARRY_FLASH_ALPHA)
+      .setDepth(20000);
+    this.tweens.add({ targets: flash, alpha: 0, duration: PARRY_FLASH_MS, onComplete: () => flash.destroy() });
   }
 
   /** Fire the human's shot at `level` (0 = normal, 1..3 = power shot that
