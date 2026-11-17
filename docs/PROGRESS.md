@@ -1122,3 +1122,6 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - `docs/ROADMAP.md`'ye yayın durumu değerlendirmesi ve iki yeni aşama eklendi: **M9** (sunucusuz tek oyunculu Play Store v1: teknik paket, içerik/cila, mağaza/yasal) ve **M10** (oyun mantığını ayırma, hesap/bulut kayıt, online maç, canlı işletme, para kazanma). Kod değişmedi.
 - Google Play kuralları web'den kontrol edildi (Kasım 2026): yeni kişisel hesaplarda 12 test kullanıcısı / 14 gün kapalı test, targetSdk 36 (31 Ağustos 2026'dan beri).
 - Karar bekleyenler (Sami): Play hesabı (25 $), hata raporlama servisi, hedef kitle, altın/elmas kullanımı, online mimarisi, para kazanma modeli.
+
+## Oturum 43 — Zamanlanmış M6 kontrolü
+- M6'nın tüm maddeleri zaten işaretli; yeni kapsam eklenmedi, kod değişmedi.
