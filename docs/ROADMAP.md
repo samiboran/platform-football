@@ -119,3 +119,11 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 ### M7.4 Menü akışı
 - [x] Ana menü, karakter ve saha seçimi pixel font + büyük dokunmatik kartlar
 - [x] Kartta element, özel hareket ve istatistik çubukları
+
+## M8 — Ana menü ve gelişim (17.11.2026, Sami: Kafa Topu tarzı menü, "pixel modern")
+- [x] Hub: üstte hesap seviyesi + altın + elmas, ortada kaide üstünde seçili karakter, KARAKTER / OYNA
+- [x] Karakter seviyesi: oynadığın karakter XP kazanır (maç sonu ödül: XP, altın, nadiren elmas)
+- [x] Seviyeyle açılan, takılıp çıkarılan özellikler (slot: Lv2'de 1, Lv6'da 2) — oyunda etkili
+- [x] Karakter ekranı (liste, seviye, istatistik, özellik tak/çıkar, seç), sonuç ekranında ödüller
+- [ ] Altın / elmas harcama yeri (market, karakter açma) — Sami karar verecek
+- [ ] ETKİNLİK / TAKIM / SOSYAL gibi diğer hub düğmeleri

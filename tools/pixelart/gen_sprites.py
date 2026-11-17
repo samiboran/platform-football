@@ -531,6 +531,49 @@ def energy_drink(gold: bool = False) -> Image.Image:
     return c.image()
 
 
+
+# ---------------------------------------------------------------- menu icons (M8)
+
+def _icon_from(rows, pal):
+    """Tiny pixel icon from a char map; '.' transparent, outline auto."""
+    c = Canvas(len(rows[0]), len(rows))
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch != '.':
+                c.put(x, y, rgb(pal[ch]))
+    return c.image()
+
+
+def icon_coin():
+    rows = ['..oooo..', '.oyyyyo.', 'oyywyyyo', 'oywyyyho', 'oyyyyyho', 'oyyyyhho', '.ohhhho.', '..oooo..']
+    return _icon_from(rows, {'o': '8a5a10', 'y': 'ffd23a', 'w': 'fff6c0', 'h': 'e0a020'})
+
+
+def icon_gem():
+    rows = ['..oooooo..', '.owwccbbo.', 'owwccbbbbo', 'occccbbbdo', '.occbbbdo.', '..ocbbdo..', '...obdo...', '....oo....']
+    return _icon_from(rows, {'o': '0e3c6e', 'w': 'e8fbff', 'c': '7fe0ff', 'b': '30a8f0', 'd': '1870c0'})
+
+
+def icon_star():
+    rows = ['....oo....', '...oyyo...', 'oooyyyyooo', 'oyyywyyyyo', '.oyyyyyyo.', '..oyyyyo..', '.oyyooyyo.', '.oyo..oyo.', '.oo....oo.']
+    return _icon_from(rows, {'o': '6a3a9a', 'y': 'b070ff', 'w': 'f0d8ff'})
+
+
+def icon_whistle():
+    rows = ['..........oo', '.oooooo..ogo', 'ossswsso.oo.', 'osssssssoo..', 'osbbsssso...', 'osbbssso....', '.osssso.....', '..oooo......']
+    return _icon_from(rows, {'o': '1b2030', 's': 'c8d0dc', 'w': 'ffffff', 'b': '5a6478', 'g': 'ffd23a'})
+
+
+def icon_shirt():
+    rows = ['.oo....oo.', 'oyyoooo yyo'.replace(' ', 'o')[:10], 'oyyyyyyyyo', 'ooyywwyyoo', '.oyyyyyyo.', '.oyyyyyyo.', '.oyyyyyyo.', '.oooooooo.']
+    return _icon_from(rows, {'o': '1b2030', 'y': 'f1c40f', 'w': '2a7a3a'})
+
+
+def icon_lock():
+    rows = ['..oooo..', '.o....o.', '.o....o.', 'oooooooo', 'oyyyyyyo', 'oyyooyyo', 'oyyyyyyo', 'oooooooo']
+    return _icon_from(rows, {'o': '1b2030', 'y': 'c8d0dc'})
+
+
 # ---------------------------------------------------------------- crowd + HUD
 
 FAN_SHIRTS = ['e74c3c', 'f1c40f', '3498db', '2ecc71', 'f2f2f2', 'e67e22']
@@ -720,6 +763,10 @@ def main():
         'hud_button': hud_button(),
         'pixel_font': pixel_font(),
     }
+    hud.update({
+        'icon_coin': icon_coin(), 'icon_gem': icon_gem(), 'icon_star': icon_star(),
+        'icon_whistle': icon_whistle(), 'icon_shirt': icon_shirt(), 'icon_lock': icon_lock(),
+    })
     for name, img in hud.items():
         save(img, 'assets', 'hud', f'{name}.png')
     sheet_rows.append(list(hud.values()))

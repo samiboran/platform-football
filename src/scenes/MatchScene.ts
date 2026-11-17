@@ -59,10 +59,15 @@ import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
 import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
 import { isTouchDevice } from '../systems/mobileShell';
+import { equippedPerks, grantMatchRewards } from '../systems/profile';
+import { perkMods } from '../config/progression';
 import { vibrateImpact, vibrateGoal } from '../systems/haptics';
 import { BUTTON_RING_TAP_COLOR } from '../config/controls';
 import { elementColor } from '../config/elements';
-import { makeButton, pixelText } from '../systems/uiKit';
+import { makeFancyButton, pixelText } from '../systems/uiKit';
+import { HUB_PLAY_COLOR as PAUSE_PRIMARY_COLOR } from '../config/menus';
+
+
 import {
   FEEL_FRAME_SECONDS,
   FEEL_EPSILON,
@@ -206,6 +211,9 @@ export class MatchScene extends Phaser.Scene {
       this.character.speedMultiplier,
       this.character.id,
     );
+    // M8: the player's equipped perks (profile, per character).
+    this.player.mods = perkMods(equippedPerks(this.character.id));
+    this.player.gainPower(this.player.mods.startEnergy);
     this.depthSortRef = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT * 0.85, bounds, 0xe74c3c);
     this.depthSortRef.setVisible(false);
 
@@ -471,7 +479,7 @@ export class MatchScene extends Phaser.Scene {
     if (this.catchArmRemaining <= 0) return;
     if (isCatchableShot(this.ball, 'left', this.player)) {
       this.catchArmRemaining = 0;
-      const perfect = this.catchArmElapsed <= PARRY_WINDOW_SECONDS;
+      const perfect = this.catchArmElapsed <= PARRY_WINDOW_SECONDS + this.player.mods.parryWindowBonusSeconds;
       const result = applyCatchAttempt(this.ball, 'left', this.player, perfect);
       if (result.outcome === 'hold' || result.outcome === 'spill') soundFX.save();
       if (result.perfect) this.flashParry();
@@ -749,7 +757,17 @@ export class MatchScene extends Phaser.Scene {
     ];
     const step = HUD.PAUSE_MENU_BUTTON_H + HUD.PAUSE_MENU_BUTTON_GAP;
     items.forEach(([label, fn, primary], i) => {
-      const b = makeButton(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40 + i * step, HUD.PAUSE_MENU_BUTTON_W, HUD.PAUSE_MENU_BUTTON_H, label, fn, { primary });
+      const b = makeFancyButton(
+        this,
+        GAME_WIDTH / 2,
+        GAME_HEIGHT / 2 - 40 + i * step,
+        HUD.PAUSE_MENU_BUTTON_W,
+        HUD.PAUSE_MENU_BUTTON_H,
+        label,
+        primary ? PAUSE_PRIMARY_COLOR : HUD.UI_BUTTON_COLOR,
+        fn,
+        { labelScale: 3 },
+      );
       root.add(b.container);
     });
     this.pauseMenu = root;
@@ -807,7 +825,9 @@ export class MatchScene extends Phaser.Scene {
     if (this.matchOver) return;
     this.matchOver = true;
     soundFX.whistle();
+    const rewards = grantMatchRewards(this.character.id, this.scoreLeft, this.scoreRight);
     this.scene.start('Result', {
+      rewards,
       scoreLeft: this.scoreLeft,
       scoreRight: this.scoreRight,
       characterId: this.character.id,

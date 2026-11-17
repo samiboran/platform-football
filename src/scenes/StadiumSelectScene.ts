@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
+import { GAME_WIDTH } from '../config/arena';
 import { STADIUMS, STADIUM_ORDER, type StadiumId, type StadiumDef } from '../config/stadiums';
 import type { CharacterId } from '../config/characters';
 import * as M from '../config/menus';
 import * as HUD from '../config/hud';
-import { makeButton, menuBackground, pixelText, type UiButton } from '../systems/uiKit';
+import { makeFancyButton, pixelText, type UiButton } from '../systems/uiKit';
+import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { loadPref, savePref } from '../systems/prefs';
 
 interface StadiumSelectData {
@@ -28,7 +29,7 @@ export class StadiumSelectScene extends Phaser.Scene {
 
   create(): void {
     this.borders.clear();
-    menuBackground(this, GAME_WIDTH, GAME_HEIGHT);
+    drawHubBackdrop(this);
     pixelText(this, GAME_WIDTH / 2, M.SELECT_TITLE_Y, 'SAHAYI SEÇ', M.SELECT_TITLE_SCALE, HUD.UI_TITLE_COLOR);
 
     STADIUM_ORDER.forEach((id, i) => {
@@ -39,22 +40,23 @@ export class StadiumSelectScene extends Phaser.Scene {
       this.drawCard(x, y, STADIUMS[id]);
     });
 
-    makeButton(this, M.SELECT_BACK_W / 2 + 24, M.SELECT_BOTTOM_Y, M.SELECT_BACK_W, M.SELECT_BUTTON_H, 'GERİ', () =>
-      this.scene.start('CharacterSelect'),
-    );
-    this.next = makeButton(
+    makeFancyButton(this, M.SELECT_BACK_W / 2 + 24, M.SELECT_BOTTOM_Y, M.SELECT_BACK_W, M.SELECT_BUTTON_H, 'GERİ', 0x34495e, () =>
+      this.scene.start('Menu'),
+    { labelScale: 3 });
+    this.next = makeFancyButton(
       this,
       GAME_WIDTH - M.SELECT_NEXT_W / 2 - 24,
       M.SELECT_BOTTOM_Y,
       M.SELECT_NEXT_W,
       M.SELECT_BUTTON_H,
       'MAÇA BAŞLA',
+      M.HUB_PLAY_COLOR,
       () => {
         if (!this.selected) return;
         savePref(M.LAST_STADIUM_KEY, this.selected);
         this.scene.start('Match', { characterId: this.characterId, stadiumId: this.selected });
       },
-      { primary: true },
+      { icon: 'icon_whistle', labelScale: 3 },
     );
 
     const last = loadPref(M.LAST_STADIUM_KEY) as StadiumId | null;
@@ -68,7 +70,7 @@ export class StadiumSelectScene extends Phaser.Scene {
     const h = M.STADIUM_CARD_H;
     const left = x - w / 2;
     const top = y - h / 2;
-    const bg = this.add.rectangle(x, y, w, h, M.SELECT_CARD_BG).setInteractive({ useHandCursor: true });
+    const bg = this.add.rectangle(x, y, w, h, M.SELECT_CARD_BG, 0.92).setInteractive({ useHandCursor: true });
     // Surface swatch with stripes, like the real pitch.
     const sw = 120;
     this.add.rectangle(left + 16 + sw / 2, y, sw, h - 32, def.tintColor);

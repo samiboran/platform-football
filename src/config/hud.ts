@@ -25,7 +25,18 @@ export function toHudText(s: string): string {
 }
 
 // --- Texture keys -----------------------------------------------------------
-export const HUD_TEXTURES = ['hud_scoreboard', 'hud_energy_full', 'hud_energy_empty', 'hud_button'] as const;
+export const HUD_TEXTURES = [
+  'hud_scoreboard',
+  'hud_energy_full',
+  'hud_energy_empty',
+  'hud_button',
+  'icon_coin',
+  'icon_gem',
+  'icon_star',
+  'icon_whistle',
+  'icon_shirt',
+  'icon_lock',
+] as const;
 
 // --- Scoreboard (top center) -----------------------------------------------
 export const SCOREBOARD_Y = 4;

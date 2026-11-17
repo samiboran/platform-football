@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { perkMods, type PerkMods } from '../config/progression';
 import { CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, DEPTH_MIN, DEPTH_MAX, projectToScreen } from '../config/arena';
 import {
   MOVE_SPEED,
@@ -115,6 +116,8 @@ export class Character {
   powerSegments = 0;
   /** Seconds accumulated toward the next passive +1 (0 while full). */
   passiveGainTimer = 0;
+  /** M8 perk effects (only the human's are non-default). */
+  mods: PerkMods = perkMods([]);
   /** Last nonzero move direction — where Dash goes when the joystick is
    * neutral (CLAUDE.md section 4). */
   facingX = 1;
@@ -251,8 +254,9 @@ export class Character {
       this.passiveGainTimer = 0;
     } else {
       this.passiveGainTimer += dt;
-      if (this.passiveGainTimer >= POWER_PASSIVE_GAIN_SECONDS) {
-        this.passiveGainTimer -= POWER_PASSIVE_GAIN_SECONDS;
+      const every = this.mods.passiveGainSeconds ?? POWER_PASSIVE_GAIN_SECONDS;
+      if (this.passiveGainTimer >= every) {
+        this.passiveGainTimer -= every;
         this.gainPower(POWER_PASSIVE_GAIN_AMOUNT);
       }
     }
@@ -281,7 +285,7 @@ export class Character {
         this.dashVX = (dirX / len) * DASH_SPEED;
         this.dashVZ = (dirZ / len) * DASH_SPEED;
         this.dashTimeRemaining = DASH_DURATION;
-        this.dashRetriggerTimer = DASH_COOLDOWN;
+        this.dashRetriggerTimer = DASH_COOLDOWN * this.mods.dashCooldownMultiplier;
       }
     }
 
