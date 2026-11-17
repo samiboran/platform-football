@@ -93,9 +93,9 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Sersemleme durumu (stunned pozu, 0.6 sn yavaşlama)
 
 ### M6.4 His
-- [ ] Hitstop (4 / 8 / 12 kare), hafif ekran sarsıntısı
+- [x] Hitstop (4 / 8 / 12 kare), hafif ekran sarsıntısı
 - [x] Giriş tamponu ~8 kare (Aksiyon; M6.2 ile öne alındı)
-- [ ] Power shot öncesi Tsubasa tarzı portre ara geçişi (0.5 sn)
+- [x] Power shot öncesi Tsubasa tarzı portre ara geçişi (0.5 sn)
 - [ ] Gol kutlaması: isim bandı + power gollerinde ağır çekim tekrar
 
 **Doğrulama:** Fark tablosunun 4 satırı da deterministik test edilir. Dash 1 enerji/1 sn kuralı, lob, parry penceresi ve içecek spawn'ı ayrı ayrı doğrulanır. Deploy linki konsol hatasız açılır.

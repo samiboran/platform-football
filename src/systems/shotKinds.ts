@@ -8,6 +8,7 @@ import {
   VOLLEY_LAUNCH_VY,
 } from '../config/power';
 import type { Ball } from '../entities/Ball';
+import { emitImpact } from './impactFeel';
 
 /** The M6.2 shot types, shared by the human (MatchScene) and the AI. */
 export type ShotKind = 'ground' | 'lob' | 'volley';
@@ -59,4 +60,6 @@ export function strikeBall(ball: Ball, kind: ShotKind, dirX: number, dirZ: numbe
       ball.shoot(dirX, dirZ, base * VOLLEY_SPEED_MULTIPLIER, chaos, false, false, wobble, 0, VOLLEY_LAUNCH_VY, 0);
       break;
   }
+  // Hitstop on every strike (M6.4): 4 frames normal, 8 power.
+  emitImpact(level > 0 ? 'power' : 'normal');
 }

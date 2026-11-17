@@ -20,6 +20,7 @@ import {
 } from '../config/keeper';
 import type { Ball } from '../entities/Ball';
 import type { Character } from '../entities/Character';
+import { emitImpact } from './impactFeel';
 
 export type GoalSide = 'left' | 'right';
 
@@ -94,6 +95,7 @@ export function applyCatchAttempt(ball: Ball, side: GoalSide, catcher: Character
   if (result.catchPower > 0) catcher.spendPower(result.catchPower);
   if (result.refund > 0) catcher.gainPower(result.refund);
   ball.clashResolved = true;
+  emitImpact('clash'); // 12-frame hitstop + shake (M6.4)
   const away = side === 'left' ? 1 : -1; // direction away from the catcher's goal
   const spread = () => (Math.random() - 0.5) * CLASH_DEPTH_SPREAD;
 

@@ -4,6 +4,7 @@ import { BALL_POWER_LEVEL_MAX, ballSpriteKey } from '../config/animation';
 import { FAN_VARIANTS } from '../config/pitchArt';
 import { DRINK_TEXTURE_KEY, DRINK_GOLD_TEXTURE_KEY } from '../config/pickups';
 import { fanTextureKey } from '../systems/CrowdBand';
+import { portraitTextureKey } from '../systems/PowerCutIn';
 import {
   HUD_TEXTURES,
   PIXEL_FONT_KEY,
@@ -23,6 +24,7 @@ export class BootScene extends Phaser.Scene {
       for (const pose of CHARACTER_POSES) {
         this.load.image(characterSpriteKey(id, pose), `characters/${id}/${pose}.png`);
       }
+      this.load.image(portraitTextureKey(id), `characters/${id}/portrait.png`);
     }
     for (let level = 0; level <= BALL_POWER_LEVEL_MAX; level++) {
       this.load.image(ballSpriteKey(level), `fx/ball_power${level}.png`);

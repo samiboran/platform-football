@@ -73,6 +73,8 @@ export class AIOpponent {
   private perfectParry = false;
   /** Called when the AI lands a perfect parry (scene flash). */
   onPerfectParry?: () => void;
+  /** Called right before the AI releases a power shot (portrait cut-in). */
+  onPowerShot?: (level: number) => void;
   /** Power-shot charge in progress: seconds left before release, or null. */
   private chargeRemaining: number | null = null;
   private chargeKind: ShotKind = 'ground';
@@ -241,6 +243,7 @@ export class AIOpponent {
   }
 
   private fire(ball: Ball, kind: ShotKind, level: number): void {
+    if (level > 0) this.onPowerShot?.(level);
     const aim = this.aimAtGoal();
     strikeBall(ball, kind, aim.x, aim.z, {
       level,

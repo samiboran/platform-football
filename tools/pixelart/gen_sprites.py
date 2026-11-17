@@ -359,6 +359,77 @@ def stars(img: Image.Image) -> Image.Image:
     return img
 
 
+# ---------------------------------------------------------------- portrait
+
+PW, PH = 40, 40
+
+
+def portrait(L: Look) -> Image.Image:
+    """Power-shot cut-in bust (M6.4): big 3/4-front head, angled brows,
+    gritted teeth — Tsubasa-style "this one's going in" face. Faces right
+    (the game flips it for the right-side player)."""
+    c = Canvas(PW, PH)
+    sk, skd = L.skin, L.skin_dark
+    white = rgb('f4f4f4')
+    # shoulders + shirt
+    c.rect(2, 33, 37, 39, L.shirt)
+    c.rect(2, 37, 37, 39, L.shirt_dark)
+    c.rect(15, 33, 24, 34, L.trim)                                  # collar
+    if L.tie:
+        c.rect(19, 35, 20, 39, L.tie)
+    else:
+        c.rect(28, 36, 30, 37, L.trim)                              # crest
+    c.rect(16, 29, 23, 33, skd)                                     # neck (shaded)
+    # head: tapered box, chin narrower
+    c.rect(9, 8, 30, 27, sk)
+    c.rect(11, 28, 28, 29, sk)
+    c.rect(14, 30, 25, 30, sk)
+    for (x, y) in [(9, 8), (30, 8), (9, 27), (30, 27)]:
+        c.put(x, y, None)
+    c.rect(26, 12, 30, 27, skd)                                     # far cheek in shadow
+    c.rect(24, 28, 28, 29, skd)
+    c.rect(8, 17, 8, 21, sk); c.rect(31, 17, 31, 21, skd)           # ears
+    # brows: thick, angled down toward the nose (determined)
+    for i in range(6):
+        c.put(11 + i, 13 + i // 2, OUTLINE); c.put(11 + i, 14 + i // 2, OUTLINE)
+        c.put(28 - i, 13 + i // 2, OUTLINE); c.put(28 - i, 14 + i // 2, OUTLINE)
+    # eyes: white, big dark iris looking forward-right, highlight
+    for ex in (12, 22):
+        c.rect(ex, 17, ex + 5, 20, white)
+        c.rect(ex, 17, ex + 5, 17, OUTLINE)                         # upper lid
+        c.rect(ex + 2, 18, ex + 4, 20, OUTLINE)                     # iris
+        c.put(ex + 3, 18, white)                                    # catch-light
+    # nose + gritted teeth
+    c.rect(19, 21, 19, 24, skd); c.put(20, 24, skd)
+    c.rect(15, 26, 24, 26, OUTLINE)
+    c.rect(16, 27, 23, 27, white)
+    c.rect(15, 28, 24, 28, OUTLINE)
+    for x in (18, 21):
+        c.put(x, 27, OUTLINE)
+    # sweat drop + cheek mark for drama
+    c.put(8, 23, rgb('bfe6ff')); c.put(8, 24, rgb('8cc8f0'))
+    if L.hat:
+        c.rect(10, 1, 29, 7, L.hat)                                 # crown
+        c.rect(10, 6, 29, 7, L.hat_band)
+        c.rect(5, 8, 34, 9, L.hat)                                  # brim
+        c.rect(5, 9, 34, 9, shade(L.hat, 0.7))
+        c.rect(26, 0, 27, 3, rgb('e05a9c'))                         # feather
+        c.rect(13, 10, 26, 10, shade(sk, 0.6))                      # brim shadow
+    else:
+        # spiky hair, swept back by the wind of the shot
+        c.rect(8, 3, 31, 11, L.hair)
+        for (x0, top) in [(9, 0), (14, -1), (19, 0), (24, 1), (29, 3)]:
+            c.rect(x0, max(0, top + 1), x0 + 3, 3, L.hair)
+            c.put(x0 + 1, max(0, top), L.hair)
+        c.rect(8, 12, 9, 18, L.hair)                                 # sideburns
+        c.rect(30, 12, 31, 16, L.hair)
+        for x in range(11, 29, 3):                                  # fringe spikes
+            c.put(x, 12, L.hair); c.put(x + 1, 12, L.hair); c.put(x + 1, 13, L.hair)
+        c.rect(12, 4, 20, 4, shade(L.hair, 1.35))                   # shine
+    c.light()
+    return c.image()
+
+
 # ---------------------------------------------------------------- fx
 
 def ball(level: int) -> Image.Image:
@@ -561,7 +632,8 @@ def main():
         poses['slide_right'] = flip(poses['slide'])
         for name, img in poses.items():
             save(img, *d, f'{name}.png')
-        sheet_rows.append(list(poses.values()))
+        portrait_img = save(portrait(L), *d, 'portrait.png')
+        sheet_rows.append(list(poses.values()) + [portrait_img])
         assert poses['front'].height == H
 
     fx = [ball(i) for i in range(4)] + [energy_drink(), energy_drink(gold=True)]

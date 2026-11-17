@@ -55,6 +55,17 @@ import { EnergyDrinks } from '../systems/EnergyDrinks';
 import * as HUD from '../config/hud';
 import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
 import { strikeBall } from '../systems/shotKinds';
+import { setImpactListener, emitImpact } from '../systems/impactFeel';
+import { playPowerCutIn } from '../systems/PowerCutIn';
+import {
+  FEEL_FRAME_SECONDS,
+  FEEL_EPSILON,
+  HITSTOP_FRAMES,
+  SHAKE,
+  CUTIN_SECONDS,
+  CUTIN_TITLES,
+  type ImpactKind,
+} from '../config/feel';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 import { AIOpponent } from '../entities/AIOpponent';
@@ -124,6 +135,11 @@ export class MatchScene extends Phaser.Scene {
   /** Counts down after a goal — controls locked, nothing moves, until it
    * hits 0 (CLAUDE.md: "~2 sn kontroller kilitli"). */
   private kickoffFreezeRemaining = 0;
+  /** M6.4 feel: whole-world freeze (hitstop), the portrait cut-in timer,
+   * and the strongest impact that landed during a cut-in (played after). */
+  private hitstopRemaining = 0;
+  private cutInRemaining = 0;
+  private pendingImpact: ImpactKind | null = null;
 
   constructor() {
     super('Match');
@@ -184,6 +200,12 @@ export class MatchScene extends Phaser.Scene {
 
     this.opponent = new AIOpponent(this, this.opponentCharacter);
     this.opponent.onPerfectParry = () => this.flashParry();
+    this.opponent.onPowerShot = (level) => this.startCutIn('right', this.opponentCharacter, level);
+    this.hitstopRemaining = 0;
+    this.cutInRemaining = 0;
+    this.pendingImpact = null;
+    setImpactListener((kind) => this.onImpact(kind));
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => setImpactListener(null));
     this.drinks = new EnergyDrinks(this);
 
     this.input1 = new InputController(this);
@@ -212,6 +234,22 @@ export class MatchScene extends Phaser.Scene {
 
   update(_time: number, delta: number): void {
     if (this.matchOver) return;
+
+    // M6.4: portrait cut-in, then hitstop — the whole simulation pauses
+    // (inputs stay buffered, nothing is drained).
+    if (this.cutInRemaining > FEEL_EPSILON) {
+      this.cutInRemaining -= delta / 1000;
+      if (this.cutInRemaining <= FEEL_EPSILON && this.pendingImpact) {
+        const kind = this.pendingImpact;
+        this.pendingImpact = null;
+        this.startHitstop(kind);
+      }
+      return;
+    }
+    if (this.hitstopRemaining > FEEL_EPSILON) {
+      this.hitstopRemaining -= delta / 1000;
+      return;
+    }
 
     if (this.kickoffFreezeRemaining > 0) {
       // Controls locked after a goal (CLAUDE.md: "~2 sn kontroller
@@ -401,6 +439,28 @@ export class MatchScene extends Phaser.Scene {
     if (this.catchArmRemaining <= 0) this.catchWhiffCooldown = CATCH_WHIFF_COOLDOWN_SECONDS;
   }
 
+  /** An impact landed (strike / clash). During a cut-in the strongest one
+   * waits until the portrait is gone, so the kick "lands" after it. */
+  private onImpact(kind: ImpactKind): void {
+    if (this.cutInRemaining > FEEL_EPSILON) {
+      if (!this.pendingImpact || HITSTOP_FRAMES[kind] > HITSTOP_FRAMES[this.pendingImpact]) this.pendingImpact = kind;
+      return;
+    }
+    this.startHitstop(kind);
+  }
+
+  private startHitstop(kind: ImpactKind): void {
+    this.hitstopRemaining = Math.max(this.hitstopRemaining, HITSTOP_FRAMES[kind] * FEEL_FRAME_SECONDS);
+    const shake = SHAKE[kind];
+    if (shake.durationMs > 0) this.cameras.main.shake(shake.durationMs, shake.intensity);
+  }
+
+  /** Power shot / super: freeze for the portrait cut-in (CUTIN_SECONDS). */
+  private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number): void {
+    this.cutInRemaining = CUTIN_SECONDS;
+    playPowerCutIn(this, def.id, def.name, side, level);
+  }
+
   /** Perfect-parry feedback: brief white flash (fixed camera, no shake). */
   flashParry(): void {
     const flash = this.add
@@ -415,6 +475,7 @@ export class MatchScene extends Phaser.Scene {
    * direction, else facing. */
   private fireShot(level: number): void {
     if (level > 0 && !this.player.spendPower(level)) level = 0;
+    if (level > 0) this.startCutIn('left', this.character, level);
     const strike = { level, shotPowerMultiplier: this.character.shotPowerMultiplier };
     // Left side attacks +x, so "back" = stick pointing left.
     if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) {
@@ -470,6 +531,8 @@ export class MatchScene extends Phaser.Scene {
     const aimX = aim.x;
     const aimZ = aim.z;
     const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * aim.speedScale;
+    this.startCutIn('left', this.character, CUTIN_TITLES.length - 1);
+    emitImpact('power');
     soundFX.kick();
     this.player.playKick(aimX);
 
