@@ -86,7 +86,7 @@ Sanal joystick (sol) + 4 tuş (sağ):
 - Joystick boşken Dash'e basılırsa karakterin baktığı yöne dash atar.
 - Şut yönü, Aksiyon'a basıldığı andaki joystick yönünden gelir (kaba yönler, serbest nişan yok).
 - Yanlış yön veya kötü zamanlama → direk, auta çıkan top, isabetsiz şut. Otomatik kaleye nişan **yok**.
-- PC'de klavye eşlemesi de olsun: yön tuşları + Z/X/C/Space gibi.
+- PC (17.11.2026, Sami): **WASD** hareket (oklar da çalışır), **Space** zıpla, **Shift** dash, **sol tık** Aksiyon (şut/tut, basılı tut = power), **sağ tık** Özel; klavye yedeği J = Aksiyon, E = Özel, P/ESC duraklat. Fare tıkları dokunmatik joystick/tuşları tetiklemez.
 
 ---
 

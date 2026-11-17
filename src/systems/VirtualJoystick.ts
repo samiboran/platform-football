@@ -58,6 +58,7 @@ export class VirtualJoystick {
   }
 
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
+    if (!pointer.wasTouch) return; // mouse = Aksiyon/Özel on PC, not the stick
     if (this.pointerId !== null) return;
     if (!VirtualJoystick.inZone(pointer.x, pointer.y)) return;
     this.pointerId = pointer.id;

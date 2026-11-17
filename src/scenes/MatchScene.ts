@@ -756,7 +756,7 @@ export class MatchScene extends Phaser.Scene {
     // Footer: keyboard map — only on devices with a real keyboard/mouse.
     if (!isTouchDevice()) {
       this.add
-        .bitmapText(10, GAME_HEIGHT + 2, HUD.PIXEL_FONT_KEY, HUD.toHudText('Klavye: oklar  Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel  P=Duraklat'))
+        .bitmapText(10, GAME_HEIGHT + 2, HUD.PIXEL_FONT_KEY, HUD.toHudText('WASD=Hareket  Space=Zıpla  Shift=Dash  Sol tık=Şut/Tut  Sağ tık=Özel  P=Duraklat'))
         .setScale(HUD.FOOTER_FONT_SCALE)
         .setOrigin(0, 1)
         .setTint(HUD.FOOTER_KEYS_COLOR)

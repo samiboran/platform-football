@@ -1110,3 +1110,9 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Not (Sami'nin gördüğü "3. güçte falso"):** Önceden gerçek falso yoktu; görülen sapma büyük ihtimalle AI'ın nişan sapması/duvar sekmesi ya da Kenya'daki rüzgardı.
 - **Doğrulama (Playwright, adım adım; geçici hook kaldırıldı):** Topla zıpla + Aksiyon → düz (z 105 sabit) gol. Zıpla + yukarı dash + Aksiyon → z 121→101→128 eğri, gol. Aşağı dash → 95→115→88 ters eğri, gol. Rövaşata: enerji 3→0, `ball_lightning3`/`ball_fire3`, gerçek zamanlı ekran görüntüsünde takla görünüyor. Konsol hatası yok, build temiz.
 - **Bilinen:** AI kombo kullanmıyor (BACKLOG). Falso gücü hissiyata göre `CURVE_ACCEL` / `CURVE_AIM_OFFSET` ile ayarlanabilir.
+
+## Oturum 41 — PC kontrolleri: WASD + Space + Shift + fare (Sami'nin isteği)
+- WASD hareket (oklar da duruyor), Space zıpla, Shift dash, sol tık Aksiyon (şut/tut; basılı tutunca power şarjı), sağ tık Özel (süper / havada rövaşata). Klavye yedeği: J = Aksiyon, E = Özel; P/ESC duraklat. Tek kareden kısa tıklar da sayılıyor (latch).
+- Fare artık dokunmatik joystick'i ve ekrandaki tuşları tetiklemiyor (`pointer.wasTouch`); duraklat gibi UI düğmelerine tıklamak şut saymıyor. Sağ tık menüsü zaten kapalı.
+- Maç içi alt yazı ve CLAUDE.md §4 güncellendi.
+- **Doğrulama (Playwright, gerçek klavye/fare olayları; geçici hook kaldırıldı):** W → z 100→120, D → x 250→289, Space → y 44, Shift → dash + 1 enerji, sol yarıya fare basılı → oyuncu kımıldamadı (joystick 0,0), top ayaktayken sol tık → şut (453 px/s), 3 enerjiyle sağ tık → süper (enerji 0, seviye 3). Konsol hatası yok, build temiz.

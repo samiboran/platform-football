@@ -41,6 +41,9 @@ class TouchButton {
     // sliding a little off the button must not count as letting go (it
     // would fire a charged shot early).
     this.circle.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      // Mouse clicks are Aksiyon / Özel on PC (InputController), not taps
+      // on these on-screen buttons.
+      if (!pointer.wasTouch) return;
       this.held = true;
       this.pointerId = pointer.id;
       // Latched until consumed, so a tap that goes down and up between two
@@ -53,6 +56,11 @@ class TouchButton {
         this.pointerId = -1;
       }
     });
+  }
+
+  /** Count a press that may be shorter than one frame (mouse click). */
+  latch(): void {
+    this.pressLatched = true;
   }
 
   isHeld(keyDown: boolean): boolean {
@@ -117,15 +125,21 @@ class TouchButton {
 /**
  * Merges the on-screen joystick + 4 buttons (touch) with keyboard (PC,
  * CLAUDE.md section 4): arrows/joystick for movement, Space=Zıpla,
- * Z=Aksiyon, X=Dash, C=Özellik.
+ * Space=Zıpla, Shift=Dash, mouse left / J = Aksiyon, mouse right / E = Özel.
  */
 export class InputController {
   private readonly joystick: VirtualJoystick;
   private readonly cursors: Phaser.Types.Input.Keyboard.CursorKeys;
+  private readonly wasd: Record<'up' | 'left' | 'down' | 'right', Phaser.Input.Keyboard.Key>;
   private readonly jumpKey: Phaser.Input.Keyboard.Key;
   private readonly actionKey: Phaser.Input.Keyboard.Key;
   private readonly dashKey: Phaser.Input.Keyboard.Key;
   private readonly specialKey: Phaser.Input.Keyboard.Key;
+  /** PC mouse (Sami 17.11): left = Aksiyon, right = Özel. */
+  private mouseAction = false;
+  private mouseSpecial = false;
+  /** A right-click shorter than a frame still counts as an Özel release. */
+  private specialClickLatched = false;
 
   private readonly jumpBtn: TouchButton;
   private readonly actionBtn: TouchButton;
@@ -144,13 +158,41 @@ export class InputController {
 
     const keyboard = scene.input.keyboard!;
     this.cursors = keyboard.createCursorKeys();
-    // Space = Aksiyon (primary action, most reached-for key) — swapped from
-    // an earlier Z/Space layout after real-world testing showed players
-    // expect Space to shoot.
-    this.jumpKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.Z);
-    this.actionKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-    this.dashKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
-    this.specialKey = keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.C);
+    // PC layout (Sami 17.11.2026): WASD (arrows also work) move, Space
+    // jump, Shift dash, mouse left = Aksiyon, mouse right = Özel. J / E are
+    // keyboard fallbacks for Aksiyon / Özel (trackpads).
+    const K = Phaser.Input.Keyboard.KeyCodes;
+    this.wasd = {
+      up: keyboard.addKey(K.W),
+      left: keyboard.addKey(K.A),
+      down: keyboard.addKey(K.S),
+      right: keyboard.addKey(K.D),
+    };
+    this.jumpKey = keyboard.addKey(K.SPACE);
+    this.actionKey = keyboard.addKey(K.J);
+    this.dashKey = keyboard.addKey(K.SHIFT);
+    this.specialKey = keyboard.addKey(K.E);
+
+    const onDown = (pointer: Phaser.Input.Pointer, over: Phaser.GameObjects.GameObject[]) => {
+      if (pointer.wasTouch || over.length > 0) return; // UI (pause etc.) clicks aren't shots
+      if (pointer.rightButtonDown()) {
+        this.mouseSpecial = true;
+      } else if (pointer.leftButtonDown()) {
+        this.mouseAction = true;
+        this.actionBtn.latch();
+      }
+    };
+    const onUp = (pointer: Phaser.Input.Pointer) => {
+      if (pointer.wasTouch) return;
+      if (!pointer.leftButtonDown()) this.mouseAction = false;
+      if (this.mouseSpecial && !pointer.rightButtonDown()) {
+        this.mouseSpecial = false;
+        this.specialClickLatched = true;
+      }
+    };
+    scene.input.on('pointerdown', onDown);
+    scene.input.on('pointerup', onUp);
+    scene.input.on('pointerupoutside', onUp);
 
     // Diamond cluster: Zıpla (N), Özellik (E), Aksiyon (S, biggest/primary), Dash (W).
     const cx = C.BUTTON_CLUSTER_X;
@@ -168,10 +210,10 @@ export class InputController {
 
     let x = 0;
     let z = 0;
-    if (this.cursors.left?.isDown) x -= 1;
-    if (this.cursors.right?.isDown) x += 1;
-    if (this.cursors.up?.isDown) z += 1;
-    if (this.cursors.down?.isDown) z -= 1;
+    if (this.cursors.left?.isDown || this.wasd.left.isDown) x -= 1;
+    if (this.cursors.right?.isDown || this.wasd.right.isDown) x += 1;
+    if (this.cursors.up?.isDown || this.wasd.up.isDown) z += 1;
+    if (this.cursors.down?.isDown || this.wasd.down.isDown) z -= 1;
     if (x !== 0 && z !== 0) {
       const len = Math.hypot(x, z);
       x /= len;
@@ -191,19 +233,19 @@ export class InputController {
 
   /** True only on the frame Aksiyon transitions from up to down. */
   consumeActionPressed(): boolean {
-    return this.actionBtn.consumePressed(this.actionKey.isDown);
+    return this.actionBtn.consumePressed(this.actionDown());
   }
 
   /** Held state of Aksiyon — hold-to-charge power shot (M6.2). */
   isActionHeld(): boolean {
-    return this.actionBtn.isHeld(this.actionKey.isDown);
+    return this.actionBtn.isHeld(this.actionDown());
   }
 
   /** Held state (not edge-triggered) of Özellik. Since M6.3 neither power
    * shots nor catches use Özellik+Aksiyon (shot = hold-to-charge, catch
    * power is committed automatically by the clash table). */
   isSpecialHeld(): boolean {
-    return this.specialBtn.isHeld(this.specialKey.isDown);
+    return this.specialBtn.isHeld(this.specialDown());
   }
 
   /** The 3-segment süper hareket trigger — edge-triggered on Özellik's
@@ -215,19 +257,31 @@ export class InputController {
    * hold, releasing Özellik fires the süper. If Aksiyon WAS pressed during
    * the hold, that was a power şut/tutuş attempt instead — no süper. */
   consumeSpecialReleased(): boolean {
-    const specialDown = this.specialBtn.isHeld(this.specialKey.isDown);
+    const specialDown = this.specialBtn.isHeld(this.specialDown());
     if (specialDown) {
-      if (this.actionBtn.isHeld(this.actionKey.isDown)) {
+      if (this.actionBtn.isHeld(this.actionDown())) {
         this.actionUsedDuringSpecialHold = true;
       }
       this.specialWasDown = true;
       return false;
+    }
+    if (this.specialClickLatched) {
+      this.specialClickLatched = false;
+      this.specialWasDown = true;
     }
     if (!this.specialWasDown) return false;
     this.specialWasDown = false;
     const fire = !this.actionUsedDuringSpecialHold;
     this.actionUsedDuringSpecialHold = false;
     return fire;
+  }
+
+  private actionDown(): boolean {
+    return this.actionKey.isDown || this.mouseAction;
+  }
+
+  private specialDown(): boolean {
+    return this.specialKey.isDown || this.mouseSpecial;
   }
 
   /** Throw away any pending presses (used while controls are locked after
