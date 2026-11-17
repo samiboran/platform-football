@@ -142,6 +142,7 @@ export class AIOpponent {
       strikeBall(ball, 'volley', aim.x, aim.z, {
         level: 0,
         shotPowerMultiplier: this.def.shotPowerMultiplier,
+        element: this.def.element,
         chaos: true,
         wobble: this.wobble(),
       });
@@ -253,6 +254,7 @@ export class AIOpponent {
     strikeBall(ball, kind, aim.x, aim.z, {
       level,
       shotPowerMultiplier: this.def.shotPowerMultiplier,
+      element: this.def.element,
       chaos: true,
       wobble: this.wobble(),
     });

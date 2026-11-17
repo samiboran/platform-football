@@ -1,3 +1,4 @@
+import type { ElementId } from './elements';
 /**
  * Sprite animation + render tuning (M6.0 pixel-art pass). Pure presentation
  * values — gameplay timings live in power.ts / movement.ts.
@@ -20,13 +21,14 @@ export const CATCH_POSE_SECONDS = 0.35;
 /** Sprite-pixel -> screen-pixel factor for the ball art (gen_sprites.py
  * draws 1 sprite pixel = 2 screen pixels). */
 export const BALL_SPRITE_PIXEL_SCALE = 2;
-/** Highest power aura level that has art (assets/fx/ball_power<N>.png). */
+/** Highest power aura level that has art (assets/fx/ball_<element><N>.png). */
 export const BALL_POWER_LEVEL_MAX = 3;
 /** A powered ball loses its aura once it slows below this (px/s). */
 export const BALL_AURA_MIN_SPEED = 180;
 
-export function ballSpriteKey(level: number): string {
-  return `ball_power${level}`;
+/** Plain ball for level 0, otherwise the element's aura at that level. */
+export function ballSpriteKey(level: number, element: ElementId = 'fire'): string {
+  return level > 0 ? `ball_${element}${level}` : 'ball_power0';
 }
 
 /** Dash dust (Sami: "topla altında toz çıkararak dash"): a puff spawns at

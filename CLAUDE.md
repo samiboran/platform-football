@@ -97,7 +97,7 @@ Sanal joystick (sol) + 4 tuş (sağ):
 3 segmentli enerji barı.
 
 **Harcama:**
-- **Şut:** dokun = normal şut (0 harcar). Basılı tut = power shot, basıldığı an bardaki enerjinin **tamamını** harcar (1, 2 veya 3). Tutarken top aurası büyür (1 sarı, 2 turuncu alev, 3 beyaz-mavi).
+- **Şut:** dokun = normal şut (0 harcar). Basılı tut = power shot, basıldığı an bardaki enerjinin **tamamını** harcar (1, 2 veya 3). Tutarken top aurası büyür. **Aura her zaman şutu atan karakterin kendi elementidir** (Brezilya yıldırım, Kongo alev, Kenya rüzgar, Arjantin toprak — `src/config/elements.ts`); güç seviyesi (1–3) sadece auranın büyüklüğünü/şiddetini değiştirir (17.11.2026).
 - **Lob:** joystick geri (kendi kalene doğru) + şut. Basılı tutulursa power lob.
 - **Dash:** her zaman **1 enerji**, iki dash arası **1 sn** bekleme.
 

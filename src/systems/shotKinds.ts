@@ -8,6 +8,7 @@ import {
   VOLLEY_LAUNCH_VY,
 } from '../config/power';
 import type { Ball } from '../entities/Ball';
+import type { ElementId } from '../config/elements';
 import { emitImpact } from './impactFeel';
 
 /** The M6.2 shot types, shared by the human (MatchScene) and the AI. */
@@ -23,6 +24,8 @@ export interface StrikeOptions {
   /** Random aim jitter on/off and its magnitude (Ball.shoot chaos). */
   chaos?: boolean;
   wobble?: number;
+  /** The striker's power element (config/elements.ts). */
+  element?: ElementId;
 }
 
 /**
@@ -35,6 +38,7 @@ export function strikeBall(ball: Ball, kind: ShotKind, dirX: number, dirZ: numbe
   const base = SHOT_SPEED_NORMAL * o.shotPowerMultiplier * (o.speedScale ?? 1);
   const chaos = o.chaos ?? false;
   const wobble = o.wobble ?? 1;
+  if (o.element) ball.element = o.element;
   switch (kind) {
     case 'ground':
       ball.shoot(dirX, dirZ, base * SHOT_SPEED_BY_POWER_LEVEL[level], chaos, level > 0, false, wobble, level);

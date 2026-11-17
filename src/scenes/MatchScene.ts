@@ -64,13 +64,13 @@ import {
   HITSTOP_FRAMES,
   SHAKE,
   CUTIN_SECONDS,
-  CUTIN_TITLES,
   GOAL_BAND_SECONDS,
   REPLAY_MIN_LEVEL,
   type ImpactKind,
 } from '../config/feel';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
+import { BALL_POWER_LEVEL_MAX } from '../config/animation';
 import { AIOpponent } from '../entities/AIOpponent';
 
 interface MatchData {
@@ -205,6 +205,8 @@ export class MatchScene extends Phaser.Scene {
       windZ: this.stadium.windZ,
     });
 
+    // Each side always shoots its own element (config/elements.ts).
+    this.ball.elementBySide = { left: this.character.element, right: this.opponentCharacter.element };
     this.opponent = new AIOpponent(this, this.opponentCharacter);
     this.opponent.onPerfectParry = () => this.flashParry();
     this.opponent.onPowerShot = (level) => this.startCutIn('right', this.opponentCharacter, level);
@@ -442,7 +444,8 @@ export class MatchScene extends Phaser.Scene {
     this.updateHud();
     soundFX.goal();
     this.crowd.celebrate();
-    playGoalBand(this, scorer.name, scorerSide, level);
+    // Element of whoever actually struck it (an own goal shows the shooter's).
+    playGoalBand(this, scorer.name, scorerSide, level, this.ball.element);
 
     let freeze = GOAL_RESET_FREEZE_SECONDS;
     if (level >= REPLAY_MIN_LEVEL && this.replay.playbackSeconds > 0) {
@@ -492,9 +495,9 @@ export class MatchScene extends Phaser.Scene {
   }
 
   /** Power shot / super: freeze for the portrait cut-in (CUTIN_SECONDS). */
-  private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number): void {
+  private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number, isSuper = false): void {
     this.cutInRemaining = CUTIN_SECONDS;
-    playPowerCutIn(this, def.id, def.name, side, level);
+    playPowerCutIn(this, def.id, def.name, side, level, def.element, isSuper);
   }
 
   /** Perfect-parry feedback: brief white flash (fixed camera, no shake). */
@@ -512,7 +515,7 @@ export class MatchScene extends Phaser.Scene {
   private fireShot(level: number): void {
     if (level > 0 && !this.player.spendPower(level)) level = 0;
     if (level > 0) this.startCutIn('left', this.character, level);
-    const strike = { level, shotPowerMultiplier: this.character.shotPowerMultiplier };
+    const strike = { level, shotPowerMultiplier: this.character.shotPowerMultiplier, element: this.character.element };
     // Left side attacks +x, so "back" = stick pointing left.
     if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) {
       const w = screenDirToWorld(LOB_FORWARD_WEIGHT, this.liveMove.z);
@@ -542,6 +545,7 @@ export class MatchScene extends Phaser.Scene {
     strikeBall(this.ball, 'volley', w.x, w.z, {
       level: 0,
       shotPowerMultiplier: this.character.shotPowerMultiplier,
+      element: this.character.element,
       speedScale: w.speedScale,
       chaos: this.character.chaosTouch,
     });
@@ -567,7 +571,8 @@ export class MatchScene extends Phaser.Scene {
     const aimX = aim.x;
     const aimZ = aim.z;
     const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * aim.speedScale;
-    this.startCutIn('left', this.character, CUTIN_TITLES.length - 1);
+    this.startCutIn('left', this.character, BALL_POWER_LEVEL_MAX, true);
+    this.ball.element = this.character.element;
     emitImpact('power');
     soundFX.kick();
     this.player.playKick(aimX);

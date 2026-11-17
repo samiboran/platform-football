@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import * as FEEL from '../config/feel';
 import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
 import type { CharacterId } from '../config/characters';
+import { ELEMENTS, elementColor, powerLevelCaption, type ElementId } from '../config/elements';
 
 export function portraitTextureKey(id: CharacterId): string {
   return `${id}_portrait`;
@@ -20,12 +21,16 @@ export function playPowerCutIn(
   name: string,
   side: 'left' | 'right',
   level: number,
+  element: ElementId,
+  isSuper = false,
 ): void {
   const dir = side === 'left' ? 1 : -1;
   const cy = GAME_HEIGHT / 2;
   const h = FEEL.CUTIN_BAND_HEIGHT;
   const s = FEEL.CUTIN_BAND_SLANT;
-  const edge = FEEL.CUTIN_EDGE_COLORS[Math.min(level, FEEL.CUTIN_EDGE_COLORS.length - 1)];
+  // The striker's own element, always (Sami); the level only sets intensity.
+  const edge = elementColor(element, level);
+  const caption = isSuper ? FEEL.CUTIN_SUPER_TITLE : ELEMENTS[element].title;
   const total = FEEL.CUTIN_SECONDS * 1000;
   const slide = total * FEEL.CUTIN_SLIDE_FRACTION;
 
@@ -83,12 +88,17 @@ export function playPowerCutIn(
     .setScale(FEEL.CUTIN_NAME_SCALE)
     .setOrigin(side === 'left' ? 0 : 1, 0.5);
   const title = scene.add
-    .bitmapText(textX, cy + 22, PIXEL_FONT_KEY, toHudText(FEEL.CUTIN_TITLES[Math.min(level, FEEL.CUTIN_TITLES.length - 1)]))
+    .bitmapText(textX, cy + 22, PIXEL_FONT_KEY, toHudText(caption))
     .setScale(FEEL.CUTIN_TITLE_SCALE)
     .setOrigin(side === 'left' ? 0 : 1, 0.5)
     .setTint(edge);
-  root.add([nameText, title]);
-  for (const t of [nameText, title]) {
+  const levelText = scene.add
+    .bitmapText(textX, cy + 52, PIXEL_FONT_KEY, toHudText(powerLevelCaption(level)))
+    .setScale(FEEL.CUTIN_LEVEL_SCALE)
+    .setOrigin(side === 'left' ? 0 : 1, 0.5)
+    .setTint(edge);
+  root.add([nameText, title, levelText]);
+  for (const t of [nameText, title, levelText]) {
     t.setAlpha(0);
     scene.tweens.add({ targets: t, alpha: 1, delay: slide * 0.6, duration: slide * 0.6 });
   }

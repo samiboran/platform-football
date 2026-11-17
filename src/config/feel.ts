@@ -34,8 +34,6 @@ export const CUTIN_BAND_HEIGHT = 190;
 export const CUTIN_BAND_SLANT = 60;
 export const CUTIN_BAND_COLOR = 0x101018;
 export const CUTIN_BAND_ALPHA = 0.88;
-/** Band edge colour per power level (1 yellow, 2 orange flame, 3 white-blue). */
-export const CUTIN_EDGE_COLORS = [0xffffff, 0xffd84a, 0xff8a2a, 0x9fdcff];
 export const CUTIN_SPEEDLINE_COUNT = 14;
 /** Portrait slides in from off-screen over this share of the cut-in. */
 export const CUTIN_SLIDE_FRACTION = 0.3;
@@ -44,8 +42,10 @@ export const CUTIN_SLIDE_FRACTION = 0.3;
 export const CUTIN_PORTRAIT_X = 0.28;
 export const CUTIN_NAME_SCALE = 4;
 export const CUTIN_TITLE_SCALE = 3;
-/** Cut-in caption per power level (index = level; 4 = super). */
-export const CUTIN_TITLES = ['', 'POWER ŞUT!', 'ALEV ŞUT!', 'YILDIRIM ŞUT!', 'SÜPER HAREKET!'];
+/** Band edge + caption come from the striker's element (config/elements.ts);
+ * the super move uses this caption instead, at full level. */
+export const CUTIN_SUPER_TITLE = 'SÜPER HAREKET!';
+export const CUTIN_LEVEL_SCALE = 2;
 export const CUTIN_DEPTH = 30000;
 
 /** Goal celebration (M6.4): a slanted name band ("GOL!" + scorer) plays on
@@ -60,8 +60,8 @@ export const GOAL_BAND_ALPHA = 0.85;
 export const GOAL_TITLE = 'GOL!';
 export const GOAL_TITLE_SCALE = 8;
 export const GOAL_NAME_SCALE = 3;
-/** Band edge / title colour for a normal goal (power goals use
- * CUTIN_EDGE_COLORS[level]). */
+/** Band edge / title colour for a normal goal (power goals use the
+ * scorer's element colour at that level). */
 export const GOAL_EDGE_COLOR = 0xffe066;
 /** Share of the band time spent sliding in / fading out. */
 export const GOAL_BAND_SLIDE_FRACTION = 0.2;

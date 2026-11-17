@@ -443,25 +443,61 @@ def dust() -> Image.Image:
     return c.image(outline=False)
 
 
-def ball(level: int) -> Image.Image:
-    """Ball with power aura. level 0 = plain, 1 yellow, 2 orange flame, 3 white-blue."""
-    S = 21
+# Power-shot elements (Sami 17.11): a character always shoots its own
+# element; the level (1-3) only grows the aura. Keep in sync with
+# src/config/elements.ts.
+ELEMENT_ART = {
+    #            aura ring colours (inner -> outer)         tail/spark colours
+    'lightning': (['ffffff', '9fdcff', '4fb4ff'],          ['ffffff', 'bfe8ff', '6fc8ff']),
+    'fire':      (['ffe14d', 'ff9a1f', 'ff5a1f'],          ['ffe14d', 'ff9a1f', 'ff4a1f']),
+    'wind':      (['f0fff4', 'b8f0cc', '6fd89a'],          ['ffffff', 'c8f5d8', '8fe8b0']),
+    'earth':     (['f0d8a0', 'c89450', '8a5a2a'],          ['e8c890', 'b07838', '7a4a20']),
+}
+
+
+def ball(level: int, element: str = 'fire') -> Image.Image:
+    """Ball with the element's power aura. level 0 = plain; 1-3 = bigger
+    aura, a trailing tail from level 2 and sparks/bolts at level 3."""
+    S = 25
     img = Image.new('RGBA', (S, S), (0, 0, 0, 0))
     c = S // 2
-    auras = {1: [rgb('ffe14d')], 2: [rgb('ff9a1f'), rgb('ff5a1f')], 3: [rgb('9fd8ff'), rgb('ffffff')]}
     if level:
-        cols = auras[level]
-        radius = 6 + level
+        ring, tail = ELEMENT_ART[element]
+        ring = [rgb(h) for h in ring]
+        tail = [rgb(h) for h in tail]
+        radius = 5.5 + level * 1.5
         for y in range(S):
             for x in range(S):
                 d = ((x - c) ** 2 + (y - c) ** 2) ** 0.5
                 if 4.5 < d <= radius:
-                    col = cols[int(d) % len(cols)]
-                    a = int(255 * (1 - (d - 4.5) / (radius - 4.5 + 0.5)))
-                    img.putpixel((x, y), col[:3] + (max(70, a),))
-        if level >= 2:  # flame tail to the right (ball travels left in source)
-            for i, (dx, dy) in enumerate([(7, -1), (8, 0), (9, 1), (8, -2), (10, 0)]):
-                img.putpixel((c + dx, c + dy), cols[i % len(cols)])
+                    band = min(len(ring) - 1, int((d - 4.5) / (radius - 4.5) * len(ring)))
+                    a = int(255 * (1 - (d - 4.5) / (radius - 4.5 + 0.8)))
+                    if element == 'wind' and (x + y) % 3 == 0:
+                        continue  # airy, broken ring
+                    img.putpixel((x, y), ring[band][:3] + (max(80, a),))
+        if level >= 2:  # tail to the right (ball travels left in source)
+            n = 3 + level * 2
+            for i in range(n):
+                dx = 6 + i
+                if element == 'lightning':
+                    dy = [0, -1, -2, -1, 0, 1, 2, 1][i % 8]       # zigzag bolt
+                elif element == 'wind':
+                    dy = [-2, -2, -1, 0, 1, 2, 2, 1][i % 8]       # swirl
+                elif element == 'earth':
+                    dy = (i * 2) % 3 - 1 + 2                       # dust low behind
+                else:
+                    dy = [0, -1, 1, 0, -2, 1, -1, 2][i % 8]       # flicker
+                if 0 <= c + dx < S and 0 <= c + dy < S:
+                    img.putpixel((c + dx, c + dy), tail[min(len(tail) - 1, i * len(tail) // n)][:3] + (255,))
+                    if level == 3 and c + dy + 1 < S:
+                        img.putpixel((c + dx, c + dy + 1), tail[-1][:3] + (200,))
+        if level == 3:  # sparks around the ball
+            for (dx, dy) in [(-8, -6), (-9, 3), (2, -10), (-3, 9), (7, -8), (6, 8)]:
+                if 0 <= c + dx < S and 0 <= c + dy < S:
+                    img.putpixel((c + dx, c + dy), tail[0][:3] + (255,))
+            if element == 'lightning':
+                for (dx, dy) in [(-6, -9), (-5, -8), (-6, -7), (-5, -6)]:
+                    img.putpixel((c + dx, c + dy), rgb('ffffff')[:3] + (255,))
     white, black = rgb('fafafa'), rgb('1b1b1f')
     for y in range(S):
         for x in range(S):
@@ -647,11 +683,12 @@ def main():
         sheet_rows.append(list(poses.values()) + [portrait_img])
         assert poses['front'].height == H
 
-    fx = [ball(i) for i in range(4)] + [energy_drink(), energy_drink(gold=True)]
-    for i in range(4):
-        save(fx[i], 'assets', 'fx', f'ball_power{i}.png')
-    save(fx[4], 'assets', 'fx', 'energy_drink.png')
-    save(fx[5], 'assets', 'fx', 'energy_drink_gold.png')
+    fx = [save(ball(0), 'assets', 'fx', 'ball_power0.png')]
+    for element in ELEMENT_ART:
+        for lvl in range(1, 4):
+            fx.append(save(ball(lvl, element), 'assets', 'fx', f'ball_{element}{lvl}.png'))
+    fx.append(save(energy_drink(), 'assets', 'fx', 'energy_drink.png'))
+    fx.append(save(energy_drink(gold=True), 'assets', 'fx', 'energy_drink_gold.png'))
     fx.append(save(dust(), 'assets', 'fx', 'dust.png'))
     sheet_rows.append(fx)
 

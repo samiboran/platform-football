@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import * as FEEL from '../config/feel';
 import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
+import { elementColor, type ElementId } from '../config/elements';
 
 /**
  * Goal celebration (M6.4): name band + slow-motion replay for power goals.
@@ -9,12 +10,18 @@ import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
  */
 
 /** Slanted "GOL!" band with the scorer's name, sliding in from their side. */
-export function playGoalBand(scene: Phaser.Scene, name: string, side: 'left' | 'right', level: number): void {
+export function playGoalBand(
+  scene: Phaser.Scene,
+  name: string,
+  side: 'left' | 'right',
+  level: number,
+  element: ElementId,
+): void {
   const dir = side === 'left' ? 1 : -1;
   const cy = GAME_HEIGHT / 2;
   const h = FEEL.GOAL_BAND_HEIGHT;
   const s = FEEL.GOAL_BAND_SLANT;
-  const edge = level > 0 ? FEEL.CUTIN_EDGE_COLORS[Math.min(level, FEEL.CUTIN_EDGE_COLORS.length - 1)] : FEEL.GOAL_EDGE_COLOR;
+  const edge = level > 0 ? elementColor(element, level) : FEEL.GOAL_EDGE_COLOR;
   const total = FEEL.GOAL_BAND_SECONDS * 1000;
   const slide = total * FEEL.GOAL_BAND_SLIDE_FRACTION;
 

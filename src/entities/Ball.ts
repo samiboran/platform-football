@@ -12,6 +12,7 @@ import {
   GOAL_HEIGHT,
   projectToScreen,
 } from '../config/arena';
+import type { ElementId } from '../config/elements';
 import { BALL_SPRITE_PIXEL_SCALE, BALL_POWER_LEVEL_MAX, BALL_AURA_MIN_SPEED, ballSpriteKey } from '../config/animation';
 import {
   BALL_SHADOW_MIN_SCALE,
@@ -20,6 +21,11 @@ import {
   BALL_SHADOW_FADE_HEIGHT,
   LANDING_MARKER_MIN_HEIGHT,
   LANDING_MARKER_COLOR,
+  LANDING_MARKER_SIZE,
+  LANDING_MARKER_LINE,
+  LANDING_MARKER_FILL_ALPHA,
+  LANDING_MARKER_PULSE,
+  LANDING_MARKER_PULSE_HZ,
   LANDING_MARKER_ALPHA,
   BALL_GRAVITY,
   BALL_AIR_DRAG,
@@ -96,6 +102,11 @@ export class Ball {
    * as the ball slows, so a power goal is still known at the goal line
    * (M6.4 slow-motion replay). Cleared on control, lift and reset. */
   shotLevel = 0;
+  /** Each side's power-shot element (Sami: a character always shoots its
+   * own element). Set once by the match and used for the charge aura;
+   * `element` is the last striker's (strikeBall / super set it). */
+  elementBySide: { left: ElementId; right: ElementId } = { left: 'fire', right: 'fire' };
+  element: ElementId = 'fire';
   /** True after shoot(), false while under dribble control. Keepers gate
    * their catch attempts on this — only a deliberate shot should ever be
    * "caught", not the ball drifting under someone's own dribble control. */
@@ -145,7 +156,7 @@ export class Ball {
    * pixel-art sprite rotates in 90° steps (pixel-perfect) so it reads as
    * rolling rather than sliding. */
   private spinAngle = 0;
-  private currentLevel = -1;
+  private currentKey = '';
   private readonly tuning: BallTuning;
 
   constructor(scene: Phaser.Scene, startX: number, startZ: number, startY = 40, tuning: Partial<BallTuning> = {}) {
@@ -157,8 +168,9 @@ export class Ball {
     this.shadow = scene.add.ellipse(0, 0, BALL_RADIUS * 2.2, BALL_RADIUS * 1.1, 0x000000, 0.35);
     this.sprite = scene.add.image(0, 0, ballSpriteKey(0));
     this.landingMarker = scene.add
-      .ellipse(0, 0, BALL_RADIUS * 3, BALL_RADIUS * 1.5)
-      .setStrokeStyle(2, LANDING_MARKER_COLOR, LANDING_MARKER_ALPHA)
+      .ellipse(0, 0, BALL_RADIUS * LANDING_MARKER_SIZE, BALL_RADIUS * LANDING_MARKER_SIZE * 0.5)
+      .setStrokeStyle(LANDING_MARKER_LINE, LANDING_MARKER_COLOR, LANDING_MARKER_ALPHA)
+      .setFillStyle(LANDING_MARKER_COLOR, LANDING_MARKER_FILL_ALPHA)
       .setVisible(false);
 
     this.syncTransform();
@@ -501,9 +513,11 @@ export class Ball {
     }
     if (this.controller === null) this.chargeLevel = 0;
     const shownLevel = this.controller !== null ? this.chargeLevel : this.powerLevel;
-    if (shownLevel !== this.currentLevel) {
-      this.currentLevel = shownLevel;
-      this.sprite.setTexture(ballSpriteKey(shownLevel));
+    const shownElement = this.controller !== null ? this.elementBySide[this.controller] : this.element;
+    const key = ballSpriteKey(shownLevel, shownElement);
+    if (key !== this.currentKey) {
+      this.currentKey = key;
+      this.sprite.setTexture(key);
     }
 
     // Shadow shrinks and fades as the ball rises (CLAUDE.md §3).
@@ -516,7 +530,10 @@ export class Ball {
     this.landingMarker.setVisible(landing !== null);
     if (landing) {
       const p = projectToScreen(landing.x, landing.z, 0);
-      this.landingMarker.setPosition(p.screenX, p.screenY).setScale(p.scale);
+      // Pulses so a lob's landing spot is hard to miss (Sami: "AI bana
+      // aşırtma gol atıyor, nasıl olduğunu anlamadım").
+      const pulse = 1 + LANDING_MARKER_PULSE * Math.sin((this.sprite.scene.time.now / 1000) * Math.PI * 2 * LANDING_MARKER_PULSE_HZ);
+      this.landingMarker.setPosition(p.screenX, p.screenY).setScale(p.scale * pulse);
       this.landingMarker.setDepth(Math.round(p.screenY) - 2);
     }
 

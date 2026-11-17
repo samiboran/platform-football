@@ -125,3 +125,10 @@ export const BALL_SHADOW_FADE_HEIGHT = 140;
 export const LANDING_MARKER_MIN_HEIGHT = 30;
 export const LANDING_MARKER_COLOR = 0xffe14d;
 export const LANDING_MARKER_ALPHA = 0.8;
+/** Ring size (× BALL_RADIUS, width; height is half), line width, faint
+ * fill and pulse — big enough to read on a phone screen. */
+export const LANDING_MARKER_SIZE = 4;
+export const LANDING_MARKER_LINE = 3;
+export const LANDING_MARKER_FILL_ALPHA = 0.18;
+export const LANDING_MARKER_PULSE = 0.15;
+export const LANDING_MARKER_PULSE_HZ = 3;

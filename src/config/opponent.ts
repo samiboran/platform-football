@@ -31,7 +31,8 @@ export const OPPONENT_CHARGE_SECONDS_MAX = 0.6;
  * their own goal (more than OPPONENT_LOB_RIVAL_ADVANCED_X from its line),
  * since the lob then drops behind them. */
 export const OPPONENT_LOB_CHANCE = 0.15;
-export const OPPONENT_LOB_CHANCE_RIVAL_ADVANCED = 0.4;
+// 0.4 -> 0.25 (Sami 17.11: AI lob goals felt out of nowhere).
+export const OPPONENT_LOB_CHANCE_RIVAL_ADVANCED = 0.25;
 export const OPPONENT_LOB_RIVAL_ADVANCED_X = 160;
 
 /** Defending a shot: the AI aims to stand on the shot's line at its own x,

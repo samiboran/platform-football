@@ -8,6 +8,8 @@
  * power bar from M3 and isn't implemented yet.
  */
 
+import type { ElementId } from './elements';
+
 export type CharacterId = 'brazil' | 'argentina' | 'kenya' | 'congo';
 
 export interface CharacterDef {
@@ -29,6 +31,9 @@ export interface CharacterDef {
   /** Kenya's plastic-bag ball wobbles unpredictably in the air — a small
    * random jitter added whenever this character touches the ball. */
   chaosTouch: boolean;
+  /** Power-shot element — always this one, whatever the level
+   * (config/elements.ts). */
+  element: ElementId;
   color: number;
 }
 
@@ -45,6 +50,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     catchChance: 0.9,
     cooldownSeconds: 5,
     chaosTouch: false,
+    element: 'lightning',
     color: 0xf1c40f,
   },
   argentina: {
@@ -59,6 +65,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     catchChance: 1.0,
     cooldownSeconds: 6.5,
     chaosTouch: false,
+    element: 'earth',
     color: 0x6fa8dc,
   },
   kenya: {
@@ -73,6 +80,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     catchChance: 0.85,
     cooldownSeconds: 7,
     chaosTouch: true,
+    element: 'wind',
     color: 0xe67e22,
   },
   congo: {
@@ -87,6 +95,7 @@ export const CHARACTERS: Record<CharacterId, CharacterDef> = {
     catchChance: 1.1,
     cooldownSeconds: 8,
     chaosTouch: false,
+    element: 'fire',
     color: 0x9b59b6,
   },
 };

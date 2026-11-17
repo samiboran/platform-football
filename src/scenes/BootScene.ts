@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { CHARACTER_ORDER, CHARACTER_POSES, characterSpriteKey } from '../config/characters';
+import { ELEMENT_IDS } from '../config/elements';
 import { BALL_POWER_LEVEL_MAX, DUST_TEXTURE_KEY, ballSpriteKey } from '../config/animation';
 import { FAN_VARIANTS } from '../config/pitchArt';
 import { DRINK_TEXTURE_KEY, DRINK_GOLD_TEXTURE_KEY } from '../config/pickups';
@@ -26,8 +27,12 @@ export class BootScene extends Phaser.Scene {
       }
       this.load.image(portraitTextureKey(id), `characters/${id}/portrait.png`);
     }
-    for (let level = 0; level <= BALL_POWER_LEVEL_MAX; level++) {
-      this.load.image(ballSpriteKey(level), `fx/ball_power${level}.png`);
+    this.load.image(ballSpriteKey(0), `fx/${ballSpriteKey(0)}.png`);
+    for (const element of ELEMENT_IDS) {
+      for (let level = 1; level <= BALL_POWER_LEVEL_MAX; level++) {
+        const key = ballSpriteKey(level, element);
+        this.load.image(key, `fx/${key}.png`);
+      }
     }
     for (const key of [DRINK_TEXTURE_KEY, DRINK_GOLD_TEXTURE_KEY, DUST_TEXTURE_KEY]) this.load.image(key, `fx/${key}.png`);
     for (let v = 0; v < FAN_VARIANTS; v++) {
