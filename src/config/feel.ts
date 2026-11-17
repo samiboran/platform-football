@@ -46,6 +46,14 @@ export const CUTIN_TITLE_SCALE = 3;
  * the super move uses this caption instead, at full level. */
 export const CUTIN_SUPER_TITLE = 'SÜPER HAREKET!';
 export const CUTIN_LEVEL_SCALE = 2;
+/** Rövaşata cut-in caption (air super). */
+export const BICYCLE_TITLE = 'RÖVAŞATA!';
+/** Combo popup above the player ("FALSO!"). */
+export const FALSO_TEXT = 'FALSO!';
+export const FALSO_TEXT_COLOR = 0x7cff9a;
+export const POPUP_TEXT_SCALE = 3;
+export const POPUP_RISE_PX = 34;
+export const POPUP_MS = 700;
 export const CUTIN_DEPTH = 30000;
 
 /** Goal celebration (M6.4): a slanted name band ("GOL!" + scorer) plays on

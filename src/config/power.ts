@@ -76,3 +76,29 @@ export const BALL_JUMP_CARRY_VY = 300;
 
 /** Energy granted to the side that concedes a goal (comeback help). */
 export const GOAL_CONCEDED_ENERGY_GAIN = 1;
+
+// --- Air combos (Sami 17.11.2026) ------------------------------------------------
+// Jump → dash up/down in the air → strike while still airborne = falso
+// (curving) shot: it leaves aimed slightly to the OTHER side, then bends
+// toward the dash side (up on screen = +z). Works for volleys and for the
+// rövaşata below.
+/** Minimum |stick z| of an air dash for it to set up a falso. */
+export const AIR_CURVE_DASH_MIN_Z = 0.35;
+/** Sideways (z) acceleration of a curving ball, z-units/s². */
+export const CURVE_ACCEL = 400;
+/** Spin decays exponentially at this rate (1/s). */
+export const CURVE_DECAY = 1.4;
+/** Initial aim bias away from the curve side (fraction of shot speed in z). */
+export const CURVE_AIM_OFFSET = 0.25;
+/** Extra speed on a falso volley so it still reaches the goal. */
+export const CURVE_SPEED_MULTIPLIER = 1.1;
+/** Spin below this is dropped. */
+export const CURVE_MIN_SPIN = 20;
+
+/** Rövaşata: Özel in the air on a reachable high ball — the airborne
+ * super. Costs the full bar like the super, flies as a level-3 shot of the
+ * striker's element. */
+export const BICYCLE_SPEED_MULTIPLIER = 1.05;
+/** Flip animation: the body turns this far backwards over this long. */
+export const BICYCLE_FLIP_DEGREES = -300;
+export const BICYCLE_FLIP_SECONDS = 0.38;

@@ -6,6 +6,9 @@ import {
   LOB_SPEED_BY_POWER_LEVEL,
   VOLLEY_SPEED_MULTIPLIER,
   VOLLEY_LAUNCH_VY,
+  CURVE_ACCEL,
+  CURVE_AIM_OFFSET,
+  CURVE_SPEED_MULTIPLIER,
 } from '../config/power';
 import type { Ball } from '../entities/Ball';
 import type { ElementId } from '../config/elements';
@@ -26,6 +29,15 @@ export interface StrikeOptions {
   wobble?: number;
   /** The striker's power element (config/elements.ts). */
   element?: ElementId;
+  /** Falso (air combo): -1/+1 = bend toward -z/+z, 0 = straight. */
+  curve?: number;
+}
+
+/** Aim + spin for a falso: start biased away from the curve side, then the
+ * ball's spin (Ball.spin) bends it back toward that side. */
+export function curvedAim(dirX: number, dirZ: number, curve: number): { x: number; z: number } {
+  const len = Math.hypot(dirX, dirZ) || 1;
+  return { x: dirX / len, z: dirZ / len - curve * CURVE_AIM_OFFSET };
 }
 
 /**
@@ -39,6 +51,13 @@ export function strikeBall(ball: Ball, kind: ShotKind, dirX: number, dirZ: numbe
   const chaos = o.chaos ?? false;
   const wobble = o.wobble ?? 1;
   if (o.element) ball.element = o.element;
+  const curve = o.curve ?? 0;
+  if (curve !== 0) {
+    const a = curvedAim(dirX, dirZ, curve);
+    dirX = a.x;
+    dirZ = a.z;
+  }
+  const curveSpeed = curve !== 0 ? CURVE_SPEED_MULTIPLIER : 1;
   switch (kind) {
     case 'ground':
       ball.shoot(dirX, dirZ, base * SHOT_SPEED_BY_POWER_LEVEL[level], chaos, level > 0, false, wobble, level);
@@ -61,9 +80,10 @@ export function strikeBall(ball: Ball, kind: ShotKind, dirX: number, dirZ: numbe
       break;
     case 'volley':
       // Full overwrite (carry 0) plus a small lift for a gentle arc.
-      ball.shoot(dirX, dirZ, base * VOLLEY_SPEED_MULTIPLIER, chaos, false, false, wobble, 0, VOLLEY_LAUNCH_VY, 0);
+      ball.shoot(dirX, dirZ, base * VOLLEY_SPEED_MULTIPLIER * curveSpeed, chaos && curve === 0, false, false, wobble, 0, VOLLEY_LAUNCH_VY, 0);
       break;
   }
+  if (curve !== 0) ball.spin = curve * CURVE_ACCEL;
   // Hitstop on every strike (M6.4): 4 frames normal, 8 power.
   emitImpact(level > 0 ? 'power' : 'normal');
 }

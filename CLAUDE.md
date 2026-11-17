@@ -115,6 +115,8 @@ Sanal joystick (sol) + 4 tuş (sağ):
 
 **Kazanım:** pasif +1 / ~5 sn, enerji içeceği (~12 sn'de bir iki sahada ayna konumda, +1; nadiren altın +2), mükemmel parry +1, gol yiyen +1. Ayrı doldurma tuşu yok.
 
+**Hava kombosu (17.11.2026):** zıpla → havada yukarı/aşağı dash → Aksiyon (vole) = **falso**: top önce ters tarafa çıkar, sonra dash yönüne kıvrılır (yukarı dash = sola/yukarı falso, aşağı = sağa/aşağı). Topla zıplanırsa top hava dash'inde oyuncuyla gelir. **Rövaşata:** havadaki topa zıplayıp **Özel** = havada süper (tam bar, seviye 3, kendi elementi, ters takla); öncesinde hava dash'i varsa falsolu. Ayarlar `config/power.ts` (`CURVE_*`, `BICYCLE_*`).
+
 **Kamera:** 3/4 eğik üstten kalıyor (yan görünüm yok). Dikeylik toptan gelir (alçak şut / lob). Zıplama sadece lob karşılamak ve vole için.
 
 **His:** vuruşta hitstop (4 kare, power 8, çatışma 12), giriş tamponu ~8 kare.

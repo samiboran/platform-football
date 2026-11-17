@@ -1103,3 +1103,10 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Doğrulama (Playwright, Pixel 7 yatay; geçici hook kaldırıldı):** 4-1 galibiyet → +110 XP, +70 altın, +6 elmas (büyük fark 1 + seviye 5), Lv2 ve "Çevik" açıldı, profil kaydedildi. Lv6 + Çevik + Isınmış takılıyken maç başında enerji 1, dash çarpanı 0.75. Konsol hatası yok, build temiz.
 - **Kalan / karar bekleyen:** altın ve elmasın harcanacağı yer (market? karakter açma? kostüm?), diğer hub düğmeleri.
 - **Bilinen:** Profil sadece o cihazda (localStorage); tarayıcı verisi silinirse sıfırlanır. Seviye dengesi tahmini.
+
+## Oturum 40 — Hava kombosu: falso vole + rövaşata (Sami'nin fikri)
+- **Falso:** Havadayken yukarı/aşağı dash (`AIR_CURVE_DASH_MIN_Z` 0.35 üstü z) o zıplamaya falso hakkı verir (`Character.airCurveSide`, yere inince sıfırlanır). Ardından Aksiyon (vole) → top dash yönünün tersine %25 sapmayla çıkar, `Ball.spin` (400 z/s², sönme 1.4/s) ile dash tarafına kıvrılır; hız ×1.1. Oyuncunun üstünde "FALSO!" yazısı. Topla zıplanmışsa top hava dash'i boyunca oyuncuyla birlikte gider (yoksa dash topu bırakıp uzaklaşıyordu). Çatışma ve kontrol falsoyu siler.
+- **Rövaşata:** Havada, erişilebilir yüksek topta Özel bırakılınca (3 enerji): "RÖVAŞATA!" portre geçişi, seviye 3 kendi elementiyle şut (×1.05), karakter ters takla atıyor (merkez etrafında −300°, 0.38 sn). Hava dash'i önceden yapılmışsa rövaşata da falsolu.
+- **Not (Sami'nin gördüğü "3. güçte falso"):** Önceden gerçek falso yoktu; görülen sapma büyük ihtimalle AI'ın nişan sapması/duvar sekmesi ya da Kenya'daki rüzgardı.
+- **Doğrulama (Playwright, adım adım; geçici hook kaldırıldı):** Topla zıpla + Aksiyon → düz (z 105 sabit) gol. Zıpla + yukarı dash + Aksiyon → z 121→101→128 eğri, gol. Aşağı dash → 95→115→88 ters eğri, gol. Rövaşata: enerji 3→0, `ball_lightning3`/`ball_fire3`, gerçek zamanlı ekran görüntüsünde takla görünüyor. Konsol hatası yok, build temiz.
+- **Bilinen:** AI kombo kullanmıyor (BACKLOG). Falso gücü hissiyata göre `CURVE_ACCEL` / `CURVE_AIM_OFFSET` ile ayarlanabilir.

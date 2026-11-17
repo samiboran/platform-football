@@ -21,6 +21,9 @@ import {
   DASH_SPEED,
   DASH_DURATION,
   DASH_COOLDOWN,
+  AIR_CURVE_DASH_MIN_Z,
+  BICYCLE_FLIP_DEGREES,
+  BICYCLE_FLIP_SECONDS,
 } from '../config/power';
 import { STUN_MOVE_MULTIPLIER } from '../config/keeper';
 import { type CharacterId, type CharacterPose, RUN_FRAME_COUNT, characterSpriteKey } from '../config/characters';
@@ -136,6 +139,12 @@ export class Character {
   /** Seconds left knocked down/stunned (M6.3): slowed, no dash/jump. */
   private stunRemaining = 0;
   private dashRetriggerTimer = 0;
+  /** Air combo (falso): ±1 once an up/down dash happened during the
+   * current jump, 0 otherwise. Cleared on landing / by the strike. */
+  airCurveSide = 0;
+  /** Rövaşata flip: seconds left and the current body angle (degrees). */
+  private flipRemaining = 0;
+  private flipAngle = 0;
   private dashVX = 0;
   private dashVZ = 0;
 
@@ -212,6 +221,12 @@ export class Character {
     this.playPose(sign > 0 ? 'kick_right' : 'kick_left', KICK_POSE_SECONDS);
   }
 
+  /** Rövaşata (M8+): backwards flip while airborne. */
+  playBicycle(): void {
+    this.flipRemaining = BICYCLE_FLIP_SECONDS;
+    this.playPose('jump', BICYCLE_FLIP_SECONDS);
+  }
+
   playCatch(): void {
     this.playPose('catch', CATCH_POSE_SECONDS);
   }
@@ -273,6 +288,11 @@ export class Character {
     }
 
     if (this.dashRetriggerTimer > 0) this.dashRetriggerTimer -= dt;
+    if (this.flipRemaining > 0) {
+      this.flipRemaining = Math.max(0, this.flipRemaining - dt);
+      this.flipAngle = BICYCLE_FLIP_DEGREES * (1 - this.flipRemaining / BICYCLE_FLIP_SECONDS);
+      if (this.flipRemaining === 0) this.flipAngle = 0;
+    }
     if (this.catchCooldownRemaining > 0) this.catchCooldownRemaining -= dt;
     const stunned = this.stunRemaining > 0;
     if (stunned) this.stunRemaining = Math.max(0, this.stunRemaining - dt);
@@ -286,6 +306,8 @@ export class Character {
         this.dashVZ = (dirZ / len) * DASH_SPEED;
         this.dashTimeRemaining = DASH_DURATION;
         this.dashRetriggerTimer = DASH_COOLDOWN * this.mods.dashCooldownMultiplier;
+        // Air dash up/down sets up a falso for the strike that follows.
+        if (this.y > 0 && Math.abs(dirZ / len) >= AIR_CURVE_DASH_MIN_Z) this.airCurveSide = Math.sign(dirZ);
       }
     }
 
@@ -354,7 +376,10 @@ export class Character {
       else if (this.vy < 0) g *= FALL_GRAVITY_MULTIPLIER;
       this.vy -= g * dt;
       this.y = Math.max(0, this.y + this.vy * dt);
-      if (this.y === 0) this.vy = 0;
+      if (this.y === 0) {
+        this.vy = 0;
+        this.airCurveSide = 0;
+      }
     }
 
     if (this.isRunning) {
@@ -464,7 +489,14 @@ export class Character {
         this.isRunning && (pose === 'front' || pose === 'back') && Math.floor(this.runPhase) % 2 === 1
           ? RUN_VERTICAL_BOB_PX
           : 0;
-      this.spriteImage.setPosition(lifted.screenX, lifted.screenY - bob);
+      if (this.flipAngle !== 0) {
+        // Rövaşata: spin around the body's centre, not the feet.
+        this.spriteImage.setOrigin(0.5, 0.5).setAngle(this.flipAngle * (this.lastHorizFacing >= 0 ? -1 : 1));
+        this.spriteImage.setPosition(lifted.screenX, lifted.screenY - this.spriteImage.displayHeight / 2);
+      } else {
+        this.spriteImage.setOrigin(0.5, 1).setAngle(0);
+        this.spriteImage.setPosition(lifted.screenX, lifted.screenY - bob);
+      }
       this.spriteImage.setDepth(depth);
     } else if (this.placeholderSprite) {
       this.placeholderSprite.setScale(depthScale);

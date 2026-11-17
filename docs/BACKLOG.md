@@ -20,3 +20,6 @@ Sami seçene kadar yapılmayacak; öncelik tahmini parantez içinde.
 - **Geride olana kolaylık (düşük):** Windjammers'ta gerideki oyuncunun zamanlama penceresi genişler. Bizde gol yiyene +1 enerji var; parry penceresi de genişleyebilir.
 - **Eşitlikte altın gol / skor bölgeleri (düşük):** Windjammers'ta kale bölgesine göre 3/5 puan, yere düşen lob 2 puan. Köşe golleri bonus olabilir.
 - **Çalım hareketi / feint (düşük):** şarjı iptal edip yön değiştirme (Tsubasa feint). Rakip AI'ın tut zamanlamasını bozar.
+
+## Hava kombosu — AI tarafı (17.11.2026)
+- AI rakip henüz falso (hava dash + vole) ve rövaşata kullanmıyor; sadece oyuncu yapabiliyor. Denge oturunca AI'a da öğretilecek.

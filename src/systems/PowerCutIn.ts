@@ -22,7 +22,7 @@ export function playPowerCutIn(
   side: 'left' | 'right',
   level: number,
   element: ElementId,
-  isSuper = false,
+  customTitle?: string,
 ): void {
   const dir = side === 'left' ? 1 : -1;
   const cy = GAME_HEIGHT / 2;
@@ -30,7 +30,7 @@ export function playPowerCutIn(
   const s = FEEL.CUTIN_BAND_SLANT;
   // The striker's own element, always (Sami); the level only sets intensity.
   const edge = elementColor(element, level);
-  const caption = isSuper ? FEEL.CUTIN_SUPER_TITLE : ELEMENTS[element].title;
+  const caption = customTitle ?? ELEMENTS[element].title;
   const total = FEEL.CUTIN_SECONDS * 1000;
   const slide = total * FEEL.CUTIN_SLIDE_FRACTION;
 

@@ -95,6 +95,7 @@ export function applyCatchAttempt(ball: Ball, side: GoalSide, catcher: Character
   if (result.catchPower > 0) catcher.spendPower(result.catchPower);
   if (result.refund > 0) catcher.gainPower(result.refund);
   ball.clashResolved = true;
+  ball.spin = 0; // any clash kills a falso
   emitImpact('clash'); // 12-frame hitstop + shake (M6.4)
   const away = side === 'left' ? 1 : -1; // direction away from the catcher's goal
   const spread = () => (Math.random() - 0.5) * CLASH_DEPTH_SPREAD;

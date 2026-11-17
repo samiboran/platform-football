@@ -10,6 +10,7 @@ import {
   DEPTH_MIN,
   DEPTH_MAX,
   FAR_Y,
+  CHARACTER_HEIGHT,
   projectToScreen,
 } from '../config/arena';
 import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
@@ -34,6 +35,9 @@ import {
   BALL_JUMP_CARRY_VY,
   SHOT_CHARGE_MAX_SECONDS,
   GOAL_CONCEDED_ENERGY_GAIN,
+  SHOT_SPEED_BY_POWER_LEVEL,
+  BICYCLE_SPEED_MULTIPLIER,
+  CURVE_ACCEL,
 } from '../config/power';
 import {
   SUPER_MOVE_SEGMENT_COST,
@@ -54,7 +58,7 @@ import { CrowdBand } from '../systems/CrowdBand';
 import { EnergyDrinks } from '../systems/EnergyDrinks';
 import * as HUD from '../config/hud';
 import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
-import { strikeBall } from '../systems/shotKinds';
+import { strikeBall, curvedAim } from '../systems/shotKinds';
 import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
 import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
@@ -75,6 +79,13 @@ import {
   SHAKE,
   CUTIN_SECONDS,
   GOAL_BAND_SECONDS,
+  CUTIN_SUPER_TITLE,
+  BICYCLE_TITLE,
+  FALSO_TEXT,
+  FALSO_TEXT_COLOR,
+  POPUP_TEXT_SCALE,
+  POPUP_RISE_PX,
+  POPUP_MS,
   REPLAY_MIN_LEVEL,
   type ImpactKind,
 } from '../config/feel';
@@ -161,6 +172,8 @@ export class MatchScene extends Phaser.Scene {
    * pending power-goal replay starts (after the name band), or null. */
   private replay!: ReplayRecorder;
   private replayStartIn: number | null = null;
+  /** Ball popped up by our own jump and not touched since (air combo). */
+  private airCarry = false;
 
   constructor() {
     super('Match');
@@ -317,6 +330,14 @@ export class MatchScene extends Phaser.Scene {
       this.shotChargeSeconds = null;
       this.ball.setChargeLevel(0);
       this.ball.liftWithOwner(this.player.moveVelX, this.player.moveVelZ, BALL_JUMP_CARRY_VY);
+      this.airCarry = true;
+    }
+    // Air combo: a ball popped up with the jump rides along an air dash, so
+    // jump → dash up/down → Aksiyon (falso volley) stays reachable.
+    if (this.player.y === 0 || this.ball.controller !== null) this.airCarry = false;
+    if (this.airCarry && this.player.isDashing) {
+      this.ball.vx = this.player.moveVelX;
+      this.ball.vz = this.player.moveVelZ;
     }
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
     this.opponent.update(delta, this.ball, this.player);
@@ -405,8 +426,16 @@ export class MatchScene extends Phaser.Scene {
     if (controllingBall && !this.wasControllingBall) soundFX.kick();
     this.wasControllingBall = controllingBall;
 
-    if (this.input1.consumeSpecialReleased() && controllingBall) {
-      this.performSuperMove();
+    if (this.input1.consumeSpecialReleased()) {
+      if (controllingBall) {
+        this.performSuperMove();
+      } else if (
+        this.player.y > 0 &&
+        !this.player.isStunned &&
+        canStrikeAerial(this.ball, this.ball.controller !== null, this.player)
+      ) {
+        this.performBicycleKick();
+      }
     }
 
     this.updatePowerBar();
@@ -509,9 +538,9 @@ export class MatchScene extends Phaser.Scene {
   }
 
   /** Power shot / super: freeze for the portrait cut-in (CUTIN_SECONDS). */
-  private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number, isSuper = false): void {
+  private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number, caption?: string): void {
     this.cutInRemaining = CUTIN_SECONDS;
-    playPowerCutIn(this, def.id, def.name, side, level, def.element, isSuper);
+    playPowerCutIn(this, def.id, def.name, side, level, def.element, caption);
   }
 
   /** Perfect-parry feedback: brief white flash (fixed camera, no shake). */
@@ -556,8 +585,13 @@ export class MatchScene extends Phaser.Scene {
     const aimX = hasStick ? this.liveMove.x : 1;
     const aimZ = hasStick ? this.liveMove.z : 0;
     const w = screenDirToWorld(aimX, aimZ);
+    const curve = this.player.airCurveSide;
+    this.player.airCurveSide = 0;
+    this.airCarry = false;
+    if (curve !== 0) this.popText(FALSO_TEXT, FALSO_TEXT_COLOR);
     strikeBall(this.ball, 'volley', w.x, w.z, {
       level: 0,
+      curve,
       shotPowerMultiplier: this.character.shotPowerMultiplier,
       element: this.character.element,
       speedScale: w.speedScale,
@@ -573,6 +607,49 @@ export class MatchScene extends Phaser.Scene {
     return this.rhythmClock < KONGO_RHYTHM_WINDOW_SECONDS;
   }
 
+  /** Rövaşata: Özel in the air on a reachable high ball = the airborne
+   * super (full bar). Level-3 shot of our element along the stick (default
+   * forward); an earlier air dash up/down makes it a falso too. */
+  private performBicycleKick(): void {
+    if (this.player.powerSegments < SUPER_MOVE_SEGMENT_COST) return;
+    if (!this.player.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
+    const hasStick = this.liveMove.x !== 0 || this.liveMove.z !== 0;
+    const w = screenDirToWorld(hasStick ? this.liveMove.x : 1, hasStick ? this.liveMove.z : 0);
+    const curve = this.player.airCurveSide;
+    this.player.airCurveSide = 0;
+    this.airCarry = false;
+    const aim = curvedAim(w.x, w.z, curve);
+    const level = SHOT_SPEED_BY_POWER_LEVEL.length - 1;
+    const speed =
+      SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * w.speedScale * SHOT_SPEED_BY_POWER_LEVEL[level] * BICYCLE_SPEED_MULTIPLIER;
+    this.startCutIn('left', this.character, level, BICYCLE_TITLE);
+    this.ball.element = this.character.element;
+    this.ball.shoot(aim.x, aim.z, speed, false, true, true, 1, level, 0, 0);
+    if (curve !== 0) this.ball.spin = curve * CURVE_ACCEL;
+    emitImpact('power');
+    this.player.playBicycle();
+    soundFX.kick();
+  }
+
+  /** Small rising caption above the player (combo feedback). */
+  private popText(text: string, color: number): void {
+    const p = projectToScreen(this.player.x, this.player.z, this.player.y);
+    const t = this.add
+      .bitmapText(p.screenX, p.screenY - CHARACTER_HEIGHT - 10, HUD.PIXEL_FONT_KEY, HUD.toHudText(text))
+      .setScale(POPUP_TEXT_SCALE)
+      .setOrigin(0.5)
+      .setTint(color)
+      .setDepth(25000);
+    this.tweens.add({
+      targets: t,
+      y: t.y - POPUP_RISE_PX,
+      alpha: 0,
+      duration: POPUP_MS,
+      ease: 'Cubic.easeOut',
+      onComplete: () => t.destroy(),
+    });
+  }
+
   /** 3-segment super move (M4, CLAUDE.md section 6) — only fires while
    * touching the ball, since all four characters' identities (a strike, a
    * controlled pass, an aerial wobble, a timed power shot) are ball
@@ -585,7 +662,7 @@ export class MatchScene extends Phaser.Scene {
     const aimX = aim.x;
     const aimZ = aim.z;
     const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * aim.speedScale;
-    this.startCutIn('left', this.character, BALL_POWER_LEVEL_MAX, true);
+    this.startCutIn('left', this.character, BALL_POWER_LEVEL_MAX, CUTIN_SUPER_TITLE);
     this.ball.element = this.character.element;
     emitImpact('power');
     soundFX.kick();

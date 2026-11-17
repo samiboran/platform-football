@@ -13,6 +13,7 @@ import {
   projectToScreen,
 } from '../config/arena';
 import type { ElementId } from '../config/elements';
+import { CURVE_DECAY, CURVE_MIN_SPIN } from '../config/power';
 import { BALL_SPRITE_PIXEL_SCALE, BALL_POWER_LEVEL_MAX, BALL_AURA_MIN_SPEED, ballSpriteKey } from '../config/animation';
 import {
   BALL_SHADOW_MIN_SCALE,
@@ -102,6 +103,8 @@ export class Ball {
    * as the ball slows, so a power goal is still known at the goal line
    * (M6.4 slow-motion replay). Cleared on control, lift and reset. */
   shotLevel = 0;
+  /** Falso (air combo): sideways z-acceleration, decays; 0 = straight. */
+  spin = 0;
   /** Each side's power-shot element (Sami: a character always shoots its
    * own element). Set once by the match and used for the charge aura;
    * `element` is the last striker's (strikeBall / super set it). */
@@ -187,6 +190,7 @@ export class Ball {
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
     this.shotLevel = 0;
+    this.spin = 0;
     this.clashResolved = false;
     this.spinAngle = 0;
     this.powerLevel = 0;
@@ -296,6 +300,7 @@ export class Ball {
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
     this.shotLevel = 0;
+    this.spin = 0;
   }
 
   /** A deliberate Aksiyon shot (M3), aimed along (dirX, dirZ) at `speed`.
@@ -346,6 +351,7 @@ export class Ball {
     this.clashResolved = false;
     this.powerLevel = Phaser.Math.Clamp(Math.round(powerLevel), 0, BALL_POWER_LEVEL_MAX);
     this.shotLevel = this.powerLevel;
+    this.spin = 0; // strikeBall() sets it for a falso
   }
 
   update(delta: number): GoalSide {
@@ -383,6 +389,12 @@ export class Ball {
     }
 
     // Wind (stadium data, M5) — a constant push on the ball.
+    if (this.controller === null && this.spin !== 0) {
+      // Falso: bend sideways, fading out.
+      this.vz += this.spin * dt;
+      this.spin *= Math.exp(-CURVE_DECAY * dt);
+      if (Math.abs(this.spin) < CURVE_MIN_SPIN) this.spin = 0;
+    }
     this.vx += this.tuning.windX * dt;
     this.vz += this.tuning.windZ * dt;
 
