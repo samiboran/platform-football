@@ -42,3 +42,17 @@ export const BUTTON_FILL_COLOR = 0x10131a;
 export const BUTTON_FILL_ALPHA = 0.45;
 export const BUTTON_ACTIVE_COLOR = 0x2ecc71;
 export const BUTTON_ACTIVE_ALPHA = 0.6;
+
+// --- Button feedback (M7.3) ----------------------------------------------------
+/** Alpha of a button whose action isn't possible right now. */
+export const BUTTON_UNAVAILABLE_ALPHA = 0.35;
+/** Charge ring around Aksiyon while holding for a power shot. */
+export const BUTTON_RING_WIDTH = 6;
+export const BUTTON_RING_GAP = 6;
+/** Ring colour before the hold counts as a power shot. */
+export const BUTTON_RING_TAP_COLOR = 0xffffff;
+
+// --- Haptics (M7.3, navigator.vibrate; Android only, ignored elsewhere) --------
+/** Vibration length in ms per impact kind, and the goal pattern. */
+export const VIBRATE_MS = { normal: 12, power: 35, clash: 55 } as const;
+export const VIBRATE_GOAL_PATTERN = [80, 50, 140];

@@ -10,6 +10,10 @@ class TouchButton {
   private pressLatched = false;
   private pointerId = -1;
   readonly circle: Phaser.GameObjects.Arc;
+  private readonly label: Phaser.GameObjects.BitmapText;
+  private readonly ring: Phaser.GameObjects.Graphics;
+  private available = true;
+  private glow = false;
 
   constructor(scene: Phaser.Scene, x: number, y: number, radius: number, label: string) {
     // Hit area is a bit larger than the drawn circle (BUTTON_HIT_SCALE) —
@@ -24,11 +28,13 @@ class TouchButton {
         hitAreaCallback: Phaser.Geom.Circle.Contains,
         useHandCursor: true,
       });
-    scene.add
+    this.label = scene.add
       .bitmapText(x, y + 1, PIXEL_FONT_KEY, toHudText(label))
       .setScale(C.BUTTON_LABEL_SCALE)
       .setOrigin(0.5)
       .setDepth(10001);
+    this.ring = scene.add.graphics().setDepth(10002).setPosition(x, y);
+    this.radius = radius;
 
     // Track the pointer that pressed this button. Release is detected on a
     // scene-wide pointerup for that pointer, NOT on pointerout — a thumb
@@ -53,12 +59,40 @@ class TouchButton {
     return this.held || keyDown;
   }
 
+  private readonly radius: number;
+
   /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */
   setActive(active: boolean): void {
+    this.glow = active;
+    this.refreshFill();
+  }
+
+  /** M7.3: dim a button whose action can't happen right now (still
+   * pressable — presses are buffered as before). */
+  setAvailable(available: boolean): void {
+    if (available === this.available) return;
+    this.available = available;
+    this.refreshFill();
+  }
+
+  /** M7.3: charge ring around the button, 0..1 of a full circle. */
+  setRing(fraction: number, color: number): void {
+    this.ring.clear();
+    if (fraction <= 0) return;
+    this.ring.lineStyle(C.BUTTON_RING_WIDTH, color, 1);
+    this.ring.beginPath();
+    this.ring.arc(0, 0, this.radius + C.BUTTON_RING_GAP, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, fraction));
+    this.ring.strokePath();
+  }
+
+  private refreshFill(): void {
     this.circle.setFillStyle(
-      active ? C.BUTTON_ACTIVE_COLOR : C.BUTTON_FILL_COLOR,
-      active ? C.BUTTON_ACTIVE_ALPHA : C.BUTTON_FILL_ALPHA,
+      this.glow ? C.BUTTON_ACTIVE_COLOR : C.BUTTON_FILL_COLOR,
+      this.glow ? C.BUTTON_ACTIVE_ALPHA : C.BUTTON_FILL_ALPHA,
     );
+    const a = this.available ? 1 : C.BUTTON_UNAVAILABLE_ALPHA;
+    this.circle.setAlpha(a);
+    this.label.setAlpha(a);
   }
 
   /** Edge-triggered: true only on the frame this input transitions to down. */
@@ -75,6 +109,8 @@ class TouchButton {
 
   destroy(): void {
     this.circle.destroy();
+    this.label.destroy();
+    this.ring.destroy();
   }
 }
 
@@ -206,6 +242,19 @@ export class InputController {
   /** Visual glow toggle — used for Kongo's rhythm "sweet spot" cue on Özel. */
   setSpecialGlow(active: boolean): void {
     this.specialBtn.setActive(active);
+  }
+
+  /** M7.3 button state: dash / özel availability and Aksiyon's charge ring. */
+  setDashAvailable(on: boolean): void {
+    this.dashBtn.setAvailable(on);
+  }
+
+  setSpecialAvailable(on: boolean): void {
+    this.specialBtn.setAvailable(on);
+  }
+
+  setActionRing(fraction: number, color: number): void {
+    this.actionBtn.setRing(fraction, color);
   }
 
   destroy(): void {

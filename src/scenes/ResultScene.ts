@@ -1,12 +1,19 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
+import type { CharacterId } from '../config/characters';
+import type { StadiumId } from '../config/stadiums';
+import * as M from '../config/menus';
+import * as HUD from '../config/hud';
+import { makeButton, menuBackground, pixelText } from '../systems/uiKit';
 
 interface ResultData {
   scoreLeft?: number;
   scoreRight?: number;
+  characterId?: CharacterId;
+  stadiumId?: StadiumId;
 }
 
-/** Shows the final score after a match (M2: goal detection, timer). */
+/** Final score + rematch (M7.4). */
 export class ResultScene extends Phaser.Scene {
   private resultData: ResultData = {};
 
@@ -19,38 +26,31 @@ export class ResultScene extends Phaser.Scene {
   }
 
   create(): void {
-    this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x0b0f14).setOrigin(0);
+    menuBackground(this, GAME_WIDTH, GAME_HEIGHT);
+    const { scoreLeft: l = 0, scoreRight: r = 0 } = this.resultData;
+    const title = l > r ? 'KAZANDIN!' : l < r ? 'KAYBETTİN' : 'BERABERE';
+    const color = l > r ? HUD.UI_TITLE_COLOR : l < r ? 0xff8a7a : HUD.UI_TEXT_COLOR;
+    pixelText(this, GAME_WIDTH / 2, M.RESULT_TITLE_Y, title, 8, color);
+    pixelText(this, GAME_WIDTH / 2, M.RESULT_SCORE_Y, `${l}-${r}`, M.RESULT_SCORE_SCALE, HUD.SCORE_COLOR);
 
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 80, 'Maç Bitti', {
-        fontFamily: 'monospace',
-        fontSize: '32px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-
-    if (this.resultData.scoreLeft !== undefined && this.resultData.scoreRight !== undefined) {
-      this.add
-        .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 30, `${this.resultData.scoreLeft} — ${this.resultData.scoreRight}`, {
-          fontFamily: 'monospace',
-          fontSize: '40px',
-          color: '#ffe066',
-        })
-        .setOrigin(0.5);
+    const { characterId, stadiumId } = this.resultData;
+    const canRematch = characterId !== undefined && stadiumId !== undefined;
+    const bw = 300;
+    const gap = 30;
+    makeButton(this, GAME_WIDTH / 2 + (canRematch ? bw / 2 + gap / 2 : 0), M.RESULT_BUTTONS_Y, bw, 70, 'ANA MENÜ', () =>
+      this.scene.start('Menu'),
+    );
+    if (canRematch) {
+      makeButton(
+        this,
+        GAME_WIDTH / 2 - bw / 2 - gap / 2,
+        M.RESULT_BUTTONS_Y,
+        bw,
+        70,
+        'RÖVANŞ',
+        () => this.scene.start('Match', { characterId, stadiumId }),
+        { primary: true },
+      );
     }
-
-    const menuBtn = this.add
-      .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, 220, 50, 0x2c3e50)
-      .setStrokeStyle(2, 0xffffff)
-      .setInteractive({ useHandCursor: true });
-    this.add
-      .text(GAME_WIDTH / 2, GAME_HEIGHT / 2 + 60, 'Menüye Dön', {
-        fontFamily: 'monospace',
-        fontSize: '16px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-
-    menuBtn.on('pointerup', () => this.scene.start('Menu'));
   }
 }

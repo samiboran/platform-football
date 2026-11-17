@@ -654,6 +654,19 @@ def save(img: Image.Image, *parts: str):
     return img
 
 
+def app_icon() -> Image.Image:
+    """32x32 home-screen icon: a level-3 fire ball on striped grass."""
+    S = 32
+    img = Image.new('RGBA', (S, S), rgb('3f7d3a'))
+    for x in range(S):
+        if (x // 4) % 2 == 0:
+            for y in range(S):
+                img.putpixel((x, y), rgb('4a8c43'))
+    b = ball(3, 'fire')
+    img.alpha_composite(b, ((S - b.width) // 2, (S - b.height) // 2))
+    return img
+
+
 def main():
     sheet_rows = []
     for L in LOOKS:
@@ -710,6 +723,11 @@ def main():
     for name, img in hud.items():
         save(img, 'assets', 'hud', f'{name}.png')
     sheet_rows.append(list(hud.values()))
+
+    # App icon for the installable web app (M7.1): flame ball on pitch stripes.
+    icon = app_icon()
+    for size in (192, 512):
+        save(icon.resize((size, size), Image.NEAREST), 'assets', 'icons', f'icon-{size}.png')
 
     # preview sheet (x4) for docs / review
     pad, scale = 4, 4

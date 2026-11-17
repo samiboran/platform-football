@@ -2,7 +2,12 @@
 <html lang="tr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b0f14" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
     <title>Platform Football</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='7' fill='%23ffffff' stroke='%23222' stroke-width='1'/%3E%3C/svg%3E" />
     <style>
@@ -19,6 +24,37 @@
         justify-content: center;
         width: 100%;
         height: 100vh;
+        height: 100dvh;
+      }
+      /* M7.1: the game is landscape-only — on a phone held upright, cover
+         it with a "turn your phone" hint (the game keeps running behind). */
+      #rotate {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        background: #0b0f14;
+        color: #ffe066;
+        font: bold 20px monospace;
+        text-align: center;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+      }
+      #rotate .phone {
+        width: 54px;
+        height: 96px;
+        border: 5px solid #ffffff;
+        border-radius: 10px;
+        animation: turn 1.6s ease-in-out infinite;
+      }
+      @keyframes turn {
+        0%, 25% { transform: rotate(0deg); }
+        60%, 100% { transform: rotate(-90deg); }
+      }
+      @media (orientation: portrait) and (pointer: coarse) {
+        #rotate { display: flex; }
       }
       canvas {
         image-rendering: pixelated;
@@ -36,6 +72,7 @@
   </head>
   <body>
     <div id="app"></div>
+    <div id="rotate"><div class="phone"></div>TELEFONU YAN ÇEVİR</div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

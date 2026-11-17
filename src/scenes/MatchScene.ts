@@ -58,6 +58,11 @@ import { strikeBall } from '../systems/shotKinds';
 import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
 import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
+import { isTouchDevice } from '../systems/mobileShell';
+import { vibrateImpact, vibrateGoal } from '../systems/haptics';
+import { BUTTON_RING_TAP_COLOR } from '../config/controls';
+import { elementColor } from '../config/elements';
+import { makeButton, pixelText } from '../systems/uiKit';
 import {
   FEEL_FRAME_SECONDS,
   FEEL_EPSILON,
@@ -102,6 +107,10 @@ export class MatchScene extends Phaser.Scene {
   private debugVisible = false;
   private debugGraphics!: Phaser.GameObjects.Graphics;
   private powerSegmentBoxes: Phaser.GameObjects.Image[] = [];
+  private rivalSegmentBoxes: Phaser.GameObjects.Image[] = [];
+  /** M7.2 pause state + its overlay. */
+  private paused = false;
+  private pauseMenu: Phaser.GameObjects.Container | null = null;
   /** Aim direction captured at the moment Aksiyon is pressed — CLAUDE.md:
    * "Şut yönü, Aksiyon'a basıldığı andaki joystick yönünden gelir." Falls
    * back to facing when the stick is neutral. */
@@ -170,6 +179,8 @@ export class MatchScene extends Phaser.Scene {
     this.scoreRight = 0;
     this.timeRemaining = MATCH_DURATION_SECONDS;
     this.matchOver = false;
+    this.paused = false;
+    this.pauseMenu = null;
 
     drawPitch(this, this.stadium);
     soundFX.whistle();
@@ -233,22 +244,14 @@ export class MatchScene extends Phaser.Scene {
       if (!this.debugVisible) this.debugGraphics.clear();
     });
 
-    // Manual early-end button, handy for testing without waiting out the clock.
-    const endBtn = this.add
-      .image(HUD.END_BUTTON_X, HUD.END_BUTTON_Y, 'hud_button')
-      .setScale(HUD.HUD_PIXEL_SCALE)
-      .setDepth(10000)
-      .setInteractive({ useHandCursor: true });
-    this.add
-      .bitmapText(HUD.END_BUTTON_X, HUD.END_BUTTON_Y + 1, HUD.PIXEL_FONT_KEY, 'BİTİR (TEST)')
-      .setScale(HUD.FOOTER_FONT_SCALE)
-      .setOrigin(0.5)
-      .setDepth(10001);
-    endBtn.on('pointerup', () => this.endMatch());
+    // M7.2: pause button (top-right) replaces the old "BİTİR (TEST)".
+    this.createPauseButton();
+    this.input.keyboard?.on('keydown-ESC', () => this.setPaused(!this.paused));
+    this.input.keyboard?.on('keydown-P', () => this.setPaused(!this.paused));
   }
 
   update(_time: number, delta: number): void {
-    if (this.matchOver) return;
+    if (this.matchOver || this.paused) return;
 
     // M6.4: portrait cut-in, then hitstop — the whole simulation pauses
     // (inputs stay buffered, nothing is drained).
@@ -399,6 +402,7 @@ export class MatchScene extends Phaser.Scene {
     }
 
     this.updatePowerBar();
+    this.updateButtonFeedback();
 
     const scored = this.ball.update(delta);
     this.replay.capture(dtSec);
@@ -443,6 +447,7 @@ export class MatchScene extends Phaser.Scene {
     conceder.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
     this.updateHud();
     soundFX.goal();
+    vibrateGoal();
     this.crowd.celebrate();
     // Element of whoever actually struck it (an own goal shows the shooter's).
     playGoalBand(this, scorer.name, scorerSide, level, this.ball.element);
@@ -481,6 +486,7 @@ export class MatchScene extends Phaser.Scene {
    * waits until the portrait is gone, so the kick "lands" after it. */
   private onImpact(kind: ImpactKind): void {
     this.replay.markStrike();
+    vibrateImpact(kind);
     if (this.cutInRemaining > FEEL_EPSILON) {
       if (!this.pendingImpact || HITSTOP_FRAMES[kind] > HITSTOP_FRAMES[this.pendingImpact]) this.pendingImpact = kind;
       return;
@@ -652,46 +658,140 @@ export class MatchScene extends Phaser.Scene {
       .setOrigin(0.5, 0)
       .setDepth(10001);
 
-    // Energy bar (CLAUDE.md section 5) — 3 cells.
-    this.powerSegmentBoxes = [];
-    this.add
-      .bitmapText(HUD.ENERGY_BAR_X, HUD.ENERGY_BAR_Y - 10, HUD.PIXEL_FONT_KEY, HUD.ENERGY_LABEL)
-      .setScale(HUD.ENERGY_LABEL_SCALE)
-      .setOrigin(0, 1)
-      .setTint(HUD.ENERGY_LABEL_COLOR)
-      .setDepth(10000);
-    for (let i = 0; i < POWER_MAX_SEGMENTS; i += 1) {
-      const cell = this.add
-        .image(0, HUD.ENERGY_BAR_Y, 'hud_energy_empty')
-        .setScale(s)
-        .setOrigin(0, 0.5)
-        .setDepth(10000);
-      cell.x = HUD.ENERGY_BAR_X + i * (cell.displayWidth + HUD.ENERGY_CELL_GAP);
-      this.powerSegmentBoxes.push(cell);
-    }
+    // Energy bars (CLAUDE.md §5) — top corners so no thumb covers them
+    // (M7.2). Rival's bar too: the clash table depends on it.
+    this.powerSegmentBoxes = this.createEnergyBar(HUD.ENERGY_BAR_X, 'left', HUD.ENERGY_LABEL, HUD.ENERGY_LABEL_COLOR);
+    this.rivalSegmentBoxes = this.createEnergyBar(
+      HUD.RIVAL_ENERGY_BAR_RIGHT,
+      'right',
+      HUD.RIVAL_ENERGY_LABEL,
+      HUD.RIVAL_ENERGY_LABEL_COLOR,
+    );
 
-    // Footer: who's playing where + the keyboard map (touch buttons and
-    // keys aren't in the same order, so show it on screen).
-    const footer = (y: number, text: string, color: number) =>
+    // Footer: keyboard map — only on devices with a real keyboard/mouse.
+    if (!isTouchDevice()) {
       this.add
-        .bitmapText(10, y, HUD.PIXEL_FONT_KEY, HUD.toHudText(text))
+        .bitmapText(10, GAME_HEIGHT + 2, HUD.PIXEL_FONT_KEY, HUD.toHudText('Klavye: oklar  Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel  P=Duraklat'))
         .setScale(HUD.FOOTER_FONT_SCALE)
         .setOrigin(0, 1)
-        .setTint(color)
+        .setTint(HUD.FOOTER_KEYS_COLOR)
         .setDepth(10000);
-    footer(
-      GAME_HEIGHT - 12,
-      `Karakter: ${this.character.name} | Saha: ${this.stadium.name} | Rakip: ${this.opponentCharacter.name}`,
-      HUD.FOOTER_INFO_COLOR,
-    );
-    footer(GAME_HEIGHT + 2, 'Klavye: Z=Zıpla  Space=Aksiyon  X=Dash  C=Özel', HUD.FOOTER_KEYS_COLOR);
+    }
+  }
+
+  /** 3 energy cells anchored at `edgeX` (left edge for 'left', right edge
+   * for 'right'), with a label above. */
+  private createEnergyBar(edgeX: number, align: 'left' | 'right', label: string, color: number): Phaser.GameObjects.Image[] {
+    const cells: Phaser.GameObjects.Image[] = [];
+    const cellW = this.textures.get('hud_energy_empty').getSourceImage().width * HUD.ENERGY_CELL_SCALE;
+    const total = POWER_MAX_SEGMENTS * cellW + (POWER_MAX_SEGMENTS - 1) * HUD.ENERGY_CELL_GAP;
+    const left = align === 'left' ? edgeX : edgeX - total;
+    const cellH = this.textures.get('hud_energy_empty').getSourceImage().height * HUD.ENERGY_CELL_SCALE;
+    const pad = HUD.ENERGY_PLATE_PAD;
+    const plateTop = HUD.ENERGY_BAR_Y - 16 - 16 - pad;
+    const plateBottom = HUD.ENERGY_BAR_Y + cellH / 2 + pad;
+    this.add
+      .rectangle(left - pad, plateTop, total + pad * 2, plateBottom - plateTop, HUD.ENERGY_PLATE_COLOR, HUD.ENERGY_PLATE_ALPHA)
+      .setOrigin(0)
+      .setDepth(9999);
+    this.add
+      .bitmapText(align === 'left' ? left : edgeX, HUD.ENERGY_BAR_Y - 16, HUD.PIXEL_FONT_KEY, HUD.toHudText(label))
+      .setScale(HUD.ENERGY_LABEL_SCALE)
+      .setOrigin(align === 'left' ? 0 : 1, 1)
+      .setTint(color)
+      .setDepth(10000);
+    for (let i = 0; i < POWER_MAX_SEGMENTS; i += 1) {
+      // Rival's cells fill from the right edge inward (mirror).
+      const slot = align === 'left' ? i : POWER_MAX_SEGMENTS - 1 - i;
+      const cell = this.add
+        .image(left + slot * (cellW + HUD.ENERGY_CELL_GAP) + cellW / 2, HUD.ENERGY_BAR_Y, 'hud_energy_empty')
+        .setScale(HUD.ENERGY_CELL_SCALE)
+        .setDepth(10000);
+      cells.push(cell);
+    }
+    return cells;
+  }
+
+  private createPauseButton(): void {
+    const sz = HUD.PAUSE_BUTTON_SIZE;
+    const btn = this.add
+      .rectangle(HUD.PAUSE_BUTTON_X, HUD.PAUSE_BUTTON_Y, sz, sz, HUD.UI_BUTTON_COLOR, 0.85)
+      .setStrokeStyle(3, HUD.UI_BUTTON_BORDER)
+      .setDepth(10000)
+      .setInteractive({ useHandCursor: true });
+    const barW = sz * 0.16;
+    const barH = sz * 0.5;
+    for (const dx of [-barW, barW]) {
+      this.add.rectangle(HUD.PAUSE_BUTTON_X + dx, HUD.PAUSE_BUTTON_Y, barW, barH, 0xffffff).setDepth(10001);
+    }
+    btn.on('pointerup', () => this.setPaused(true));
+  }
+
+  /** M7.2 pause: freezes the match (update() returns early) and shows
+   * Devam / Yeniden / Ana menü. */
+  private setPaused(on: boolean): void {
+    if (this.matchOver || on === this.paused) return;
+    this.paused = on;
+    this.pauseMenu?.destroy();
+    this.pauseMenu = null;
+    if (!on) {
+      this.tweens.resumeAll();
+      return;
+    }
+    this.tweens.pauseAll();
+    const root = this.add.container(0, 0).setDepth(HUD.PAUSE_DEPTH);
+    root.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, HUD.PAUSE_OVERLAY_ALPHA).setOrigin(0).setInteractive());
+    root.add(pixelText(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 130, HUD.PAUSE_TITLE, HUD.PAUSE_TITLE_SCALE, HUD.UI_TITLE_COLOR));
+    const items: [string, () => void, boolean][] = [
+      ['DEVAM', () => this.setPaused(false), true],
+      ['YENİDEN BAŞLA', () => this.scene.restart(), false],
+      ['ANA MENÜ', () => this.scene.start('Menu'), false],
+    ];
+    const step = HUD.PAUSE_MENU_BUTTON_H + HUD.PAUSE_MENU_BUTTON_GAP;
+    items.forEach(([label, fn, primary], i) => {
+      const b = makeButton(this, GAME_WIDTH / 2, GAME_HEIGHT / 2 - 40 + i * step, HUD.PAUSE_MENU_BUTTON_W, HUD.PAUSE_MENU_BUTTON_H, label, fn, { primary });
+      root.add(b.container);
+    });
+    this.pauseMenu = root;
   }
 
   private updatePowerBar(): void {
-    const filled = Math.floor(this.player.powerSegments + 1e-6);
-    this.powerSegmentBoxes.forEach((cell, i) => {
+    this.fillEnergyCells(this.powerSegmentBoxes, this.player.powerSegments);
+    this.fillEnergyCells(this.rivalSegmentBoxes, this.opponent.character.powerSegments);
+  }
+
+  /** M7.3: dim dash/özel when they can't fire; ring around Aksiyon while
+   * charging (white until it counts as a power shot, then the element
+   * colour, full ring = whole bar spent). */
+  private updateButtonFeedback(): void {
+    this.input1.setDashAvailable(this.player.canDash);
+    this.input1.setSpecialAvailable(this.player.powerSegments >= SUPER_MOVE_SEGMENT_COST);
+    if (this.shotChargeSeconds === null) {
+      this.input1.setActionRing(0, 0);
+      return;
+    }
+    const energy = Math.floor(this.player.powerSegments + 1e-6);
+    if (this.shotChargeSeconds < SHOT_CHARGE_TAP_SECONDS || energy === 0) {
+      this.input1.setActionRing(Math.min(1, this.shotChargeSeconds / SHOT_CHARGE_TAP_SECONDS) * 0.25, BUTTON_RING_TAP_COLOR);
+    } else {
+      this.input1.setActionRing(energy / POWER_MAX_SEGMENTS, elementColor(this.character.element, energy));
+    }
+  }
+
+  private fillEnergyCells(cells: Phaser.GameObjects.Image[], energy: number): void {
+    const filled = Math.floor(energy + 1e-6);
+    cells.forEach((cell, i) => {
       const key = i < filled ? 'hud_energy_full' : 'hud_energy_empty';
-      if (cell.texture.key !== key) cell.setTexture(key);
+      if (cell.texture.key === key) return;
+      cell.setTexture(key);
+      if (i < filled) {
+        // Pop when a cell fills, so gaining energy is noticed mid-play.
+        this.tweens.add({
+          targets: cell,
+          scale: { from: HUD.ENERGY_CELL_SCALE * HUD.ENERGY_CELL_POP, to: HUD.ENERGY_CELL_SCALE },
+          duration: HUD.ENERGY_CELL_POP_MS,
+        });
+      }
     });
   }
 
@@ -707,7 +807,12 @@ export class MatchScene extends Phaser.Scene {
     if (this.matchOver) return;
     this.matchOver = true;
     soundFX.whistle();
-    this.scene.start('Result', { scoreLeft: this.scoreLeft, scoreRight: this.scoreRight });
+    this.scene.start('Result', {
+      scoreLeft: this.scoreLeft,
+      scoreRight: this.scoreRight,
+      characterId: this.character.id,
+      stadiumId: this.stadium.id,
+    });
   }
 
   /** Kongo's "ritim görsele yansır" — a cosmetic pulse on the stands band,

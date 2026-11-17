@@ -99,3 +99,23 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Gol kutlaması: isim bandı + power gollerinde ağır çekim tekrar
 
 **Doğrulama:** Fark tablosunun 4 satırı da deterministik test edilir. Dash 1 enerji/1 sn kuralı, lob, parry penceresi ve içecek spawn'ı ayrı ayrı doğrulanır. Deploy linki konsol hatasız açılır.
+
+## M7 — Mobil UI/UX (17.11.2026, Sami: "Android oyunu yapıyoruz, yatay ekran, hepsi")
+### M7.1 Yatay ekran + tam ekran
+- [x] Dikey tutunca "telefonu yan çevir" uyarısı
+- [x] İlk dokunuşta tam ekran + yatay kilit (Android Chrome), menüde tam ekran düğmesi
+- [x] Ana ekrana eklenebilir uygulama (manifest, ikon, `display: fullscreen`, `orientation: landscape`)
+
+### M7.2 Maç içi HUD
+- [x] Enerji barı başparmağın kapatmadığı yere (üst sol), daha büyük
+- [x] Dokunmatik cihazda klavye/alt yazılar gizli
+- [x] "BİTİR (TEST)" yerine duraklat menüsü (Devam / Yeniden / Ana menü)
+
+### M7.3 Dokunmatik kontroller
+- [x] Aksiyon basılı tutulurken güç dolum halkası (element renginde)
+- [x] Kullanılamayan tuş soluk (dash: enerji yok / bekleme; özel: 3 enerji yok)
+- [x] Titreşim: şut, power, çatışma, gol
+
+### M7.4 Menü akışı
+- [x] Ana menü, karakter ve saha seçimi pixel font + büyük dokunmatik kartlar
+- [x] Kartta element, özel hareket ve istatistik çubukları

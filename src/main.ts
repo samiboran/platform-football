@@ -6,6 +6,9 @@ import { CharacterSelectScene } from './scenes/CharacterSelectScene';
 import { StadiumSelectScene } from './scenes/StadiumSelectScene';
 import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
+import { installAutoFullscreen } from './systems/mobileShell';
+
+installAutoFullscreen();
 
 new Phaser.Game({
   type: Phaser.AUTO,

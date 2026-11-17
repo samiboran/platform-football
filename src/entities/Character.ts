@@ -182,6 +182,11 @@ export class Character {
     this.syncTransform();
   }
 
+  /** Could a dash start right now? (M7.3 button dimming) */
+  get canDash(): boolean {
+    return !this.isDashing && this.dashRetriggerTimer <= 0 && this.powerSegments >= DASH_ENERGY_COST && !this.isStunned;
+  }
+
   get isDashing(): boolean {
     return this.dashTimeRemaining > 0;
   }
