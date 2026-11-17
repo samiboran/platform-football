@@ -57,6 +57,7 @@ import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
 import { strikeBall } from '../systems/shotKinds';
 import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
+import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
 import {
   FEEL_FRAME_SECONDS,
   FEEL_EPSILON,
@@ -64,6 +65,8 @@ import {
   SHAKE,
   CUTIN_SECONDS,
   CUTIN_TITLES,
+  GOAL_BAND_SECONDS,
+  REPLAY_MIN_LEVEL,
   type ImpactKind,
 } from '../config/feel';
 import { Character } from '../entities/Character';
@@ -140,6 +143,10 @@ export class MatchScene extends Phaser.Scene {
   private hitstopRemaining = 0;
   private cutInRemaining = 0;
   private pendingImpact: ImpactKind | null = null;
+  /** M6.4 goal celebration: rolling replay buffer, and seconds until a
+   * pending power-goal replay starts (after the name band), or null. */
+  private replay!: ReplayRecorder;
+  private replayStartIn: number | null = null;
 
   constructor() {
     super('Match');
@@ -207,6 +214,12 @@ export class MatchScene extends Phaser.Scene {
     setImpactListener((kind) => this.onImpact(kind));
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => setImpactListener(null));
     this.drinks = new EnergyDrinks(this);
+    this.replay = new ReplayRecorder(this, [
+      ...this.player.replayTargets(),
+      ...this.opponent.character.replayTargets(),
+      ...this.ball.replayTargets(),
+    ] as ConstructorParameters<typeof ReplayRecorder>[1]);
+    this.replayStartIn = null;
 
     this.input1 = new InputController(this);
 
@@ -257,6 +270,15 @@ export class MatchScene extends Phaser.Scene {
       // doesn't run down either. Crowd/HUD keep going, purely cosmetic.
       this.kickoffFreezeRemaining -= delta / 1000;
       this.crowd.update(delta);
+      if (this.replayStartIn !== null) {
+        this.replayStartIn -= delta / 1000;
+        if (this.replayStartIn <= 0) {
+          this.replayStartIn = null;
+          this.replay.play();
+        }
+      } else if (this.replay.isPlaying) {
+        this.replay.update(delta / 1000);
+      }
       // Swallow presses during the lock so a held button doesn't fire
       // the moment play resumes.
       this.input1.drainPresses();
@@ -377,26 +399,8 @@ export class MatchScene extends Phaser.Scene {
     this.updatePowerBar();
 
     const scored = this.ball.update(delta);
-    if (scored === 'left') {
-      // Ball entered the left goal -> right side scores -> LEFT side
-      // conceded, so kickoff goes to the center of the LEFT half
-      // (CLAUDE.md: "gol yiyene, kendi yarısının ortasında verilsin").
-      this.scoreRight += 1;
-      this.player.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
-      this.updateHud();
-      soundFX.goal();
-      this.crowd.celebrate();
-      this.ball.reset((LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2);
-      this.kickoffFreezeRemaining = GOAL_RESET_FREEZE_SECONDS;
-    } else if (scored === 'right') {
-      this.scoreLeft += 1;
-      this.opponent.character.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
-      this.updateHud();
-      soundFX.goal();
-      this.crowd.celebrate();
-      this.ball.reset((CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2);
-      this.kickoffFreezeRemaining = GOAL_RESET_FREEZE_SECONDS;
-    }
+    this.replay.capture(dtSec);
+    if (scored) this.onGoal(scored);
 
     this.timeRemaining = Math.max(0, this.timeRemaining - delta / 1000);
     this.updateHud();
@@ -423,6 +427,35 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  /** Ball entered `goalSide`'s goal: the other side scores. Conceding side
+   * gets +1 energy and the kickoff in the centre of its own half
+   * (CLAUDE.md). M6.4: "GOL!" name band, and a slow-motion replay first
+   * when it was a power shot (level ≥ REPLAY_MIN_LEVEL). */
+  private onGoal(goalSide: 'left' | 'right'): void {
+    const scorerSide = goalSide === 'left' ? 'right' : 'left';
+    const scorer = scorerSide === 'left' ? this.character : this.opponentCharacter;
+    const conceder = goalSide === 'left' ? this.player : this.opponent.character;
+    const level = this.ball.shotLevel;
+    if (scorerSide === 'left') this.scoreLeft += 1;
+    else this.scoreRight += 1;
+    conceder.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
+    this.updateHud();
+    soundFX.goal();
+    this.crowd.celebrate();
+    playGoalBand(this, scorer.name, scorerSide, level);
+
+    let freeze = GOAL_RESET_FREEZE_SECONDS;
+    if (level >= REPLAY_MIN_LEVEL && this.replay.playbackSeconds > 0) {
+      this.replayStartIn = GOAL_BAND_SECONDS;
+      freeze = Math.max(freeze, GOAL_BAND_SECONDS + this.replay.playbackSeconds + GOAL_RESET_FREEZE_SECONDS / 2);
+    } else {
+      this.replay.clear();
+    }
+    const kickoffX = goalSide === 'left' ? (LEFT_GOAL_LINE_X + CENTER_LINE_X) / 2 : (CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2;
+    this.ball.reset(kickoffX, DEPTH_BAND_HEIGHT / 2);
+    this.kickoffFreezeRemaining = freeze;
+  }
+
   /** Human tut window: a live shot reaching the player while it's open
    * goes through the difference table (systems/catchMatrix.ts). */
   private updateCatch(dt: number): void {
@@ -444,6 +477,7 @@ export class MatchScene extends Phaser.Scene {
   /** An impact landed (strike / clash). During a cut-in the strongest one
    * waits until the portrait is gone, so the kick "lands" after it. */
   private onImpact(kind: ImpactKind): void {
+    this.replay.markStrike();
     if (this.cutInRemaining > FEEL_EPSILON) {
       if (!this.pendingImpact || HITSTOP_FRAMES[kind] > HITSTOP_FRAMES[this.pendingImpact]) this.pendingImpact = kind;
       return;

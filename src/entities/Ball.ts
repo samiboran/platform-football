@@ -91,6 +91,11 @@ export class Ball {
    * CLAUDE.md section 5: "tutma şansı... özel şuta karşı düşer", so even a
    * keeper committed to a power tutuş can still be beaten. */
   lastShotWasSuper = false;
+  /** Power level (0..BALL_POWER_LEVEL_MAX) of the shot the ball is still
+   * travelling from — unlike the visual `powerLevel` aura it doesn't fade
+   * as the ball slows, so a power goal is still known at the goal line
+   * (M6.4 slow-motion replay). Cleared on control, lift and reset. */
+  shotLevel = 0;
   /** True after shoot(), false while under dribble control. Keepers gate
    * their catch attempts on this — only a deliberate shot should ever be
    * "caught", not the ball drifting under someone's own dribble control. */
@@ -169,6 +174,7 @@ export class Ball {
     this.lastShotWasPower = false;
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
+    this.shotLevel = 0;
     this.clashResolved = false;
     this.spinAngle = 0;
     this.powerLevel = 0;
@@ -277,6 +283,7 @@ export class Ball {
     this.lastShotWasPower = false;
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
+    this.shotLevel = 0;
   }
 
   /** A deliberate Aksiyon shot (M3), aimed along (dirX, dirZ) at `speed`.
@@ -326,6 +333,7 @@ export class Ball {
     this.lastTouchWasShot = true;
     this.clashResolved = false;
     this.powerLevel = Phaser.Math.Clamp(Math.round(powerLevel), 0, BALL_POWER_LEVEL_MAX);
+    this.shotLevel = this.powerLevel;
   }
 
   update(delta: number): GoalSide {
@@ -461,6 +469,7 @@ export class Ball {
     this.vz = ownerVelZ;
     this.vy = vy;
     this.lastTouchWasShot = false;
+    this.shotLevel = 0;
   }
 
   /** Predicted first ground contact of the free ball from its current
@@ -528,6 +537,11 @@ export class Ball {
     const depth = Math.round(ground.screenY);
     this.shadow.setDepth(depth - 1);
     this.sprite.setDepth(depth + 1);
+  }
+
+  /** Display objects the goal replay records and replays (M6.4). */
+  replayTargets(): Phaser.GameObjects.GameObject[] {
+    return [this.shadow, this.landingMarker, this.sprite];
   }
 
   destroy(): void {

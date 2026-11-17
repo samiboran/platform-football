@@ -47,3 +47,40 @@ export const CUTIN_TITLE_SCALE = 3;
 /** Cut-in caption per power level (index = level; 4 = super). */
 export const CUTIN_TITLES = ['', 'POWER ŞUT!', 'ALEV ŞUT!', 'YILDIRIM ŞUT!', 'SÜPER HAREKET!'];
 export const CUTIN_DEPTH = 30000;
+
+/** Goal celebration (M6.4): a slanted name band ("GOL!" + scorer) plays on
+ * every goal during the kickoff lock; power goals (shot level ≥
+ * REPLAY_MIN_LEVEL) first get a slow-motion replay of the last
+ * REPLAY_BUFFER_SECONDS. Gameplay stays frozen the whole time. */
+export const GOAL_BAND_SECONDS = 1.6;
+export const GOAL_BAND_HEIGHT = 130;
+export const GOAL_BAND_SLANT = 40;
+export const GOAL_BAND_COLOR = 0x101018;
+export const GOAL_BAND_ALPHA = 0.85;
+export const GOAL_TITLE = 'GOL!';
+export const GOAL_TITLE_SCALE = 8;
+export const GOAL_NAME_SCALE = 3;
+/** Band edge / title colour for a normal goal (power goals use
+ * CUTIN_EDGE_COLORS[level]). */
+export const GOAL_EDGE_COLOR = 0xffe066;
+/** Share of the band time spent sliding in / fading out. */
+export const GOAL_BAND_SLIDE_FRACTION = 0.2;
+/** "GOL!" pops from this scale factor to 1. */
+export const GOAL_TITLE_POP = 1.6;
+export const GOAL_BAND_DEPTH = 30500;
+
+/** Replay buffer length (real seconds of play kept) and playback speed. */
+export const REPLAY_BUFFER_SECONDS = 1.3;
+export const REPLAY_SPEED = 0.35;
+/** Playback starts this long before the last strike (if buffered). */
+export const REPLAY_LEAD_SECONDS = 0.25;
+export const REPLAY_MIN_LEVEL = 1;
+/** Letterbox bars + caption while the replay plays. */
+export const REPLAY_BAR_HEIGHT = 44;
+export const REPLAY_BAR_COLOR = 0x000000;
+export const REPLAY_LABEL = 'TEKRAR';
+export const REPLAY_LABEL_SCALE = 3;
+export const REPLAY_LABEL_COLOR = 0xff5a4a;
+/** Caption blink period (ms). */
+export const REPLAY_LABEL_BLINK_MS = 400;
+export const REPLAY_DEPTH = 30400;

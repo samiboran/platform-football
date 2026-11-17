@@ -419,6 +419,12 @@ export class Character {
     });
   }
 
+  /** Display objects the goal replay records and replays (M6.4). */
+  replayTargets(): Phaser.GameObjects.GameObject[] {
+    const body = this.spriteImage ?? this.placeholderSprite;
+    return body ? [this.shadow, body] : [this.shadow];
+  }
+
   private syncTransform(): void {
     const ground = projectToScreen(this.x, this.z, 0);
     const lifted = projectToScreen(this.x, this.z, this.y);
