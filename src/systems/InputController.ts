@@ -163,9 +163,9 @@ export class InputController {
     return this.actionBtn.isHeld(this.actionKey.isDown);
   }
 
-  /** Held state (not edge-triggered) — Aksiyon+Özellik together = power
-   * tutuş (legacy M3 catch path until M6.3). Power SHOTS no longer use
-   * Özellik: they're hold-to-charge on Aksiyon (M6.2). */
+  /** Held state (not edge-triggered) of Özellik. Since M6.3 neither power
+   * shots nor catches use Özellik+Aksiyon (shot = hold-to-charge, catch
+   * power is committed automatically by the clash table). */
   isSpecialHeld(): boolean {
     return this.specialBtn.isHeld(this.specialKey.isDown);
   }

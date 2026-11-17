@@ -85,10 +85,10 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 ### M6.2 Şut
 - [x] Dokun = normal şut, basılı tut = power shot (tüm enerjiyi harcar), tutarken büyüyen aura
 - [x] Lob: joystick geri + şut; yavaş, gölge düşüş noktasını gösterir; zıplayıp kafa/vole ile karşılanır
-- [ ] AI rakip yeni şut tiplerini kullanır
+- [x] AI rakip yeni şut tiplerini kullanır
 
 ### M6.3 Tutma ve güç çatışması
-- [ ] Eski matris yerine fark tablosu (`systems/catchMatrix.ts`): ≤0 tut (+1 geri), 1 tut-sek, 2 düş/sersem + karşıya sek, 3 gol
+- [x] Eski matris yerine fark tablosu (`systems/catchMatrix.ts`): ≤0 tut (+1 geri), 1 tut-sek, 2 düş/sersem + karşıya sek, 3 gol
 - [ ] Mükemmel parry: ~6 karelik pencere, çatışmada +1, +1 enerji, flaş
 - [ ] Sersemleme durumu (stunned pozu, 0.6 sn yavaşlama)
 

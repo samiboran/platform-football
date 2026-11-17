@@ -94,6 +94,9 @@ export class Ball {
    * their catch attempts on this — only a deliberate shot should ever be
    * "caught", not the ball drifting under someone's own dribble control. */
   lastTouchWasShot = false;
+  /** Set once a catcher has clashed with the current shot (M6.3), so a shot
+   * that goes through isn't resolved again a frame later. Cleared by shoot(). */
+  clashResolved = false;
   /** Which side currently has dribble control (CLAUDE.md's hold rule) —
    * null for a free ball. Set/cleared every frame by updateControl() based
    * on distance to that side's dribble point; a deliberate shoot() also
@@ -165,6 +168,7 @@ export class Ball {
     this.lastShotWasPower = false;
     this.lastShotWasSuper = false;
     this.lastTouchWasShot = false;
+    this.clashResolved = false;
     this.spinAngle = 0;
     this.powerLevel = 0;
     this.chargeLevel = 0;
@@ -311,6 +315,7 @@ export class Ball {
     this.lastShotWasPower = isPower;
     this.lastShotWasSuper = isSuper;
     this.lastTouchWasShot = true;
+    this.clashResolved = false;
     this.powerLevel = Phaser.Math.Clamp(Math.round(powerLevel), 0, BALL_POWER_LEVEL_MAX);
   }
 

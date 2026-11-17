@@ -29,9 +29,6 @@ export const DASH_COOLDOWN = 1.0;
  * hızlı gidiyor, takip etmesi zor") → 480, about 2.2x MOVE_SPEED: still a
  * clear strike, but the eye can follow it across the fixed camera. */
 export const SHOT_SPEED_NORMAL = 480;
-/** Power şut multiplies that speed and costs a full segment (AI opponent's
- * legacy 1-segment power shot; the human uses the per-level table below). */
-export const SHOT_SPEED_POWER_MULTIPLIER = 1.5;
 
 /** Hold-to-charge power shot (CLAUDE.md section 5, 16.11.2026; M6.2).
  * Releasing Aksiyon before this many seconds = normal shot (0 energy).
@@ -79,5 +76,3 @@ export const BALL_JUMP_CARRY_VY = 300;
 
 /** Energy granted to the side that concedes a goal (comeback help). */
 export const GOAL_CONCEDED_ENERGY_GAIN = 1;
-export const POWER_SHOT_SEGMENT_COST = 1;
-export const POWER_CATCH_SEGMENT_COST = 1;

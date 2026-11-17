@@ -10,32 +10,23 @@ import {
   DEPTH_MIN,
   DEPTH_MAX,
   FAR_Y,
-  GOAL_MOUTH_Z_MIN,
-  GOAL_MOUTH_Z_MAX,
   projectToScreen,
 } from '../config/arena';
 import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { STADIUMS, type StadiumId } from '../config/stadiums';
-import { KEEPER_CATCH_RANGE_X, CATCH_MAX_HEIGHT_ABOVE_FEET } from '../config/keeper';
+import { CATCH_ARM_SECONDS, CATCH_WHIFF_COOLDOWN_SECONDS } from '../config/keeper';
 import { canStrikeAerial } from '../systems/aerialStrike';
 import { computeDribbleTarget } from '../systems/dribbleControl';
 import {
   POWER_MAX_SEGMENTS,
   SHOT_SPEED_NORMAL,
-  POWER_CATCH_SEGMENT_COST,
   SHOT_CHARGE_TAP_SECONDS,
   SHOT_PRESS_BUFFER_SECONDS,
   LOB_STICK_BACK_THRESHOLD,
   LOB_FORWARD_WEIGHT,
-  LOB_LAUNCH_VY,
-  LOB_SPEED_MULTIPLIER,
-  LOB_SPEED_BY_POWER_LEVEL,
-  VOLLEY_SPEED_MULTIPLIER,
-  VOLLEY_LAUNCH_VY,
   BALL_JUMP_CARRY_VY,
   SHOT_CHARGE_MAX_SECONDS,
-  SHOT_SPEED_BY_POWER_LEVEL,
   GOAL_CONCEDED_ENERGY_GAIN,
 } from '../config/power';
 import {
@@ -56,7 +47,8 @@ import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
 import { EnergyDrinks } from '../systems/EnergyDrinks';
 import * as HUD from '../config/hud';
-import { resolveCatchAttempt } from '../systems/catchMatrix';
+import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
+import { strikeBall } from '../systems/shotKinds';
 import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 import { AIOpponent } from '../entities/AIOpponent';
@@ -114,6 +106,10 @@ export class MatchScene extends Phaser.Scene {
   private shotChargeSeconds: number | null = null;
   /** Seconds since the last unused Aksiyon press (input buffer). */
   private sinceActionPress = Infinity;
+  /** Seconds left on an open "tut" window (Aksiyon pressed without the
+   * ball, M6.3) and the cooldown after a window that caught nothing. */
+  private catchArmRemaining = 0;
+  private catchWhiffCooldown = 0;
   /** Live stick vector this frame — the lob check reads it at release. */
   private liveMove = { x: 0, z: 0 };
   /** Counts down after a goal — controls locked, nothing moves, until it
@@ -218,6 +214,7 @@ export class MatchScene extends Phaser.Scene {
       this.input1.drainPresses();
       this.sinceActionPress = Infinity;
       this.shotChargeSeconds = null;
+      this.catchArmRemaining = 0;
       return;
     }
 
@@ -239,7 +236,7 @@ export class MatchScene extends Phaser.Scene {
       this.ball.liftWithOwner(this.player.moveVelX, this.player.moveVelZ, BALL_JUMP_CARRY_VY);
     }
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
-    this.opponent.update(delta, this.ball);
+    this.opponent.update(delta, this.ball, this.player);
     this.drinks.update(delta, [this.player, this.opponent.character], () => soundFX.pickup());
     this.crowd.update(delta);
 
@@ -311,24 +308,13 @@ export class MatchScene extends Phaser.Scene {
       // Header / volley on a high free ball (meets lobs).
       this.sinceActionPress = Infinity;
       this.fireVolley();
-    } else if (!controllingBall && actionBuffered) {
-      // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md section 4) —
-      // only meaningful when a real shot is actually incoming on our own
-      // goal and low enough to reach; otherwise the press stays buffered.
-      const onTarget = this.ball.z >= GOAL_MOUTH_Z_MIN && this.ball.z <= GOAL_MOUTH_Z_MAX;
-      const nearGoal = this.ball.x <= LEFT_GOAL_LINE_X + KEEPER_CATCH_RANGE_X;
-      const approaching = this.ball.lastTouchWasShot && this.ball.vx < 0;
-      const reachable = this.ball.y <= this.player.y + CATCH_MAX_HEIGHT_ABOVE_FEET;
-      if (onTarget && nearGoal && approaching && reachable) {
-        this.sinceActionPress = Infinity;
-        const wantsPowerCatch =
-          this.input1.isSpecialHeld() && this.player.canPowerCatch && this.player.spendPower(POWER_CATCH_SEGMENT_COST);
-        const { caught } = resolveCatchAttempt(this.ball, 'left', this.character.catchChance, wantsPowerCatch);
-        this.player.playCatch();
-        if (wantsPowerCatch) this.player.startCatchCooldown(this.character.cooldownSeconds);
-        if (caught) soundFX.save();
-      }
+    } else if (!controllingBall && actionBuffered && this.catchArmRemaining <= 0 && this.catchWhiffCooldown <= 0) {
+      // Top bizde değilse tut (bağlamsal Aksiyon, CLAUDE.md §4): opens a
+      // short tut window; the clash resolves on contact (M6.3).
+      this.sinceActionPress = Infinity;
+      this.catchArmRemaining = CATCH_ARM_SECONDS;
     }
+    this.updateCatch(dtSec);
     if (controllingBall && !this.wasControllingBall) soundFX.kick();
     this.wasControllingBall = controllingBall;
 
@@ -385,20 +371,32 @@ export class MatchScene extends Phaser.Scene {
     }
   }
 
+  /** Human tut window: a live shot reaching the player while it's open
+   * goes through the difference table (systems/catchMatrix.ts). */
+  private updateCatch(dt: number): void {
+    if (this.catchWhiffCooldown > 0) this.catchWhiffCooldown -= dt;
+    if (this.catchArmRemaining <= 0) return;
+    if (isCatchableShot(this.ball, 'left', this.player)) {
+      this.catchArmRemaining = 0;
+      const { outcome } = applyCatchAttempt(this.ball, 'left', this.player);
+      if (outcome === 'hold' || outcome === 'spill') soundFX.save();
+      return;
+    }
+    this.catchArmRemaining -= dt;
+    if (this.catchArmRemaining <= 0) this.catchWhiffCooldown = CATCH_WHIFF_COOLDOWN_SECONDS;
+  }
+
   /** Fire the human's shot at `level` (0 = normal, 1..3 = power shot that
    * spends the whole bar). Stick pulled back toward our own goal at
    * release = lob (power lob when level > 0). Otherwise aim = latest stick
    * direction, else facing. */
   private fireShot(level: number): void {
     if (level > 0 && !this.player.spendPower(level)) level = 0;
-    const base = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier;
+    const strike = { level, shotPowerMultiplier: this.character.shotPowerMultiplier };
     // Left side attacks +x, so "back" = stick pointing left.
     if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) {
       const w = screenDirToWorld(LOB_FORWARD_WEIGHT, this.liveMove.z);
-      const speed = base * LOB_SPEED_MULTIPLIER * LOB_SPEED_BY_POWER_LEVEL[level];
-      // No momentum carry: the player is backing off, and a predictable
-      // landing spot matters more than a realistic kick.
-      this.ball.shoot(w.x, w.z, speed * w.speedScale, false, level > 0, false, 1, level, LOB_LAUNCH_VY, 0);
+      strikeBall(this.ball, 'lob', w.x, w.z, { ...strike, speedScale: w.speedScale });
       this.player.playKick(1);
       soundFX.kick();
       return;
@@ -406,11 +404,10 @@ export class MatchScene extends Phaser.Scene {
     const hasAim = this.lastAimX !== 0 || this.lastAimZ !== 0;
     const aimX = hasAim ? this.lastAimX : this.player.facingX;
     const aimZ = hasAim ? this.lastAimZ : this.player.facingZ;
-    const speed = base * SHOT_SPEED_BY_POWER_LEVEL[level];
     // Stick direction is a screen direction — convert so the shot flies
     // at the stick's on-screen angle and speed (config/movement.ts).
     const w = screenDirToWorld(aimX, aimZ);
-    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, level > 0, false, 1, level);
+    strikeBall(this.ball, 'ground', w.x, w.z, { ...strike, speedScale: w.speedScale, chaos: this.character.chaosTouch });
     this.player.playKick(aimX);
     soundFX.kick();
   }
@@ -422,9 +419,12 @@ export class MatchScene extends Phaser.Scene {
     const aimX = hasStick ? this.liveMove.x : 1;
     const aimZ = hasStick ? this.liveMove.z : 0;
     const w = screenDirToWorld(aimX, aimZ);
-    const speed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * VOLLEY_SPEED_MULTIPLIER;
-    // Full overwrite (carry 0) plus a small lift for a gentle arc.
-    this.ball.shoot(w.x, w.z, speed * w.speedScale, this.character.chaosTouch, false, false, 1, 0, VOLLEY_LAUNCH_VY, 0);
+    strikeBall(this.ball, 'volley', w.x, w.z, {
+      level: 0,
+      shotPowerMultiplier: this.character.shotPowerMultiplier,
+      speedScale: w.speedScale,
+      chaos: this.character.chaosTouch,
+    });
     this.player.playKick(aimX);
     soundFX.kick();
   }

@@ -31,8 +31,3 @@ export const SUPER_RHYTHM_SPEED_MULTIPLIER = 1.6;
 export const SUPER_RHYTHM_BONUS_MULTIPLIER = 1.35;
 export const KONGO_RHYTHM_PERIOD_SECONDS = 1.2;
 export const KONGO_RHYTHM_WINDOW_SECONDS = 0.18;
-
-/** CLAUDE.md section 5: "Tutma şansı dinamiktir: hızlı topa veya özel şuta
- * karşı düşer." Even a keeper committed to a power tutuş against a super
- * shot only holds it this fraction of the time. */
-export const SUPER_SHOT_CATCH_CHANCE_MULTIPLIER = 0.5;

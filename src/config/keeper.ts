@@ -1,30 +1,46 @@
 import { CHARACTER_HEIGHT } from './arena';
 /**
- * Minimal AI goalkeeper tuning. There's no second human player yet, so the
- * opponent goal needs *something* defending it to make the shoot/hold
- * matrix (CLAUDE.md section 5) actually testable/playable — see
- * docs/PROGRESS.md for the scope note.
+ * Catch ("tut") and power-clash tuning (CLAUDE.md section 5, 16.11.2026
+ * rules; M6.3). Each outfield player defends their own goal with the
+ * contextual Aksiyon — there's no separate keeper entity. The clash itself
+ * is the pure difference table in systems/catchMatrix.ts.
  */
 
-/** How fast the keeper slides along the goal line (z) to track the ball. */
-export const KEEPER_TRACK_SPEED = 180;
-/** Stop nudging toward the target once within this z distance. Must clear
- * one frame's worth of movement at KEEPER_TRACK_SPEED (~3px at 60fps) with
- * real margin, or the keeper overshoots the deadzone every frame and
- * visibly vibrates in place instead of settling. */
-export const KEEPER_MOVE_DEADZONE = 10;
-/** Ball must be within this x-distance of the goal line for the keeper to
- * even attempt a catch — otherwise it's not "on target" yet. */
-export const KEEPER_CATCH_RANGE_X = 90;
-
-/** Base catch probability before the character's catchChance stat and the
- * shot-speed falloff are applied (CLAUDE.md: "dinamik... hızlı topa karşı düşer"). */
-export const CATCH_BASE_CHANCE = 0.6;
-/** Shot speed (px/s) at which the speed-based chance penalty saturates.
- * Oturum 26: 900 → 720 to follow the slower shots (480 normal / 720 power),
- * keeping roughly the old catch-chance balance. */
-export const CATCH_SPEED_REFERENCE = 720;
+/** A catch only happens on contact: the shot must pass within this reach
+ * of the catcher. x in px, z in world depth units — z is deliberately the
+ * more forgiving one on screen (CLAUDE.md §3: "z toleransı yatay
+ * toleranstan geniş"; 28 z ≈ 65 screen px vs 40 px horizontally). */
+export const CATCH_REACH_X = 40;
+export const CATCH_REACH_Z = 28;
 
 /** A catch (tutuş) only reaches a ball no higher than this above the
  * catcher's own feet — a lob over a standing keeper can't be caught. */
 export const CATCH_MAX_HEIGHT_ABOVE_FEET = CHARACTER_HEIGHT;
+
+/** Pressing Aksiyon without the ball "holds tut" for this long: a shot that
+ * reaches the catcher inside that window is caught/clashed. */
+export const CATCH_ARM_SECONDS = 0.35;
+/** After a tut window runs out without contact, a new one can't be opened
+ * for this long — spamming Aksiyon can't keep tut up permanently. */
+export const CATCH_WHIFF_COOLDOWN_SECONDS = 0.4;
+
+/** Difference table (shot power − catch power) thresholds. */
+export const CLASH_DIFF_BOUNCE = 1;
+export const CLASH_DIFF_STUN = 2;
+export const CLASH_DIFF_GOAL = 3;
+/** Energy given back to a catcher who exactly matched a power shot. */
+export const CLASH_EQUAL_REFUND = 1;
+
+/** Diff 1: caught but spills — the ball pops up loose in the catcher's own
+ * half, rolling gently away from their goal. */
+export const CLASH_SPILL_SPEED = 120;
+export const CLASH_SPILL_VY = 240;
+/** Diff 2: catcher is knocked down/stunned and the ball rebounds hard into
+ * the shooter's half. */
+export const CLASH_STUN_SECONDS = 0.6;
+export const CLASH_REBOUND_SPEED = 420;
+export const CLASH_REBOUND_VY = 220;
+/** Random depth spread (world z/s, ±half) on spills and rebounds. */
+export const CLASH_DEPTH_SPREAD = 160;
+/** Diff ≥ 3: the shot goes through, losing this fraction of its speed. */
+export const CLASH_GOAL_SPEED_KEEP = 0.85;
