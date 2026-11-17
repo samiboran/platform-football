@@ -1116,3 +1116,9 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - Fare artık dokunmatik joystick'i ve ekrandaki tuşları tetiklemiyor (`pointer.wasTouch`); duraklat gibi UI düğmelerine tıklamak şut saymıyor. Sağ tık menüsü zaten kapalı.
 - Maç içi alt yazı ve CLAUDE.md §4 güncellendi.
 - **Doğrulama (Playwright, gerçek klavye/fare olayları; geçici hook kaldırıldı):** W → z 100→120, D → x 250→289, Space → y 44, Shift → dash + 1 enerji, sol yarıya fare basılı → oyuncu kımıldamadı (joystick 0,0), top ayaktayken sol tık → şut (453 px/s), 3 enerjiyle sağ tık → süper (enerji 0, seviye 3). Konsol hatası yok, build temiz.
+
+## Oturum 42 — Yayın hazırlığı değerlendirmesi + arka plan yol haritası (Sami'nin sorusu)
+- Soru: "Telefonda çıkmaya uygun mu? Arka planda olması gereken her şeyi haritaya ekle."
+- `docs/ROADMAP.md`'ye yayın durumu değerlendirmesi ve iki yeni aşama eklendi: **M9** (sunucusuz tek oyunculu Play Store v1: teknik paket, içerik/cila, mağaza/yasal) ve **M10** (oyun mantığını ayırma, hesap/bulut kayıt, online maç, canlı işletme, para kazanma). Kod değişmedi.
+- Google Play kuralları web'den kontrol edildi (Kasım 2026): yeni kişisel hesaplarda 12 test kullanıcısı / 14 gün kapalı test, targetSdk 36 (31 Ağustos 2026'dan beri).
+- Karar bekleyenler (Sami): Play hesabı (25 $), hata raporlama servisi, hedef kitle, altın/elmas kullanımı, online mimarisi, para kazanma modeli.

@@ -127,3 +127,86 @@ Zamanlanmış ajan bu listeyi yukarıdan aşağı işler. Her oturumda 1–2 mad
 - [x] Karakter ekranı (liste, seviye, istatistik, özellik tak/çıkar, seç), sonuç ekranında ödüller
 - [ ] Altın / elmas harcama yeri (market, karakter açma) — Sami karar verecek
 - [ ] ETKİNLİK / TAKIM / SOSYAL gibi diğer hub düğmeleri
+
+---
+
+## Yayın durumu — 17.11.2026 değerlendirmesi
+**Kısa cevap: Play Store'a çıkmaya henüz hazır değil; arkadaşlara APK olarak test ettirmeye hazır.**
+Oynanış çekirdeği (hareket, şut/tut/çatışma, enerji, kombolar, AI, gelişim, mobil kontroller) sağlam. Eksikler oyunun kendisinden çok "etrafındaki" şeyler: internetsiz çalışma, Android paketi, gerçek ses, eğitim, ayarlar, mağaza/yasal zorunluluklar ve hiç olmayan sunucu tarafı.
+Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(şart)** = yayın için zorunlu.
+
+## M9 — Telefon yayını hazırlığı (sunucusuz, tek oyunculu v1)
+### M9.1 Teknik paket
+- [ ] İnternetsiz çalışma: service worker + önbellek, sürüm güncellenince yeni dosyaları alma
+- [ ] Android paketi: Capacitor ile sarma, paket adı (ör. `com.samiboran.platformfootball`), **targetSdk 36** (Play'in Ağustos 2026 kuralı) **(şart)**
+- [ ] GitHub Actions'ta otomatik APK/AAB üretimi; imza anahtarı (keystore) GitHub Secrets'ta, yedeği Sami'de **(şart)**
+- [ ] Android geri tuşu: maçta duraklat, menüde bir önceki ekran, ana menüde "çıkılsın mı?"
+- [ ] Uygulama arka plana gidince maçı duraklat, sesi kapat (`visibilitychange` / Capacitor `appStateChange`)
+- [ ] Çentik/kenar güvenli alanı (safe-area): HUD ve tuşlar kamera deliğinin altına girmesin
+- [ ] Yükleme ekranı (Boot'ta ilerleme çubuğu), ilk açılış süresi ölçümü
+- [ ] Gerçek orta seviye Android'de 60 FPS testi, gerekirse efekt kalitesi ayarı
+- [ ] Kayıt sürümleme: profil şeması değişince eski kaydı taşıma (`pf.profile.v1` → v2)
+- [ ] Hata/çökme raporlama (Sentry ücretsiz katman ya da Firebase Crashlytics) **(Sami)**
+
+### M9.2 İçerik ve cila
+- [ ] Gerçek ses efektleri + menü/maç müziği (lisanssız/üretilmiş), seyirci sesi
+- [ ] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil
+- [ ] İlk açılışta eğitim: hareket, şut/power, tut/parry, lob, falso, rövaşata (adım adım mini görevler)
+- [ ] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG)
+- [ ] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali
+- [ ] Altın/elmasın harcanacağı yer: karakter açma, kostüm/forma, top efekti **(Sami)**
+- [ ] Arjantin ve Kenya'yı açmak (sprite + denge) — v1 için şart değil **(Sami)**
+- [ ] Dil: Türkçe + İngilizce (metinleri tek dosyada topla)
+- [ ] Denge turu: XP eğrisi, özellikler, AI, lob/falso gücü (gerçek oyunculardan geri bildirimle)
+
+### M9.3 Mağaza ve yasal (Google Play)
+- [ ] Google Play geliştirici hesabı (tek seferlik 25 $) **(₺)(Sami)(şart)**
+- [ ] Yeni kişisel hesaplarda **kapalı test: en az 12 test kullanıcısı, 14 gün kesintisiz** — sonra üretime başvuru **(şart)**
+- [ ] Gizlilik politikası sayfası (GitHub Pages'te barındırılabilir) **(şart)**
+- [ ] Data safety (veri güvenliği) formu: hangi veri toplanıyor (sunucusuz v1'de neredeyse hiç) **(şart)**
+- [ ] İçerik derecelendirme (IARC anketi) ve hedef kitle beyanı — çocuklara yönelik seçilirse Aileler politikası devreye girer **(şart)(Sami)**
+- [ ] Mağaza sayfası: 512×512 ikon, 1024×500 tanıtım görseli, en az 2 ekran görüntüsü, kısa/uzun açıklama (TR/EN) **(şart)**
+- [ ] İsim/marka kontrolü ("Platform Football"), gerçek oyuncu/kulüp adı ve logosu kullanmama
+- [ ] Sürüm numaralama (versionName / versionCode) ve sürüm notları düzeni
+- [ ] (İleride) iOS: Apple Developer hesabı yıllık 99 $, Mac/Xcode gerekir **(₺)(Sami)**
+
+## M10 — Arka plan (backend) altyapısı
+### M10.1 Oyun mantığını ekrandan ayırma (her online yolun ön şartı)
+- [ ] `src/sim/`: Phaser'sız saf TypeScript maç simülasyonu (karakter, top, çatışma, enerji, kombolar)
+- [ ] Sabit adımlı döngü (60 Hz), girdiye dayalı (her karede iki oyuncunun tuşları)
+- [ ] Tohumlu rastgele sayı üretici (`Math.random` yerine) — şu an 8 dosyada `Math.random` var
+- [ ] Phaser sahnesi sadece çizer ve ses/efekt oynatır; cut-in/hitstop/gol olayları simülasyondan olay olarak gelir
+- [ ] Birim testleri (Vitest): fark tablosu, parry, dash kuralı, falso, ödüller; CI'da çalışsın
+- [ ] Maç tekrar kaydı (girdi dizisi) — hata ayıklama ve ileride paylaşma için
+
+### M10.2 Hesap ve bulut kayıt
+- [ ] Supabase projesi: misafir (anonim) giriş, sonra Google ile bağlama **(Sami)**
+- [ ] `profiles` tablosu: altın, elmas, XP, karakter seviyeleri, özellikler; Row Level Security
+- [ ] Telefondaki kaydı buluta taşıma ve cihazlar arası senkron (çakışma kuralı: sunucu kazanır)
+- [ ] Ödüller sunucuda hesaplansın (Edge Function maç sonucunu doğrular) — altın/elmas hilesine karşı
+- [ ] Kullanıcı adı + küfür/uygunsuz isim filtresi
+- [ ] **Hesap silme:** uygulama içinden ve web'den hesap + veri silme isteği (Play, hesap açılan uygulamalarda zorunlu tutuyor) **(şart)**
+- [ ] KVKK/GDPR aydınlatma metni, gizlilik politikasının güncellenmesi **(şart)**
+
+### M10.3 Online maç
+- [ ] Mimari kararı: (A) sunucu-otoriteli Colyseus (Fly.io/Railway, ~5 $/ay) / (B) telefon-telefon WebRTC + Supabase eşleştirme / (C) rollback **(Sami)(₺ A için)**
+- [ ] Oda kodu ile arkadaş maçı (ilk prototip)
+- [ ] Ağ kodu: kendi karakterinde istemci tahmini, rakip ve top için ara değerleme, sunucu düzeltmesi; cut-in/hitstop/gol olayları senkron
+- [ ] Ping göstergesi, bağlantı kopunca yeniden bağlanma, süre dolarsa hükmen kaybetme kuralı
+- [ ] Rastgele rakip eşleştirme kuyruğu + kupa/MMR puanı, yakın seviyeyle eşleştirme
+- [ ] Sunucu bölgesi (Avrupa / İstanbul'a yakın), gecikme ölçümü
+- [ ] Hile koruması: girdi doğrulama, hız sınırı, imkânsız hareket tespiti
+- [ ] Online maçta AI'ın yerine bot (eşleşme bulunamazsa)
+
+### M10.4 Canlı işletme (live ops)
+- [ ] Analitik: maç süresi, karakter başına kazanma oranı, ilk gün/7. gün geri dönüş — gizlilik uyumlu **(Sami)**
+- [ ] Uzaktan ayar (remote config): denge değerlerini güncelleme çıkarmadan değiştirme
+- [ ] Sıralama tablosu, sezonlar, ETKİNLİK düğmesi için haftalık görevler
+- [ ] Bildirimler (izinli, ileride)
+- [ ] Şikâyet/raporlama, banlama aracı
+- [ ] Sunucu izleme, yedekleme, maliyet alarmı **(₺)**
+
+### M10.5 Para kazanma (karar bekliyor)
+- [ ] Model: tamamen ücretsiz / reklam / uygulama içi satın alma (elmas) / tek seferlik ücret **(Sami)**
+- [ ] Satın alma varsa Google Play Billing + sunucuda makbuz doğrulama **(₺ Play %15–30 komisyon)**
+- [ ] Reklam varsa: rıza ekranı (GDPR/KVKK, Google UMP), ödüllü reklam yerleri, Data safety güncellemesi
