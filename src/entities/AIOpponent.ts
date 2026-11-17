@@ -28,6 +28,7 @@ import {
   OPPONENT_AIM_WOBBLE,
   OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER,
   OPPONENT_MOVE_DEADZONE,
+  OPPONENT_BALL_CHASE_DEADZONE,
   OPPONENT_TRACKING_LERP_SPEED,
   OPPONENT_CATCH_REACTION_SECONDS,
   OPPONENT_PERFECT_PARRY_CHANCE,
@@ -121,8 +122,10 @@ export class AIOpponent {
     const target = this.chooseTarget(ball, holdingTut);
     const dx = target.x - this.character.x;
     const dz = target.z - this.character.z;
-    const moveX = Math.abs(dx) > OPPONENT_MOVE_DEADZONE ? Math.sign(dx) : 0;
-    const moveZ = Math.abs(dz) > OPPONENT_MOVE_DEADZONE ? Math.sign(dz) : 0;
+    const chasingLooseBall = !holdingTut && ball.controller === null && ball.x >= CENTER_LINE_X;
+    const deadzone = chasingLooseBall ? OPPONENT_BALL_CHASE_DEADZONE : OPPONENT_MOVE_DEADZONE;
+    const moveX = Math.abs(dx) > deadzone ? Math.sign(dx) : 0;
+    const moveZ = Math.abs(dz) > deadzone ? Math.sign(dz) : 0;
     this.character.update(delta, { moveX, moveZ, jumpPressed: this.wantsJump(ball), dashPressed: false });
 
     if (holdingTut && isCatchableShot(ball, 'right', this.character)) {
@@ -168,6 +171,8 @@ export class AIOpponent {
       this.def.chaosTouch,
       this.character.moveVelX,
       this.character.moveVelZ,
+      this.character.x,
+      this.character.z,
     );
 
     if (ball.controller !== 'right') {

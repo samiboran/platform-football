@@ -318,6 +318,8 @@ export class MatchScene extends Phaser.Scene {
       this.character.chaosTouch,
       this.player.moveVelX,
       this.player.moveVelZ,
+      this.player.x,
+      this.player.z,
     );
 
     let controllingBall = this.ball.controller === 'left';

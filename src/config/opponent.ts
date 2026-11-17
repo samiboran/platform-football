@@ -58,6 +58,10 @@ export const OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER = 1.6;
  * more on a slower frame) with real margin, or it overshoots the deadzone
  * every frame and visibly vibrates in place instead of settling. */
 export const OPPONENT_MOVE_DEADZONE = 12;
+/** Tighter deadzone while walking onto a free ball in our half — the ball
+ * is only trapped on real foot contact (BALL_TRAP_CONTACT_X/Z), so
+ * stopping 12 short left the AI standing next to the ball forever. */
+export const OPPONENT_BALL_CHASE_DEADZONE = 5;
 
 /** Lerp rate (1/s) for the AI's *perceived* ball position, which it chases
  * instead of the ball's true position every frame. Without this the AI

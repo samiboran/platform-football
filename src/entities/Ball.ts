@@ -28,7 +28,8 @@ import {
   BALL_WALL_RESTITUTION,
   BALL_GROUND_FRICTION,
   BALL_MAX_SPEED,
-  BALL_CONTROL_RADIUS,
+  BALL_TRAP_CONTACT_X,
+  BALL_TRAP_CONTACT_Z,
   BALL_CONTROL_STRENGTH,
   DRIBBLE_POINT_LERP_SPEED,
   DRIBBLE_STICK_LERP_SPEED,
@@ -216,24 +217,32 @@ export class Ball {
     chaos = false,
     ownerVelX = 0,
     ownerVelZ = 0,
+    ownerX = rawTargetX,
+    ownerZ = rawTargetZ,
   ): void {
     const isMine = this.controller === side;
-    if (isDashing || airborne) {
+    if (airborne) {
       if (isMine) this.controller = null;
       return;
     }
+    // Dash keeps a ball already at the feet, but can't trap a new one —
+    // a dash is not a tackle.
+    if (isDashing && !isMine) return;
 
     if (!isMine) {
       const lockedOut = this.justReleasedBy === side && this.recaptureLockoutRemaining > 0;
-      const dist = Math.hypot(this.x - rawTargetX, this.z - rawTargetZ);
+      // Contact with the feet, not "near a point ahead of them".
+      const contact = Math.hypot((this.x - ownerX) / BALL_TRAP_CONTACT_X, (this.z - ownerZ) / BALL_TRAP_CONTACT_Z);
       const relSpeed = Math.hypot(this.vx - ownerVelX, this.vz - ownerVelZ);
-      if (lockedOut || dist > BALL_CONTROL_RADIUS || this.y > BALL_TRAP_MAX_HEIGHT || relSpeed > BALL_TRAP_MAX_RELATIVE_SPEED) {
+      if (lockedOut || contact > 1 || this.y > BALL_TRAP_MAX_HEIGHT || relSpeed > BALL_TRAP_MAX_RELATIVE_SPEED) {
         return;
       }
       this.controller = side;
       this.holdTimeRemaining = BALL_HOLD_SECONDS;
-      this.controlPointX = rawTargetX;
-      this.controlPointZ = rawTargetZ;
+      // Start the dribble point where the ball IS, then let it slide to
+      // the feet's dribble point — no snap, no visible pull.
+      this.controlPointX = this.x;
+      this.controlPointZ = this.z;
     } else {
       // The dribble point slides (never teleports) when facing flips, so
       // the ball visibly swings around the feet to the new direction.

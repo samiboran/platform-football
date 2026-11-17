@@ -29,6 +29,14 @@ import {
   RUN_VERTICAL_BOB_PX,
   KICK_POSE_SECONDS,
   CATCH_POSE_SECONDS,
+  DUST_TEXTURE_KEY,
+  DASH_DUST_INTERVAL,
+  DASH_DUST_LIFETIME_MS,
+  DASH_DUST_SCALE_FROM,
+  DASH_DUST_SCALE_TO,
+  DASH_DUST_ALPHA,
+  DASH_DUST_DRIFT,
+  DASH_DUST_JITTER,
 } from '../config/animation';
 
 export interface CharacterBounds {
@@ -84,6 +92,8 @@ export class Character {
   /** Velocity actually travelled last frame (boundary clamps included). */
   moveVelX = 0;
   moveVelZ = 0;
+  private readonly scene: Phaser.Scene;
+  private dustTimer = 0;
   private readonly bounds: CharacterBounds;
   private readonly shadow: Phaser.GameObjects.Ellipse;
   /** Per-character ground-speed multiplier (M4 character stats, 1.0 = base). */
@@ -142,6 +152,7 @@ export class Character {
     speedMultiplier = 1,
     characterId: CharacterId | null = null,
   ) {
+    this.scene = scene;
     this.x = startX;
     this.z = startZ;
     this.bounds = bounds;
@@ -272,9 +283,19 @@ export class Character {
     if (this.isDashing) {
       this.velX = this.dashVX;
       this.velZ = this.dashVZ;
+      const prevX = this.x;
+      const prevZ = this.z;
       this.x = Phaser.Math.Clamp(this.x + this.dashVX * dt, this.bounds.minX, this.bounds.maxX);
       this.z = Phaser.Math.Clamp(this.z + this.dashVZ * DEPTH_SPEED_FACTOR * dt, DEPTH_MIN, DEPTH_MAX);
+      // Real displacement, so a carried ball rides along with the dash.
+      this.moveVelX = dt > 0 ? (this.x - prevX) / dt : 0;
+      this.moveVelZ = dt > 0 ? (this.z - prevZ) / dt : 0;
       this.dashTimeRemaining -= dt;
+      this.dustTimer -= dt;
+      if (this.dustTimer <= 0 && this.y === 0) {
+        this.dustTimer = DASH_DUST_INTERVAL;
+        this.spawnDust();
+      }
     } else {
       const topSpeed = MOVE_SPEED * this.speedMultiplier * (stunned ? STUN_MOVE_MULTIPLIER : 1);
       const targetVX = input.moveX * topSpeed;
@@ -369,6 +390,33 @@ export class Character {
 
   private get isRunning(): boolean {
     return Math.hypot(this.velX, this.velZ) > RUN_SPEED_THRESHOLD && !this.isDashing && this.y === 0;
+  }
+
+  /** One dust puff at the feet, drifting back against the dash. */
+  private spawnDust(): void {
+    if (!this.scene.textures.exists(DUST_TEXTURE_KEY)) return;
+    const ground = projectToScreen(this.x, this.z, 0);
+    const len = Math.hypot(this.dashVX, this.dashVZ) || 1;
+    const backX = -this.dashVX / len;
+    const backY = this.dashVZ / len; // +z is up the screen
+    const jitter = () => (Math.random() - 0.5) * DASH_DUST_JITTER;
+    const puff = this.scene.add
+      .image(ground.screenX + jitter(), ground.screenY + jitter() * 0.5, DUST_TEXTURE_KEY)
+      .setOrigin(0.5, 1)
+      .setScale(DASH_DUST_SCALE_FROM * ground.scale)
+      .setAlpha(DASH_DUST_ALPHA)
+      .setFlipX(Math.random() < 0.5)
+      .setDepth(Math.round(ground.screenY) - 1);
+    this.scene.tweens.add({
+      targets: puff,
+      x: puff.x + backX * DASH_DUST_DRIFT,
+      y: puff.y + backY * DASH_DUST_DRIFT * 0.5 - 4,
+      scale: DASH_DUST_SCALE_TO * ground.scale,
+      alpha: 0,
+      duration: DASH_DUST_LIFETIME_MS,
+      ease: 'Quad.easeOut',
+      onComplete: () => puff.destroy(),
+    });
   }
 
   private syncTransform(): void {

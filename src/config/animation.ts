@@ -28,3 +28,17 @@ export const BALL_AURA_MIN_SPEED = 180;
 export function ballSpriteKey(level: number): string {
   return `ball_power${level}`;
 }
+
+/** Dash dust (Sami: "topla altında toz çıkararak dash"): a puff spawns at
+ * the feet every DASH_DUST_INTERVAL s while dashing, drifts back against
+ * the dash, grows and fades. */
+export const DUST_TEXTURE_KEY = 'dust';
+export const DASH_DUST_INTERVAL = 0.035;
+export const DASH_DUST_LIFETIME_MS = 320;
+export const DASH_DUST_SCALE_FROM = 2.4;
+export const DASH_DUST_SCALE_TO = 4.2;
+export const DASH_DUST_ALPHA = 0.95;
+/** Drift (screen px) opposite to the dash direction over its lifetime. */
+export const DASH_DUST_DRIFT = 22;
+/** Random spread (screen px) around the feet. */
+export const DASH_DUST_JITTER = 8;

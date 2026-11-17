@@ -432,6 +432,17 @@ def portrait(L: Look) -> Image.Image:
 
 # ---------------------------------------------------------------- fx
 
+def dust() -> Image.Image:
+    """Small dust puff kicked up under a dashing player (tweened in-game)."""
+    c = Canvas(12, 8)
+    base, hi, lo = rgb('f3eee4'), rgb('ffffff'), rgb('b3a58c')
+    for (x0, y0, x1, y1) in [(1, 3, 10, 6), (3, 1, 7, 7), (7, 2, 9, 3), (0, 5, 2, 6)]:
+        c.rect(x0, y0, x1, y1, base)
+    c.rect(3, 1, 5, 2, hi); c.rect(1, 3, 2, 4, hi)
+    c.rect(4, 6, 10, 6, lo)
+    return c.image(outline=False)
+
+
 def ball(level: int) -> Image.Image:
     """Ball with power aura. level 0 = plain, 1 yellow, 2 orange flame, 3 white-blue."""
     S = 21
@@ -641,6 +652,7 @@ def main():
         save(fx[i], 'assets', 'fx', f'ball_power{i}.png')
     save(fx[4], 'assets', 'fx', 'energy_drink.png')
     save(fx[5], 'assets', 'fx', 'energy_drink_gold.png')
+    fx.append(save(dust(), 'assets', 'fx', 'dust.png'))
     sheet_rows.append(fx)
 
     fans = []

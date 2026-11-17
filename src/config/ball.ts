@@ -53,14 +53,15 @@ export const BALL_MAX_SPEED = 1100;
 // character's velocity and is held on a dribble point ahead of the feet
 // that swings with the facing direction. See Ball.updateControl().
 
-/** How close the ball must be to a character's dribble point to be under
- * that character's control at all. Shrunk from an earlier 45 (roughly half
- * a character-width) — even with the force cap below, that radius let the
- * ball start curving in from a visible distance, still reading as a
- * magnet. Now closer to "the ball has to actually be near the feet". Not a
- * broad body-collision box (this project doesn't do rigid-body collision
- * between characters and the ball, see docs/PROGRESS.md). */
-export const BALL_CONTROL_RADIUS = 30;
+/** Trap only on real contact (Sami: "duran top hareket ediyor"): a free
+ * ball is taken only when it touches the feet — inside an ellipse around
+ * the character's feet, BALL_TRAP_CONTACT_X wide (world x px) and
+ * BALL_TRAP_CONTACT_Z deep (world z units, ~2.3 screen px each). Depth is
+ * more forgiving than x (CLAUDE.md §3). The old rule measured a 30 px
+ * radius from a point 14-24 px AHEAD of the feet, so a resting ball
+ * ~40 px away slid onto the feet before anyone touched it. */
+export const BALL_TRAP_CONTACT_X = 20;
+export const BALL_TRAP_CONTACT_Z = 14;
 /** Seek speed used only for the forced hold-timeout release push (see
  * Ball.update()). */
 export const BALL_CONTROL_STRENGTH = 260;
@@ -81,12 +82,9 @@ export const DRIBBLE_CHAOS_WOBBLE = 10;
 export const DRIBBLE_DISTANCE_WALK = 14;
 /** ...at full running speed (MOVE_SPEED). */
 export const DRIBBLE_DISTANCE_RUN = 24;
-/** ...right after a Dash — deliberately further than BALL_CONTROL_RADIUS:
- * the point the ball "should" reach if control could keep up at that
- * speed is genuinely out of reach, which is what actually causes the
- * "control kaybı" a Dash is supposed to risk (see Ball.updateControl(),
- * which also refuses to apply control at all while isDashing is true). */
-export const DRIBBLE_DISTANCE_DASH = 48;
+/** ...at Dash speed. Dash now KEEPS the ball (Sami: "topla dash yapsa"):
+ * it rides a little further ahead of the feet, kicking up dust. */
+export const DRIBBLE_DISTANCE_DASH = 30;
 /** Lerp rate (1/s) the dribble point itself (not the ball's velocity, the
  * *target* the control force steers toward) uses to follow the character's
  * raw feet+facing position — never teleports when facing direction

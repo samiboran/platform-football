@@ -14,10 +14,9 @@ import { DRIBBLE_DISTANCE_WALK, DRIBBLE_DISTANCE_RUN, DRIBBLE_DISTANCE_DASH } fr
  * The point sits ahead of the character along its facing direction; how
  * far ahead scales with the character's actual current speed (its real
  * velocity, post-acceleration — see movement.ts), not raw input: standing
- * still keeps the ball close, running pushes it further out, and a Dash's
- * burst speed pushes the target point out past BALL_CONTROL_RADIUS
- * entirely (Ball.updateControl() also refuses control outright while
- * dashing) — that's the intended "control kaybı" a Dash risks.
+ * still keeps the ball close, running pushes it further out, and a Dash
+ * carries it a little further still (DRIBBLE_DISTANCE_DASH) — the ball
+ * stays with a dashing player.
  */
 export function computeDribbleTarget(
   characterX: number,
