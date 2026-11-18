@@ -7,8 +7,10 @@ import { StadiumSelectScene } from './scenes/StadiumSelectScene';
 import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
 import { installAutoFullscreen } from './systems/mobileShell';
+import { registerOfflineCache } from './systems/offline';
 
 installAutoFullscreen();
+registerOfflineCache();
 
 new Phaser.Game({
   type: Phaser.AUTO,

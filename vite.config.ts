@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { serviceWorkerPlugin } from './tools/build/serviceWorkerPlugin';
 
 // Served from https://<user>.github.io/platform-football/ — keep base in
 // sync with the repo name (see CLAUDE.md section 11: wrong base = blank Pages).
@@ -9,6 +10,7 @@ export default defineConfig({
   // Vite's static public dir instead of introducing a separate public/
   // that would duplicate the same convention.
   publicDir: 'assets',
+  plugins: [serviceWorkerPlugin()],
   build: {
     outDir: 'dist',
   },
