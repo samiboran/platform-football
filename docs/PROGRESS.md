@@ -1125,3 +1125,6 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 
 ## Oturum 43 — Zamanlanmış M6 kontrolü
 - M6'nın tüm maddeleri zaten işaretli; yeni kapsam eklenmedi, kod değişmedi.
+
+## Oturum 44 — Zamanlanmış M6 kontrolü (18.11.2026)
+- M6'nın tüm maddeleri zaten işaretli; yeni kapsam eklenmedi, kod değişmedi.
