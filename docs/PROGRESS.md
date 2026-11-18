@@ -1142,3 +1142,11 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Doğrulama (Playwright):** önizlemede SW kontrolü aldı, 104 dosya önbellekte; sunucu kapatılıp yeniden yükleyince menü açıldı, hata yok. Sahte yeni sürümde eski önbellek silindi. Göreli base derlemesi kök adreste sorunsuz açıldı. Bu ortamda Android SDK/Gradle'a erişim yok → APK derlemesi CI'da doğrulanıyor.
 - **Sami bekliyor:** imza anahtarı (keystore) + GitHub Secrets (adımlar `docs/ANDROID.md`), hata raporlama servisi seçimi, gerçek telefonda 60 FPS testi.
 - **Kalan (M9.1):** geri tuşu, arka planda duraklatma, safe-area, yükleme ekranı, kayıt sürümleme.
+
+## Oturum 48 — M9.1: Android geri tuşu + arka planda duraklatma (18.11.2026, zamanlanmış)
+- **Geri tuşu** (`@capacitor/app`, `src/systems/appLifecycle.ts`, ayarlar `src/config/lifecycle.ts`): maçta duraklat (tekrar basınca devam), Karakter / Saha seçimi / Sonuç → ana menü, ana menüde "ÇIKILSIN MI?" penceresi (EVET uygulamayı kapatır, HAYIR ya da ikinci geri basış pencereyi kapatır). Sahne `onBackButton()` yazarak kendi davranışını belirleyebiliyor.
+- **Arka plan:** sekme gizlenince / uygulama arka plana gidince ses tamamen susuyor (Web Audio askıya), maç duraklatma menüsüne geçiyor. Geri gelince ses açılıyor, maç oyuncu DEVAM diyene kadar bekliyor.
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** menüde geri → pencere açıldı, ikinci geri → kapandı, HAYIR → kapandı; Karakter ve Saha ekranından geri → Menü; maçta geri → duraklat, tekrar → devam (süre akıyor); `visibilitychange` gizli → duraklatıldı + mute, görünür → mute kalktı, süre donuk. Konsol hatası yok, build ve `build:android` (cap sync) temiz. Gerçek cihaz geri tuşu CI APK'sıyla telefonda denenmeli.
+- **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi.
+- **Kalan (M9.1):** safe-area, yükleme ekranı, kayıt sürümleme.
+

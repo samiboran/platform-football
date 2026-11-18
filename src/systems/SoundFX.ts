@@ -6,6 +6,15 @@
  */
 export class SoundFX {
   private ctx: AudioContext | null = null;
+  /** M9.1: true while the app is in the background — no sound at all. */
+  private suspended = false;
+
+  setSuspended(on: boolean): void {
+    this.suspended = on;
+    if (!this.ctx) return;
+    if (on) void this.ctx.suspend();
+    else void this.ctx.resume();
+  }
 
   private getContext(): AudioContext {
     if (!this.ctx) {
@@ -17,6 +26,7 @@ export class SoundFX {
   }
 
   private tone(freq: number, duration: number, type: OscillatorType, startGain: number, delay = 0): void {
+    if (this.suspended) return;
     const ctx = this.getContext();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();

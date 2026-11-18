@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GAME_WIDTH } from '../config/arena';
+import { GAME_HEIGHT, GAME_WIDTH } from '../config/arena';
 import * as M from '../config/menus';
 import * as HUD from '../config/hud';
 import { CHARACTERS, characterSpriteKey } from '../config/characters';
@@ -10,6 +10,8 @@ import { makeFancyButton, panel, progressBar } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { accountLevel, characterLevel, equippedPerks, levelInfo, loadProfile, progressOf } from '../systems/profile';
 import { isFullscreen, isTouchDevice, toggleFullscreen } from '../systems/mobileShell';
+import * as L from '../config/lifecycle';
+import { exitApp } from '../systems/appLifecycle';
 
 /**
  * Main hub (M8, Kafa Topu style, "pixel modern"): account level + gold +
@@ -20,7 +22,11 @@ export class MenuScene extends Phaser.Scene {
     super('Menu');
   }
 
+  /** M9.1: "Çıkılsın mı?" dialog, open while non-null. */
+  private exitDialog: Phaser.GameObjects.Container | null = null;
+
   create(): void {
+    this.exitDialog = null;
     this.cameras.main.setZoom(1);
     drawHubBackdrop(this);
     const profile = loadProfile();
@@ -77,6 +83,44 @@ export class MenuScene extends Phaser.Scene {
     makeFancyButton(this, M.HUB_PLAY_X, M.HUB_BUTTON_Y, M.HUB_PLAY_W, M.HUB_PLAY_H, 'OYNA', M.HUB_PLAY_COLOR, () =>
       this.scene.start('StadiumSelect', { characterId: def.id }),
     { icon: 'icon_whistle', labelScale: 6 });
+  }
+
+  /** M9.1 Android back on the main menu: ask before closing the app;
+   * a second back press closes the dialog. */
+  onBackButton(): void {
+    if (this.exitDialog) {
+      this.closeExitDialog();
+      return;
+    }
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2;
+    const root = this.add.container(0, 0).setDepth(L.EXIT_DIALOG_DEPTH);
+    // Full-screen blocker so taps don't reach the hub behind the dialog.
+    root.add(this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, L.EXIT_DIALOG_OVERLAY_ALPHA).setOrigin(0).setInteractive());
+    root.add(panel(this, cx, cy, L.EXIT_DIALOG_W, L.EXIT_DIALOG_H, L.EXIT_DIALOG_PANEL_COLOR, 1, 18));
+    root.add(
+      this.add
+        .bitmapText(cx, cy - 55, HUD.PIXEL_FONT_KEY, HUD.toHudText(L.EXIT_DIALOG_TITLE))
+        .setScale(L.EXIT_DIALOG_TITLE_SCALE)
+        .setOrigin(0.5)
+        .setTint(HUD.UI_TITLE_COLOR),
+    );
+    const dx = (L.EXIT_DIALOG_BUTTON_W + L.EXIT_DIALOG_BUTTON_GAP) / 2;
+    const by = cy + 45;
+    const yes = makeFancyButton(this, cx - dx, by, L.EXIT_DIALOG_BUTTON_W, L.EXIT_DIALOG_BUTTON_H, L.EXIT_DIALOG_YES, L.EXIT_DIALOG_YES_COLOR, () => {
+      this.closeExitDialog();
+      exitApp();
+    }, { labelScale: 4 });
+    const no = makeFancyButton(this, cx + dx, by, L.EXIT_DIALOG_BUTTON_W, L.EXIT_DIALOG_BUTTON_H, L.EXIT_DIALOG_NO, L.EXIT_DIALOG_NO_COLOR, () => this.closeExitDialog(), {
+      labelScale: 4,
+    });
+    root.add([yes.container, no.container]);
+    this.exitDialog = root;
+  }
+
+  private closeExitDialog(): void {
+    this.exitDialog?.destroy();
+    this.exitDialog = null;
   }
 
   private drawTopBar(gold: number, gems: number): void {

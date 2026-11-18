@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { APP_BACKGROUND_EVENT } from '../config/lifecycle';
 import {
   GAME_WIDTH,
   GAME_HEIGHT,
@@ -269,6 +270,15 @@ export class MatchScene extends Phaser.Scene {
     this.createPauseButton();
     this.input.keyboard?.on('keydown-ESC', () => this.setPaused(!this.paused));
     this.input.keyboard?.on('keydown-P', () => this.setPaused(!this.paused));
+    // M9.1: app/tab sent to the background → pause (sound is muted globally).
+    const onBackground = () => this.setPaused(true);
+    this.game.events.on(APP_BACKGROUND_EVENT, onBackground);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off(APP_BACKGROUND_EVENT, onBackground));
+  }
+
+  /** M9.1 Android back: pause, or resume if the pause menu is open. */
+  onBackButton(): void {
+    this.setPaused(!this.paused);
   }
 
   update(_time: number, delta: number): void {

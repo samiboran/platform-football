@@ -5,6 +5,10 @@
 - Ekran yönü: yatay (`sensorLandscape`, `AndroidManifest.xml`).
 - İkon + açılış ekranı: `npm run android:icons` → `assets/icons/icon-512.png`'den üretilir (`tools/build/android_assets.py`).
 
+## Geri tuşu ve arka plan (`@capacitor/app`)
+- Geri tuşu `src/systems/appLifecycle.ts` üzerinden en üstteki sahneye gider: maçta duraklat/devam, Karakter/Saha/Sonuç → ana menü, ana menüde "ÇIKILSIN MI?" (EVET = `App.exitApp()`). Yönlendirme tablosu `src/config/lifecycle.ts`.
+- Uygulama arka plana gidince (`appStateChange` + `visibilitychange`) ses susar, maç duraklatma menüsünde bekler; geri gelince ses açılır, oyuncu DEVAM'a basar.
+
 ## Yerelde derleme
 ```
 npm ci

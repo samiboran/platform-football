@@ -8,11 +8,12 @@ import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
 import { installAutoFullscreen } from './systems/mobileShell';
 import { registerOfflineCache } from './systems/offline';
+import { installAppLifecycle } from './systems/appLifecycle';
 
 installAutoFullscreen();
 registerOfflineCache();
 
-new Phaser.Game({
+const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'app',
   width: GAME_WIDTH,
@@ -39,3 +40,5 @@ new Phaser.Game({
   },
   scene: [BootScene, MenuScene, CharactersScene, StadiumSelectScene, MatchScene, ResultScene],
 });
+
+installAppLifecycle(game);
