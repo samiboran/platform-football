@@ -12,5 +12,8 @@ export const SW_PRECACHE_EXCLUDE: RegExp[] = [/\.map$/, /(^|\/)README\.md$/, /(^
 /** Register the worker only in production builds (the dev server's HMR and
  *  a cache-first worker fight each other). */
 export const SW_ENABLED_IN_DEV = false;
+/** Inside the Capacitor Android app every file is already on the device
+ *  (served by Capacitor's local server), so no worker is needed there. */
+export const SW_ENABLED_IN_NATIVE = false;
 /** How often (ms) a long-running tab asks the server for a newer worker. */
 export const SW_UPDATE_CHECK_MS = 30 * 60 * 1000;

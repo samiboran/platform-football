@@ -3,16 +3,21 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "1v1 real-time arcade football with a depth axis — Pixel Cup Soccer look, Smash-Bros-like character abilities.",
+  "description": "1v1 real-time arcade football with a depth axis \u2014 Pixel Cup Soccer look, Smash-Bros-like character abilities.",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:android": "tsc -b && vite build --base ./ && cap sync android",
+    "android:icons": "python3 tools/build/android_assets.py",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.2",
+    "@capacitor/core": "^8.6.2",
     "phaser": "^3.87.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.2",
     "typescript": "^5.6.3",
     "vite": "^5.4.11"
   }

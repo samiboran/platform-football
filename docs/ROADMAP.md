@@ -137,9 +137,9 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 
 ## M9 — Telefon yayını hazırlığı (sunucusuz, tek oyunculu v1)
 ### M9.1 Teknik paket
-- [ ] İnternetsiz çalışma: service worker + önbellek, sürüm güncellenince yeni dosyaları alma
-- [ ] Android paketi: Capacitor ile sarma, paket adı (ör. `com.samiboran.platformfootball`), **targetSdk 36** (Play'in Ağustos 2026 kuralı) **(şart)**
-- [ ] GitHub Actions'ta otomatik APK/AAB üretimi; imza anahtarı (keystore) GitHub Secrets'ta, yedeği Sami'de **(şart)**
+- [x] İnternetsiz çalışma: service worker + önbellek, sürüm güncellenince yeni dosyaları alma
+- [x] Android paketi: Capacitor ile sarma, paket adı (ör. `com.samiboran.platformfootball`), **targetSdk 36** (Play'in Ağustos 2026 kuralı) **(şart)**
+- [ ] GitHub Actions'ta otomatik APK/AAB üretimi; imza anahtarı (keystore) GitHub Secrets'ta, yedeği Sami'de **(şart)** — imzasız debug APK CI'ı hazır (`android.yml`), imzalı AAB keystore bekliyor (Sami)
 - [ ] Android geri tuşu: maçta duraklat, menüde bir önceki ekran, ana menüde "çıkılsın mı?"
 - [ ] Uygulama arka plana gidince maçı duraklat, sesi kapat (`visibilitychange` / Capacitor `appStateChange`)
 - [ ] Çentik/kenar güvenli alanı (safe-area): HUD ve tuşlar kamera deliğinin altına girmesin

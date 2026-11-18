@@ -1,0 +1,51 @@
+name: Android debug APK
+
+# M9.1: builds the Capacitor Android wrapper on every push to main and
+# uploads an installable debug APK as a workflow artifact. This workflow is
+# separate from deploy.yml so an Android build problem can never block the
+# GitHub Pages deploy.
+#
+# Release signing (AAB for Google Play) is NOT done yet — it waits for the
+# upload keystore that Sami creates and keeps a backup of. When it exists,
+# add these repository secrets (Settings → Secrets and variables → Actions)
+# and a signed `bundleRelease` job — see docs/ANDROID.md:
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD,
+#   ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - run: npm run build:android
+      - name: Gradle assembleDebug
+        working-directory: android
+        run: ./gradlew --no-daemon assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: platform-football-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

@@ -1134,3 +1134,11 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 
 ## Oturum 46 — Zamanlanmış M6 kontrolü (18.11.2026)
 - M6 tamamen işaretli; kod değişmedi.
+
+## Oturum 47 — M9.1: internetsiz çalışma + Android (Capacitor) paketi (18.11.2026, zamanlanmış)
+- **İnternetsiz:** Build sırasında `sw.js` üretiliyor (`tools/build/serviceWorkerPlugin.ts`, ayarlar `src/config/offline.ts`). Tüm JS + `assets/` önceden önbelleğe alınıyor; önbellek adı içerik özeti → her deploy yeni önbellek, eskisi siliniyor. Sayfa açılışı önce ağdan (yeni sürüm bir sonraki açılışta), yoksa önbellekten. Dev sunucusunda ve Android uygulamasında kapalı.
+- **Android:** Capacitor 8 (`capacitor.config.ts`, `android/`), paket `com.samiboran.platformfootball`, **targetSdk 36**, compileSdk 36, minSdk 24, yatay ekran. İkon/açılış ekranı `npm run android:icons` ile oyun ikonundan. `npm run build:android` göreli base ile derleyip `cap sync` yapıyor; Pages derlemesi aynı (`/platform-football/`). Ayrıntı: `docs/ANDROID.md`.
+- **CI:** `.github/workflows/android.yml` her push'ta imzasız debug APK üretip artifact olarak yüklüyor (Pages deploy'undan ayrı iş). Pages iş akışı Node 22'ye çıktı (Capacitor CLI şartı).
+- **Doğrulama (Playwright):** önizlemede SW kontrolü aldı, 104 dosya önbellekte; sunucu kapatılıp yeniden yükleyince menü açıldı, hata yok. Sahte yeni sürümde eski önbellek silindi. Göreli base derlemesi kök adreste sorunsuz açıldı. Bu ortamda Android SDK/Gradle'a erişim yok → APK derlemesi CI'da doğrulanıyor.
+- **Sami bekliyor:** imza anahtarı (keystore) + GitHub Secrets (adımlar `docs/ANDROID.md`), hata raporlama servisi seçimi, gerçek telefonda 60 FPS testi.
+- **Kalan (M9.1):** geri tuşu, arka planda duraklatma, safe-area, yükleme ekranı, kayıt sürümleme.
