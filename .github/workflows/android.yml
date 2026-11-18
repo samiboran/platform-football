@@ -37,7 +37,8 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - uses: android-actions/setup-android@v3
+      # ubuntu-latest ships the Android SDK (ANDROID_HOME, licenses accepted);
+      # Gradle downloads any missing platform itself.
       - run: npm ci
       - run: npm run build:android
       - name: Gradle assembleDebug
