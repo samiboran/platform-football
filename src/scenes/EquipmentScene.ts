@@ -6,6 +6,7 @@ import * as E from '../config/equipment';
 import { makeFancyButton, panel } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { buyOrEquip, loadProfile, owns } from '../systems/profile';
+import { soundFX } from '../systems/SoundFX';
 
 /**
  * EKİPMAN (18.11.2026): boots / armband / headband, bought with gold and
@@ -18,6 +19,7 @@ export class EquipmentScene extends Phaser.Scene {
   }
 
   create(): void {
+    soundFX.playMusic('menu');
     drawHubBackdrop(this);
     const profile = loadProfile();
     makeFancyButton(this, 90, 40, 140, 54, 'GERİ', 0x34495e, () => this.scene.start('Menu'), { labelScale: 3 });
@@ -71,6 +73,7 @@ export class EquipmentScene extends Phaser.Scene {
       .rectangle(cx, cy, w, h, 0, 0)
       .setInteractive({ useHandCursor: true })
       .on('pointerup', () => {
+        soundFX.click();
         if (buyOrEquip(item.id)) this.scene.restart();
         else this.cameras.main.shake(120, 0.004);
       });

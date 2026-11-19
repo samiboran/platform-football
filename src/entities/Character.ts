@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { soundFX } from '../systems/SoundFX';
 import { perkMods, type PerkMods } from '../config/progression';
 import { CHARACTER_SPRITE_WIDTH, CHARACTER_HEIGHT, DEPTH_MIN, DEPTH_MAX, projectToScreen } from '../config/arena';
 import {
@@ -310,6 +311,7 @@ export class Character {
         this.dashVZ = (dirZ / len) * DASH_SPEED;
         this.dashTimeRemaining = DASH_DURATION;
         this.dashRetriggerTimer = DASH_COOLDOWN * this.mods.dashCooldownMultiplier;
+        soundFX.dash();
         // Air dash up/down sets up a falso for the strike that follows.
         if (this.y > 0 && Math.abs(dirZ / len) >= AIR_CURVE_DASH_MIN_Z) this.airCurveSide = Math.sign(dirZ);
       }
@@ -373,6 +375,7 @@ export class Character {
 
     if (input.jumpPressed && !stunned && this.y === 0) {
       this.vy = JUMP_VELOCITY;
+      soundFX.jump();
     }
     if (this.y > 0 || this.vy > 0) {
       let g = GRAVITY;

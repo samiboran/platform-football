@@ -12,6 +12,7 @@ import { accountLevel, characterLevel, equippedPerks, levelInfo, loadProfile, pr
 import { isFullscreen, isTouchDevice, toggleFullscreen } from '../systems/mobileShell';
 import * as L from '../config/lifecycle';
 import { exitApp } from '../systems/appLifecycle';
+import { soundFX } from '../systems/SoundFX';
 
 /**
  * Main hub (M8, Kafa Topu style, "pixel modern"): account level + gold +
@@ -26,6 +27,7 @@ export class MenuScene extends Phaser.Scene {
   private exitDialog: Phaser.GameObjects.Container | null = null;
 
   create(): void {
+    soundFX.playMusic('menu');
     this.exitDialog = null;
     this.cameras.main.setZoom(1);
     drawHubBackdrop(this);
@@ -46,7 +48,10 @@ export class MenuScene extends Phaser.Scene {
     const sprite = this.add.image(px, py + 6, characterSpriteKey(def.id, 'front')).setOrigin(0.5, 1);
     sprite.setScale(M.HUB_CHAR_HEIGHT / sprite.height);
     this.tweens.add({ targets: sprite, y: sprite.y - M.HUB_CHAR_BOB_PX, duration: M.HUB_CHAR_BOB_MS, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => this.scene.start('Characters'));
+    sprite.setInteractive({ useHandCursor: true }).on('pointerup', () => {
+      soundFX.click();
+      this.scene.start('Characters');
+    });
 
     // Name plate: name + level + XP to next level.
     const lvl = levelInfo(progressOf(def.id).xp);

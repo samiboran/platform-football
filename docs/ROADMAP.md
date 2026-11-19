@@ -149,7 +149,7 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [ ] Hata/çökme raporlama (Sentry ücretsiz katman ya da Firebase Crashlytics) **(Sami)**
 
 ### M9.2 İçerik ve cila
-- [ ] Gerçek ses efektleri + menü/maç müziği (lisanssız/üretilmiş), seyirci sesi
+- [x] Gerçek ses efektleri + menü/maç müziği (lisanssız/üretilmiş), seyirci sesi
 - [ ] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil
 - [ ] İlk açılışta eğitim: hareket, şut/power, tut/parry, lob, falso, rövaşata (adım adım mini görevler)
 - [ ] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG)

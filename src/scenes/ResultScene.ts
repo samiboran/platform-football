@@ -8,6 +8,8 @@ import * as HUD from '../config/hud';
 import { makeFancyButton, panel } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import type { MatchRewards } from '../systems/profile';
+import { soundFX } from '../systems/SoundFX';
+import { STINGER_DELAY_SECONDS } from '../config/audio';
 
 interface ResultData {
   scoreLeft?: number;
@@ -32,6 +34,8 @@ export class ResultScene extends Phaser.Scene {
   create(): void {
     drawHubBackdrop(this);
     const { scoreLeft: l = 0, scoreRight: r = 0, rewards, characterId, stadiumId } = this.resultData;
+    soundFX.stopMusic();
+    this.time.delayedCall(STINGER_DELAY_SECONDS * 1000, () => soundFX.stinger(l > r ? 'win' : l < r ? 'lose' : 'draw'));
     const title = l > r ? 'KAZANDIN!' : l < r ? 'KAYBETTİN' : 'BERABERE';
     const color = l > r ? HUD.UI_TITLE_COLOR : l < r ? 0xff8a7a : HUD.UI_TEXT_COLOR;
 

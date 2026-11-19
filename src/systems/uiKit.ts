@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import * as HUD from '../config/hud';
 import * as M_FANCY from '../config/menus';
+import { soundFX } from './SoundFX';
 
 export interface UiButton {
   container: Phaser.GameObjects.Container;
@@ -36,7 +37,9 @@ export function makeButton(
   bg.on('pointerout', () => container.setScale(1));
   bg.on('pointerup', () => {
     container.setScale(1);
-    if (enabled) onTap();
+    if (!enabled) return;
+    soundFX.click();
+    onTap();
   });
   return {
     container,
@@ -135,7 +138,9 @@ export function makeFancyButton(
   hit.on('pointerout', () => (face.y = 0));
   hit.on('pointerup', () => {
     face.y = 0;
-    if (enabled) onTap();
+    if (!enabled) return;
+    soundFX.click();
+    onTap();
   });
   return {
     container,

@@ -10,6 +10,7 @@ import { EquipmentScene } from './scenes/EquipmentScene';
 import { installAutoFullscreen } from './systems/mobileShell';
 import { registerOfflineCache } from './systems/offline';
 import { installAppLifecycle } from './systems/appLifecycle';
+import { soundFX } from './systems/SoundFX';
 
 installAutoFullscreen();
 registerOfflineCache();
@@ -43,3 +44,4 @@ const game = new Phaser.Game({
 });
 
 installAppLifecycle(game);
+soundFX.installUnlock();

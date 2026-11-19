@@ -10,6 +10,7 @@ import { portraitTextureKey } from '../systems/PowerCutIn';
 import { makeFancyButton, panel, progressBar } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { equippedPerks, levelInfo, loadProfile, progressOf, selectCharacter, togglePerk } from '../systems/profile';
+import { soundFX } from '../systems/SoundFX';
 
 const ALL_IDS: CharacterId[] = ['brazil', 'congo', 'argentina', 'kenya'];
 
@@ -22,6 +23,7 @@ export class CharactersScene extends Phaser.Scene {
   }
 
   create(data?: { viewing?: CharacterId }): void {
+    soundFX.playMusic('menu');
     drawHubBackdrop(this);
     this.viewing = data?.viewing ?? loadProfile().selected;
 
@@ -55,7 +57,11 @@ export class CharactersScene extends Phaser.Scene {
       this.add
         .rectangle(x, y, M.CHARS_TILE_W, M.CHARS_TILE_H, 0, 0)
         .setInteractive({ useHandCursor: true })
-        .on('pointerup', () => this.scene.restart({ viewing: id }));
+        .on('pointerup', () => {
+            soundFX.click();
+          soundFX.click();
+          this.scene.restart({ viewing: id });
+        });
     }
   }
 

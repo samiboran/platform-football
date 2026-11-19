@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { soundFX } from '../systems/SoundFX';
 import {
   BALL_RADIUS,
   DEPTH_MIN,
@@ -408,6 +409,7 @@ export class Ball {
     }
     if (this.y <= 0) {
       this.y = 0;
+      if (this.controller === null && this.vy < -BALL_MIN_BOUNCE_VY) soundFX.bounceAtSpeed(this.vy);
       const restitution = BALL_BOUNCE_RESTITUTION * this.tuning.bounceMultiplier;
       this.vy = Math.abs(this.vy) > BALL_MIN_BOUNCE_VY ? -this.vy * restitution : 0;
     }
@@ -435,6 +437,8 @@ export class Ball {
     this.spinAngle += (Math.min(speed, BALL_MAX_SPEED) / BALL_RADIUS) * dt;
 
     const prevX = this.x;
+    const preVX = this.vx;
+    const preVZ = this.vz;
     this.x += this.vx * dt;
     this.z += this.vz * dt;
 
@@ -478,6 +482,12 @@ export class Ball {
         this.x = RIGHT_GOAL_LINE_X;
         this.vx = -this.vx * BALL_WALL_RESTITUTION;
       }
+    }
+
+    // Wall / post / goal-back hit = a velocity sign flip this frame.
+    if (this.controller === null) {
+      if (Math.sign(this.vx) !== Math.sign(preVX) && preVX !== 0) soundFX.bounceAtSpeed(preVX);
+      else if (Math.sign(this.vz) !== Math.sign(preVZ) && preVZ !== 0) soundFX.bounceAtSpeed(preVZ);
     }
 
     this.syncTransform();

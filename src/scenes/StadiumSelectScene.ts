@@ -7,6 +7,7 @@ import * as HUD from '../config/hud';
 import { makeFancyButton, pixelText, type UiButton } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { loadPref, savePref } from '../systems/prefs';
+import { soundFX } from '../systems/SoundFX';
 
 interface StadiumSelectData {
   characterId: CharacterId;
@@ -28,6 +29,7 @@ export class StadiumSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    soundFX.playMusic('menu');
     this.borders.clear();
     drawHubBackdrop(this);
     pixelText(this, GAME_WIDTH / 2, M.SELECT_TITLE_Y, 'SAHAYI SEÇ', M.SELECT_TITLE_SCALE, HUD.UI_TITLE_COLOR);
@@ -104,7 +106,10 @@ export class StadiumSelectScene extends Phaser.Scene {
       .setScale(2)
       .setMaxWidth(wide ? w : (w - sw - 48) / 2)
       .setTint(HUD.UI_DIM_TEXT_COLOR);
-    bg.on('pointerup', () => this.select(def.id));
+    bg.on('pointerup', () => {
+      soundFX.click();
+      this.select(def.id);
+    });
   }
 
   private select(id: StadiumId): void {

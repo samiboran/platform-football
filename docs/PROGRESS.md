@@ -1161,3 +1161,14 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS + çentikli ekran + geri tuşu testi.
 - **Bilinen:** ekipman sprite'ta görünmüyor (renk kutusu); AI'da perk/ekipman yok (BACKLOG).
 
+## Oturum 50 — M9.2: ses efektleri, müzik, seyirci (19.11.2026, zamanlanmış)
+- **M9.1 durumu:** Claude'un yapabileceği her şey bitti; kalanlar Sami'de (imzalı AAB keystore, gerçek telefonda 60 FPS, hata raporlama servisi).
+- **Ses (M9.2.1):** Tümü çalışma anında Web Audio ile üretiliyor — dosya yok, lisans yok, internetsiz çalışıyor. Ayarlar `src/config/audio.ts`, motor `src/systems/SoundFX.ts` (master ← sfx / müzik / seyirci kanalları).
+  - Efektler: deri top vuruşu (gümleme + tık), power/çatışma patlaması (hitstop anında, kesitten sonra), kesit sırasında yükselen "şarj" sesi, top sekmesi (yer/duvar/direk/gövde, hıza göre şiddet, hafif yuvarlanmada sessiz), eldiven sesi (tutuş), mükemmel parry çınlaması, dash rüzgârı, zıplama, içecek, menü tık sesi, düdük (başlangıç uzun, bitiş kısa-kısa-uzun), gol jingle'ı, sonuç ekranında kazandın/berabere/kaybettin melodisi.
+  - Seyirci: maç boyunca uğultu döngüsü; power şutta "ooh", golde kükreme.
+  - Müzik: özgün chiptune — menüde samba havası (C–Am–F–G, 112 BPM), maçta sürükleyici minör döngü (138 BPM, kısık melodi). Duraklatınca müzik + seyirci kısılıyor.
+  - Tarayıcı kuralı gereği ses ilk dokunuşta açılıyor. Ses/müzik aç-kapa `soundFX.setSfxEnabled / setMusicEnabled` ile hazır, tercih `pf.audio.sfx` / `pf.audio.music` — ayarlar ekranı bunları kullanacak.
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** OfflineAudioContext ile 23 sesin hepsi render edildi: hepsi duyulur, hiçbiri kırpmıyor (en yüksek tepe 0.59). Maçta gerçek oyunda düdük/sekme/zıplama/dash/vuruş/gol çağrıları geldi; duraklatma kanalları kıstı, devam açtı; sonuç ekranında müzik + seyirci durdu; arka plana gidince ses bağlamı askıya alındı. Konsol hatası yok, build temiz.
+- **Kalan (M9.2):** ayarlar ekranı (sıradaki), eğitim, AI zorluk, lig, TR/EN dil, denge turu.
+- **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; seslerin kulağa hoş gelip gelmediği (ayarlar `config/audio.ts`).
+- **Bilinen:** sesler sentez — "gerçek kayıt" kalitesinde değil; istenirse ileride lisanssız örneklerle değiştirilebilir (çağrı noktaları aynı kalır).

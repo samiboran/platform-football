@@ -212,7 +212,13 @@ export class MatchScene extends Phaser.Scene {
     this.pauseMenu = null;
 
     drawPitch(this, this.stadium);
-    soundFX.whistle();
+    soundFX.whistle('start');
+    soundFX.playMusic('match');
+    soundFX.startCrowd();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      soundFX.stopCrowd();
+      soundFX.setDucked(false);
+    });
 
     // The stands already carry the stadium tint (pitchRenderer.ts); Kongo
     // additionally pulses to the street rhythm.
@@ -568,6 +574,7 @@ export class MatchScene extends Phaser.Scene {
   }
 
   private startHitstop(kind: ImpactKind): void {
+    soundFX.impact(kind);
     this.hitstopRemaining = Math.max(this.hitstopRemaining, HITSTOP_FRAMES[kind] * FEEL_FRAME_SECONDS);
     const shake = SHAKE[kind];
     if (shake.durationMs > 0) this.cameras.main.shake(shake.durationMs, shake.intensity);
@@ -576,11 +583,13 @@ export class MatchScene extends Phaser.Scene {
   /** Power shot / super: freeze for the portrait cut-in (CUTIN_SECONDS). */
   private startCutIn(side: 'left' | 'right', def: CharacterDef, level: number, caption?: string): void {
     this.cutInRemaining = CUTIN_SECONDS;
+    soundFX.powerCharge(level);
     playPowerCutIn(this, def.id, def.name, side, level, def.element, caption);
   }
 
   /** Perfect-parry feedback: brief white flash (fixed camera, no shake). */
   flashParry(): void {
+    soundFX.parry();
     const flash = this.add
       .rectangle(GAME_WIDTH / 2, GAME_HEIGHT / 2, GAME_WIDTH, GAME_HEIGHT, 0xffffff, PARRY_FLASH_ALPHA)
       .setDepth(20000);
@@ -845,7 +854,10 @@ export class MatchScene extends Phaser.Scene {
     for (const dx of [-barW, barW]) {
       this.add.rectangle(HUD.PAUSE_BUTTON_X + dx, HUD.PAUSE_BUTTON_Y, barW, barH, 0xffffff).setDepth(10001);
     }
-    btn.on('pointerup', () => this.setPaused(true));
+    btn.on('pointerup', () => {
+      soundFX.click();
+      this.setPaused(true);
+    });
   }
 
   /** M7.2 pause: freezes the match (update() returns early) and shows
@@ -853,6 +865,7 @@ export class MatchScene extends Phaser.Scene {
   private setPaused(on: boolean): void {
     if (this.matchOver || on === this.paused) return;
     this.paused = on;
+    soundFX.setDucked(on);
     this.pauseMenu?.destroy();
     this.pauseMenu = null;
     if (!on) {
@@ -937,7 +950,7 @@ export class MatchScene extends Phaser.Scene {
   private endMatch(): void {
     if (this.matchOver) return;
     this.matchOver = true;
-    soundFX.whistle();
+    soundFX.whistle('end');
     const rewards = grantMatchRewards(this.character.id, this.scoreLeft, this.scoreRight);
     this.scene.start('Result', {
       rewards,
