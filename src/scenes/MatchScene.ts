@@ -98,10 +98,15 @@ import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 import { BALL_POWER_LEVEL_MAX } from '../config/animation';
 import { AIOpponent } from '../entities/AIOpponent';
+import { Tutorial, type TutorialEvent } from '../systems/Tutorial';
+import * as TUT from '../config/tutorial';
+import { PVP_STADIUM } from '../config/stadiums';
 
 interface MatchData {
   characterId?: CharacterId;
   stadiumId?: StadiumId;
+  /** M9.2: run the step-by-step tutorial instead of a timed match. */
+  tutorial?: boolean;
 }
 
 /**
@@ -179,6 +184,13 @@ export class MatchScene extends Phaser.Scene {
   private replayStartIn: number | null = null;
   /** Ball popped up by our own jump and not touched since (air combo). */
   private airCarry = false;
+  /** M9.2 tutorial driver, or null in a normal match. */
+  private tutorial: Tutorial | null = null;
+  private tutorialMode = false;
+  /** Seconds the ball has been out of the player's control / on the
+   * ground (tutorial ball staging) and until the next practice shot. */
+  private tutorialBallIdle = 0;
+  private tutorialShotTimer = 0;
 
   constructor() {
     super('Match');
@@ -186,7 +198,8 @@ export class MatchScene extends Phaser.Scene {
 
   init(data: MatchData): void {
     this.character = CHARACTERS[data.characterId ?? 'argentina'];
-    this.stadium = STADIUMS[data.stadiumId ?? DEFAULT_STADIUM];
+    this.tutorialMode = data.tutorial === true;
+    this.stadium = STADIUMS[this.tutorialMode ? PVP_STADIUM : (data.stadiumId ?? DEFAULT_STADIUM)];
     // The computer picks a different character than the human's, purely
     // for variety — there's no AI character-select screen (out of scope).
     const pool = CHARACTER_ORDER.filter((id) => id !== this.character.id);
@@ -354,6 +367,68 @@ export class MatchScene extends Phaser.Scene {
     const onBackground = () => this.setPaused(true);
     this.game.events.on(APP_BACKGROUND_EVENT, onBackground);
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.game.events.off(APP_BACKGROUND_EVENT, onBackground));
+
+    this.tutorial = null;
+    if (this.tutorialMode) {
+      this.tutorial = new Tutorial(this, () => this.scene.start('StadiumSelect', { characterId: this.character.id }));
+      this.timeText.setText(HUD.toHudText(TUT.TUTORIAL_CLOCK_TEXT));
+      this.tutorialBallIdle = 0;
+      this.tutorialShotTimer = TUT.TUTORIAL_CATCH_SHOT_INTERVAL / 2;
+    }
+  }
+
+  private tutorialNotify(ev: TutorialEvent): void {
+    this.tutorial?.notify(ev);
+  }
+
+  /** Tutorial ball staging + practice shots, once per frame. The opponent
+   * just stands in its goal; energy is kept full so every move is open. */
+  private updateTutorial(dt: number): void {
+    const t = this.tutorial!;
+    this.player.gainPower(POWER_MAX_SEGMENTS);
+    t.update(dt, this.player);
+    if (t.isFinished) return;
+    const mode = t.ballMode;
+    const restage = t.consumeStepStart();
+    const feetX = () => Math.min(CENTER_LINE_X - 10, this.player.x + TUT.TUTORIAL_BALL_OFFSET_X);
+    switch (mode) {
+      case 'parked':
+        if (restage) this.ball.reset((CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2, 0);
+        break;
+      case 'feet':
+        this.tutorialBallIdle = this.ball.controller === 'left' ? 0 : this.tutorialBallIdle + dt;
+        if (restage || this.tutorialBallIdle > TUT.TUTORIAL_BALL_RESPAWN_SECONDS) {
+          this.ball.reset(feetX(), this.player.z, 0);
+          this.tutorialBallIdle = 0;
+        }
+        break;
+      case 'incoming': {
+        if (restage) this.ball.reset((CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2, 0);
+        const live = this.ball.lastTouchWasShot && !this.ball.clashResolved && this.ball.vx < 0;
+        if (live) break;
+        this.tutorialShotTimer -= dt;
+        if (this.tutorialShotTimer > 0) break;
+        this.tutorialShotTimer = TUT.TUTORIAL_CATCH_SHOT_INTERVAL;
+        const fromX = CENTER_LINE_X + TUT.TUTORIAL_CATCH_SHOT_FROM_X;
+        const fromZ = DEPTH_BAND_HEIGHT / 2;
+        this.ball.reset(fromX, fromZ, 0);
+        this.ball.element = this.opponentCharacter.element;
+        this.ball.shoot(this.player.x - fromX, this.player.z - fromZ, TUT.TUTORIAL_CATCH_SHOT_SPEED);
+        this.opponent.character.playKick(-1);
+        soundFX.kick();
+        break;
+      }
+      case 'toss': {
+        const resting = this.ball.controller !== null || (this.ball.y <= 1 && Math.abs(this.ball.vy) < 1);
+        this.tutorialBallIdle = resting ? this.tutorialBallIdle + dt : 0;
+        if (restage || this.tutorialBallIdle > TUT.TUTORIAL_TOSS_RETRY_SECONDS) {
+          this.ball.reset(Math.min(CENTER_LINE_X - 10, this.player.x + TUT.TUTORIAL_TOSS_OFFSET_X), this.player.z, TUT.TUTORIAL_TOSS_START_Y);
+          this.ball.vy = TUT.TUTORIAL_TOSS_VY;
+          this.tutorialBallIdle = 0;
+        }
+        break;
+      }
+    }
   }
 
   /** M9.1 Android back: pause, or resume if the pause menu is open. */
@@ -415,7 +490,12 @@ export class MatchScene extends Phaser.Scene {
     const dashPressed = this.input1.consumeDashPressed();
     const hadBallBeforeUpdate = this.ball.controller === 'left';
     const wasGrounded = this.player.y === 0;
+    const wasDashing = this.player.isDashing;
     this.player.update(delta, { moveX: move.x, moveZ: move.z, jumpPressed, dashPressed });
+    if (this.tutorial) {
+      if (wasGrounded && this.player.y > 0) this.tutorialNotify('jump');
+      if (!wasDashing && this.player.isDashing) this.tutorialNotify('dash');
+    }
     if (hadBallBeforeUpdate && wasGrounded && this.player.y > 0 && !this.player.isDashing) {
       // Jumped with the ball at the feet — it pops up with the player.
       this.shotChargeSeconds = null;
@@ -431,8 +511,12 @@ export class MatchScene extends Phaser.Scene {
       this.ball.vz = this.player.moveVelZ;
     }
     this.depthSortRef.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
-    this.opponent.update(delta, this.ball, this.player);
-    this.drinks.update(delta, [this.player, this.opponent.character], () => soundFX.pickup());
+    if (this.tutorial) {
+      this.opponent.character.update(delta, { moveX: 0, moveZ: 0, jumpPressed: false, dashPressed: false });
+    } else {
+      this.opponent.update(delta, this.ball, this.player);
+      this.drinks.update(delta, [this.player, this.opponent.character], () => soundFX.pickup());
+    }
     this.crowd.update(delta);
 
     this.rhythmClock = (this.rhythmClock + delta / 1000) % KONGO_RHYTHM_PERIOD_SECONDS;
@@ -538,6 +622,11 @@ export class MatchScene extends Phaser.Scene {
     this.replay.capture(dtSec);
     if (scored) this.onGoal(scored);
 
+    if (this.tutorial) {
+      this.updateTutorial(dtSec);
+      this.updatePowerBar();
+      return;
+    }
     this.timeRemaining = Math.max(0, this.timeRemaining - delta / 1000);
     this.updateHud();
     if (this.timeRemaining <= 0) {
@@ -572,6 +661,15 @@ export class MatchScene extends Phaser.Scene {
     const scorer = scorerSide === 'left' ? this.character : this.opponentCharacter;
     const conceder = goalSide === 'left' ? this.player : this.opponent.character;
     const level = this.ball.shotLevel;
+    if (this.tutorial) {
+      // No score in the tutorial — a short cheer, the step re-stages the ball.
+      soundFX.goal();
+      this.crowd.celebrate();
+      this.ball.reset((CENTER_LINE_X + RIGHT_GOAL_LINE_X) / 2, DEPTH_BAND_HEIGHT / 2, 0);
+      this.tutorialBallIdle = Infinity;
+      this.tutorialShotTimer = TUT.TUTORIAL_CATCH_SHOT_INTERVAL / 2;
+      return;
+    }
     if (scorerSide === 'left') this.scoreLeft += 1;
     else this.scoreRight += 1;
     conceder.gainPower(GOAL_CONCEDED_ENERGY_GAIN);
@@ -603,7 +701,10 @@ export class MatchScene extends Phaser.Scene {
       this.catchArmRemaining = 0;
       const perfect = this.catchArmElapsed <= PARRY_WINDOW_SECONDS + this.player.mods.parryWindowBonusSeconds;
       const result = applyCatchAttempt(this.ball, 'left', this.player, perfect);
-      if (result.outcome === 'hold' || result.outcome === 'spill') soundFX.save();
+      if (result.outcome === 'hold' || result.outcome === 'spill') {
+        soundFX.save();
+        this.tutorialNotify(result.perfect ? 'perfect' : 'catch');
+      }
       if (result.perfect) this.flashParry();
       return;
     }
@@ -674,6 +775,7 @@ export class MatchScene extends Phaser.Scene {
       strikeBall(this.ball, 'lob', w.x, w.z, { ...strike, speedScale: w.speedScale });
       this.player.playKick(1);
       soundFX.kick();
+      this.tutorialNotify('lob');
       return;
     }
     // 19.11.2026: snapped to the allowed angles (config/aim.ts).
@@ -684,6 +786,7 @@ export class MatchScene extends Phaser.Scene {
     strikeBall(this.ball, 'ground', w.x, w.z, { ...strike, speedScale: w.speedScale, chaos: this.character.chaosTouch });
     this.player.playKick(aimX);
     soundFX.kick();
+    this.tutorialNotify(level > 0 ? 'power' : 'shot');
   }
 
   /** Header/volley: strike a high free ball where it is, along the stick
@@ -707,6 +810,7 @@ export class MatchScene extends Phaser.Scene {
     });
     this.player.playKick(aimX);
     soundFX.kick();
+    this.tutorialNotify(curve !== 0 ? 'falso' : 'volley');
   }
 
   /** Kongo's "doğru anda basınca power bonusu" — a short recurring sweet
@@ -738,6 +842,7 @@ export class MatchScene extends Phaser.Scene {
     emitImpact('power');
     this.player.playBicycle();
     soundFX.kick();
+    this.tutorialNotify('bicycle');
   }
 
   /** Small rising caption above the player (combo feedback). */

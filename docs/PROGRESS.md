@@ -1193,3 +1193,13 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Doğrulama (Playwright, geçici hook kaldırıldı):** joystick 30°→45, 79°→70, 117°→110, yukarı→45, geri-aşağı→135. Orta derinlikten 45° normal şut yan duvara çarpıp sekiyor; 45° seviye-2 power şut duvardan sekip **gol** oldu. Ayarlar ekranı 8 satır sığıyor. Konsol hatası yok, build temiz.
 - **Bilinen:** AI açılara yapışmıyor ve bankoyu bilinçli kullanmıyor (kendi nişanı var). Normal şutla uzaktan banko gol zor — bilerek; daha kolay olsun istenirse `BALL_SIDE_WALL_RESTITUTION` ya da açı listesi değiştirilebilir.
 
+
+## Oturum 52 — M9.2: İlk açılış eğitimi (19.11.2026, zamanlanmış)
+- **EĞİTİM** (`src/systems/Tutorial.ts`, ayarlar/metinler `src/config/tutorial.ts`): süresiz bir maç içinde (Standart Saha, seçili karakter) 9 adımlık mini görev: Hareket (x ve derinlikte yürü, % gösterir) → Zıpla ×2 → Dash ×2 → Şut ×2 → Power şut → Lob → Tut/Parry ×2 (rakip yarıdan oyuncuya deneme şutları gelir, mükemmel parry ayrıca yazılır) → Falso (topla zıpla, havada yukarı/aşağı dash, vole; dash'siz vole yapınca uyarı) → Rövaşata (top oyuncunun yanına havaya atılır, zıpla + Özel).
+  - Eğitimde enerji hep dolu, saat yok (tabela altında "EĞİTİM"), içecek yok, rakip kalede durur, gol sayılmaz; top her adımda yeniden hazırlanır (ayağa / havaya / uzağa), kaçarsa ~2 sn sonra geri gelir.
+  - Metinler dokunmatik ve PC için ayrı (AKSİYON/ÖZEL vs SOL TIK/SAĞ TIK, WASD/SPACE/SHIFT).
+  - **İlk açılış:** ana menü ilk kez açılınca eğitim kendiliğinden başlar (`pf.tutorial.seen`, bir kez — yarıda çıkılsa da tekrar zorlamaz). Panelde **ATLA**; bitince "EĞİTİM TAMAM!" → MAÇA BAŞLA / ANA MENÜ (`pf.tutorial.done`). Ayarlar ekranında **EĞİTİM** düğmesiyle tekrar oynanır.
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** temiz tarayıcıda açılış doğrudan eğitime gitti; klavyeyle 9 adımın hepsi gerçek oyun girdileriyle tamamlandı (falso ve rövaşata dahil), bitiş ekranı → ANA MENÜ, Ayarlar > EĞİTİM tekrar başlattı, sayfa yenilenince menü açıldı (tekrar eğitim yok). Bulunan hata: havaya atılan top yerden başlayınca ayak hemen yakalıyordu → atış yakalama yüksekliğinin üstünden başlıyor (`TUTORIAL_TOSS_START_Y`). Konsol hatası yok, build temiz.
+- **Kalan (M9.2):** AI zorluk seviyeleri (sıradaki), lig modu, TR/EN dil, denge turu.
+- **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; altın/elmas harcama yeri ve Arjantin/Kenya kararı.
+- **Bilinen:** eğitim metinleri şimdilik sadece Türkçe (Dil maddesiyle EN gelecek). Mevcut oyuncular da bir kez eğitimle karşılaşır (ATLA ile geçilir).

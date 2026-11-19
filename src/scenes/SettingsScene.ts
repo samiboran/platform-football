@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import * as TUT from '../config/tutorial';
+import { loadProfile } from '../systems/profile';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import * as HUD from '../config/hud';
 import * as M from '../config/menus';
@@ -111,6 +113,10 @@ export class SettingsScene extends Phaser.Scene {
       soundFX.setMusicEnabled(true);
       this.scene.restart();
     }, { labelScale: 3 });
+
+    makeFancyButton(this, S.SETTINGS_PREVIEW_X, TUT.TUTORIAL_SETTINGS_Y, 200, 48, TUT.TUTORIAL_SETTINGS_LABEL, TUT.TUTORIAL_SETTINGS_COLOR, () =>
+      this.scene.start('Match', { tutorial: true, characterId: loadProfile().selected }),
+    { labelScale: 3 });
 
     this.drawPreview(s);
   }

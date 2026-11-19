@@ -13,6 +13,7 @@ import { isFullscreen, isTouchDevice, toggleFullscreen } from '../systems/mobile
 import * as L from '../config/lifecycle';
 import { exitApp } from '../systems/appLifecycle';
 import { soundFX } from '../systems/SoundFX';
+import { tutorialSeen } from '../systems/Tutorial';
 
 /**
  * Main hub (M8, Kafa Topu style, "pixel modern"): account level + gold +
@@ -27,6 +28,11 @@ export class MenuScene extends Phaser.Scene {
   private exitDialog: Phaser.GameObjects.Container | null = null;
 
   create(): void {
+    // M9.2: the very first launch goes straight into the tutorial (once).
+    if (!tutorialSeen()) {
+      this.scene.start('Match', { tutorial: true, characterId: loadProfile().selected });
+      return;
+    }
     soundFX.playMusic('menu');
     this.exitDialog = null;
     this.cameras.main.setZoom(1);
