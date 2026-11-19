@@ -91,6 +91,9 @@ export class MenuScene extends Phaser.Scene {
     makeFancyButton(this, M.HUB_CHAR_BTN_X, M.HUB_BUTTON_Y, M.HUB_CHAR_BTN_W, M.HUB_PLAY_H, 'KARAKTER', M.HUB_CHAR_BTN_COLOR, () =>
       this.scene.start('Characters'),
     { icon: 'icon_shirt', labelScale: 4 });
+    makeFancyButton(this, M.HUB_LEAGUE_BTN_X, M.HUB_BUTTON_Y, M.HUB_LEAGUE_BTN_W, M.HUB_PLAY_H, 'LİG', M.HUB_LEAGUE_BTN_COLOR, () =>
+      this.scene.start('League'),
+    { icon: 'icon_trophy', labelScale: 5 });
     makeFancyButton(this, M.HUB_PLAY_X, M.HUB_BUTTON_Y, M.HUB_PLAY_W, M.HUB_PLAY_H, 'OYNA', M.HUB_PLAY_COLOR, () =>
       this.scene.start('StadiumSelect', { characterId: def.id }),
     { icon: 'icon_whistle', labelScale: 6 });

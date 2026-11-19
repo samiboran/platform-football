@@ -1,5 +1,6 @@
 import { CHARACTER_ORDER, type CharacterId } from '../config/characters';
 import * as P from '../config/progression';
+import { LEAGUE_MATCH_COUNT, LEAGUE_STAGES, leagueSlot } from '../config/league';
 import { DEFAULT_EQUIPMENT, EQUIPMENT, equipById, type EquipSlot } from '../config/equipment';
 
 /**
@@ -23,6 +24,14 @@ export interface Profile {
   /** Equipment ids bought (price-0 starters are always owned). */
   owned: string[];
   equipped: Record<EquipSlot, string>;
+  /** M9.2 league run: next match (flat index into LEAGUE_STAGES) and how
+   * many times the player has won the Dünya Finali. */
+  league: LeagueProgress;
+}
+
+export interface LeagueProgress {
+  next: number;
+  titles: number;
 }
 
 export interface MatchRewards {
@@ -46,6 +55,7 @@ function fresh(): Profile {
     characters: {},
     owned: [],
     equipped: { ...DEFAULT_EQUIPMENT },
+    league: { next: 0, titles: 0 },
   };
 }
 
@@ -55,6 +65,7 @@ type RawSave = Record<string, unknown> & { version?: number };
  * v1 saves have no `version` field. */
 const MIGRATIONS: Record<number, (s: RawSave) => RawSave> = {
   1: (s) => ({ ...s, version: 2, owned: [], equipped: { ...DEFAULT_EQUIPMENT } }),
+  2: (s) => ({ ...s, version: 3, league: { next: 0, titles: 0 } }),
 };
 
 export function migrateSave(raw: RawSave): RawSave {
@@ -93,6 +104,11 @@ export function loadProfile(): Profile {
   // Drop gear that no longer exists (renamed/removed items).
   p.owned = (p.owned ?? []).filter((id) => equipById(id));
   p.equipped = { ...DEFAULT_EQUIPMENT, ...(p.equipped ?? {}) };
+  const lg = p.league ?? { next: 0, titles: 0 };
+  p.league = {
+    next: Math.min(Math.max(0, Math.floor(Number(lg.next) || 0)), LEAGUE_MATCH_COUNT),
+    titles: Math.max(0, Math.floor(Number(lg.titles) || 0)),
+  };
   for (const slot of Object.keys(DEFAULT_EQUIPMENT) as EquipSlot[]) {
     const item = equipById(p.equipped[slot]);
     if (!item || item.slot !== slot || !ownsItem(p, item.id)) p.equipped[slot] = DEFAULT_EQUIPMENT[slot];
@@ -222,4 +238,47 @@ export function grantMatchRewards(
   const newPerks = P.PERK_ORDER.filter((k) => P.PERKS[k].unlockLevel > levelBefore && P.PERKS[k].unlockLevel <= levelAfter);
   saveProfile();
   return { xp, gold, gems, levelBefore, levelAfter, newPerks };
+}
+
+/** M9.2 league result: a win advances the run (stage bonus on a stage's
+ * last match, a title on the final); a draw/loss leaves it where it is.
+ * `index` is the match that was played — stale replays don't advance. */
+export interface LeagueOutcome {
+  index: number;
+  won: boolean;
+  /** Stage just cleared (its bonus was paid), else null. */
+  stageCleared: number | null;
+  bonusGold: number;
+  bonusGems: number;
+  champion: boolean;
+}
+
+export function recordLeagueResult(index: number, goalsFor: number, goalsAgainst: number): LeagueOutcome {
+  const p = loadProfile();
+  const won = goalsFor > goalsAgainst;
+  const out: LeagueOutcome = { index, won, stageCleared: null, bonusGold: 0, bonusGems: 0, champion: false };
+  if (!won || index !== p.league.next) return out;
+  const slot = leagueSlot(index);
+  if (!slot) return out;
+  p.league.next = index + 1;
+  const stage = LEAGUE_STAGES[slot.stage];
+  if (slot.match === stage.matches.length - 1) {
+    out.stageCleared = slot.stage;
+    out.bonusGold = stage.bonusGold;
+    out.bonusGems = stage.bonusGems;
+    p.gold += stage.bonusGold;
+    p.gems += stage.bonusGems;
+    if (p.league.next >= LEAGUE_MATCH_COUNT) {
+      out.champion = true;
+      p.league.titles += 1;
+    }
+  }
+  saveProfile();
+  return out;
+}
+
+/** Start a new run after winning the final (titles are kept). */
+export function restartLeague(): void {
+  loadProfile().league.next = 0;
+  saveProfile();
 }

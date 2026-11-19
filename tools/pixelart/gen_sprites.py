@@ -574,6 +574,12 @@ def icon_lock():
     return _icon_from(rows, {'o': '1b2030', 'y': 'c8d0dc'})
 
 
+def icon_trophy():
+    """League cup (M9.2 Sokak Dünya Kupası)."""
+    rows = ['oooooooooo', 'oyywyyyyho', 'ooywyyyhoo', 'o.oyyyyho.o'[:10], '.ooyyyhoo.', '...oyho...', '....oo....', '...oyyo...', '..oddddo..', '..oooooo..']
+    return _icon_from(rows, {'o': '6a4a08', 'y': 'ffd23a', 'w': 'fff6c0', 'h': 'e0a020', 'd': '8a5a10'})
+
+
 # ---------------------------------------------------------------- crowd + HUD
 
 FAN_SHIRTS = ['e74c3c', 'f1c40f', '3498db', '2ecc71', 'f2f2f2', 'e67e22']
@@ -767,6 +773,7 @@ def main():
     hud.update({
         'icon_coin': icon_coin(), 'icon_gem': icon_gem(), 'icon_star': icon_star(),
         'icon_whistle': icon_whistle(), 'icon_shirt': icon_shirt(), 'icon_lock': icon_lock(),
+        'icon_trophy': icon_trophy(),
     })
     for name, img in hud.items():
         save(img, 'assets', 'hud', f'{name}.png')

@@ -14,6 +14,7 @@ export const BACK_TARGETS: Record<string, string> = {
   Equipment: 'Menu',
   Settings: 'Menu',
   StadiumSelect: 'Menu',
+  League: 'Menu',
   Result: 'Menu',
 };
 

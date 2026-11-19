@@ -81,12 +81,17 @@ export const HUB_CARD_COLOR = 0x1c1640;
 export const HUB_CARD_ALPHA = 0.88;
 
 export const HUB_BUTTON_Y = 496;
-export const HUB_PLAY_X = 650;
-export const HUB_PLAY_W = 400;
+// M9.2: bottom row re-spaced to fit LİG between KARAKTER and OYNA.
+export const HUB_PLAY_X = 727;
+export const HUB_PLAY_W = 386;
 export const HUB_PLAY_H = 80;
 export const HUB_PLAY_COLOR = 0x2f9ae0;
-export const HUB_CHAR_BTN_X = 250;
-export const HUB_CHAR_BTN_W = 300;
+export const HUB_CHAR_BTN_X = 160;
+export const HUB_CHAR_BTN_W = 260;
+/** M9.2 league button (Sokak Dünya Kupası). */
+export const HUB_LEAGUE_BTN_X = 412;
+export const HUB_LEAGUE_BTN_W = 210;
+export const HUB_LEAGUE_BTN_COLOR = 0xd4a017;
 export const HUB_CHAR_BTN_COLOR = 0x6a4ac0;
 /** EKİPMAN button in the hub's top bar (between account level and gold). */
 export const HUB_EQUIP_BTN_X = 335;

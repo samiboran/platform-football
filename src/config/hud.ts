@@ -36,6 +36,7 @@ export const HUD_TEXTURES = [
   'icon_whistle',
   'icon_shirt',
   'icon_lock',
+  'icon_trophy',
 ] as const;
 
 // --- Scoreboard (top center) -----------------------------------------------

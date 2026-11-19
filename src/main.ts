@@ -3,6 +3,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from './config/arena';
 import { BootScene } from './scenes/BootScene';
 import { MenuScene } from './scenes/MenuScene';
 import { CharactersScene } from './scenes/CharactersScene';
+import { LeagueScene } from './scenes/LeagueScene';
 import { StadiumSelectScene } from './scenes/StadiumSelectScene';
 import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
@@ -41,7 +42,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, CharactersScene, EquipmentScene, SettingsScene, StadiumSelectScene, MatchScene, ResultScene],
+  scene: [BootScene, MenuScene, CharactersScene, EquipmentScene, SettingsScene, StadiumSelectScene, LeagueScene, MatchScene, ResultScene],
 });
 
 installAppLifecycle(game);

@@ -68,7 +68,7 @@ import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
 import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
 import { isTouchDevice } from '../systems/mobileShell';
-import { equippedPerks, grantMatchRewards, equippedItems } from '../systems/profile';
+import { equippedPerks, grantMatchRewards, equippedItems, recordLeagueResult } from '../systems/profile';
 import { perkMods } from '../config/progression';
 import { vibrateImpact, vibrateGoal } from '../systems/haptics';
 import { BUTTON_RING_TAP_COLOR } from '../config/controls';
@@ -103,6 +103,8 @@ import { loadDifficulty } from '../systems/difficulty';
 import { Tutorial, type TutorialEvent } from '../systems/Tutorial';
 import * as TUT from '../config/tutorial';
 import { PVP_STADIUM } from '../config/stadiums';
+import { LEAGUE_REWARD_MULTIPLIER } from '../config/league';
+import { leagueMatch, leagueMatchLabel, leagueRival } from '../systems/league';
 
 interface MatchData {
   characterId?: CharacterId;
@@ -111,6 +113,9 @@ interface MatchData {
   tutorial?: boolean;
   /** M9.2 AI difficulty; defaults to the last one chosen. */
   difficulty?: DifficultyId;
+  /** M9.2 league match (flat index into LEAGUE_STAGES): its pitch,
+   * difficulty and rival override the above. */
+  leagueIndex?: number;
 }
 
 /**
@@ -192,6 +197,8 @@ export class MatchScene extends Phaser.Scene {
   private tutorial: Tutorial | null = null;
   private tutorialMode = false;
   private difficulty: DifficultyId = 'normal';
+  /** M9.2: league match being played, or null for a quick match. */
+  private leagueIndex: number | null = null;
   /** Seconds the ball has been out of the player's control / on the
    * ground (tutorial ball staging) and until the next practice shot. */
   private tutorialBallIdle = 0;
@@ -204,12 +211,18 @@ export class MatchScene extends Phaser.Scene {
   init(data: MatchData): void {
     this.character = CHARACTERS[data.characterId ?? 'argentina'];
     this.tutorialMode = data.tutorial === true;
-    this.difficulty = data.difficulty && DIFFICULTIES[data.difficulty] ? data.difficulty : loadDifficulty();
-    this.stadium = STADIUMS[this.tutorialMode ? PVP_STADIUM : (data.stadiumId ?? DEFAULT_STADIUM)];
-    // The computer picks a different character than the human's, purely
-    // for variety — there's no AI character-select screen (out of scope).
-    const pool = CHARACTER_ORDER.filter((id) => id !== this.character.id);
-    this.opponentCharacter = CHARACTERS[Phaser.Utils.Array.GetRandom(pool)];
+    const league = this.tutorialMode || data.leagueIndex === undefined ? null : leagueMatch(data.leagueIndex);
+    this.leagueIndex = league ? data.leagueIndex! : null;
+    this.difficulty = league ? league.def.difficulty : data.difficulty && DIFFICULTIES[data.difficulty] ? data.difficulty : loadDifficulty();
+    this.stadium = STADIUMS[this.tutorialMode ? PVP_STADIUM : league ? league.def.stadium : (data.stadiumId ?? DEFAULT_STADIUM)];
+    if (league) {
+      this.opponentCharacter = CHARACTERS[leagueRival(league.def, this.character.id)];
+    } else {
+      // The computer picks a different character than the human's, purely
+      // for variety — there's no AI character-select screen (out of scope).
+      const pool = CHARACTER_ORDER.filter((id) => id !== this.character.id);
+      this.opponentCharacter = CHARACTERS[Phaser.Utils.Array.GetRandom(pool)];
+    }
   }
 
   /** 19.11.2026 dashed shot-direction line (human only, config/aim.ts). */
@@ -971,10 +984,16 @@ export class MatchScene extends Phaser.Scene {
     if (!this.tutorialMode) {
       const d = DIFFICULTIES[this.difficulty];
       this.add
-        .bitmapText(GAME_WIDTH / 2, this.timeText.y + DIFFICULTY_TAG_DY, HUD.PIXEL_FONT_KEY, HUD.toHudText(d.label))
+        .bitmapText(
+          GAME_WIDTH / 2,
+          this.timeText.y + DIFFICULTY_TAG_DY,
+          HUD.PIXEL_FONT_KEY,
+          HUD.toHudText(this.leagueIndex !== null ? `${leagueMatchLabel(this.leagueIndex)} - ${d.label}` : d.label),
+        )
         .setScale(DIFFICULTY_TAG_SCALE)
         .setOrigin(0.5, 0)
         .setTint(d.color)
+        .setDropShadow(1, 1, 0x000000, 0.85)
         .setDepth(10001);
     }
 
@@ -1069,7 +1088,7 @@ export class MatchScene extends Phaser.Scene {
     const items: [string, () => void, boolean][] = [
       ['DEVAM', () => this.setPaused(false), true],
       ['YENİDEN BAŞLA', () => this.scene.restart(), false],
-      ['ANA MENÜ', () => this.scene.start('Menu'), false],
+      [this.leagueIndex !== null ? 'LİG' : 'ANA MENÜ', () => this.scene.start(this.leagueIndex !== null ? 'League' : 'Menu'), false],
     ];
     const step = HUD.PAUSE_MENU_BUTTON_H + HUD.PAUSE_MENU_BUTTON_GAP;
     items.forEach(([label, fn, primary], i) => {
@@ -1145,10 +1164,12 @@ export class MatchScene extends Phaser.Scene {
       this.character.id,
       this.scoreLeft,
       this.scoreRight,
-      DIFFICULTIES[this.difficulty].rewardMultiplier,
+      DIFFICULTIES[this.difficulty].rewardMultiplier * (this.leagueIndex !== null ? LEAGUE_REWARD_MULTIPLIER : 1),
     );
+    const league = this.leagueIndex !== null ? recordLeagueResult(this.leagueIndex, this.scoreLeft, this.scoreRight) : undefined;
     this.scene.start('Result', {
       rewards,
+      league,
       scoreLeft: this.scoreLeft,
       scoreRight: this.scoreRight,
       characterId: this.character.id,

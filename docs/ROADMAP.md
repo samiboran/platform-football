@@ -58,7 +58,7 @@ Kaynak: `CLAUDE.md` bölüm 8. Sırayla git, bir milestone bitmeden sonrakine ge
 - [x] 4 saha, veri tabanlı mekanik etkiler (top sekme/sürtünme çarpanı, rüzgar; "dar alan hissi" oyuncu hız çarpanıyla temsil ediliyor — saha geometrisini maça göre değiştirmek çok daha büyük bir iş olurdu) — Oturum 20'de görsel tarafı da gerçek hale geldi: her sahanın kendi zemin rengi var (kum/toprak/toprak/sokak), Kenya'da ayrıca çamur lekesi görseli
 - [x] Gerçek AI rakip (`src/entities/AIOpponent.ts`): sağ yarı sahada dolaşan, topu kovalayan, dribbling yapan/şut çeken bilgisayar oyuncusu — karakterini insanın seçiminden farklı rastgele bir karakterden alıyor. Kendi kalesini de kendisi savunuyor (ayrı bir kaleci yok, aşağıdaki doğrulamaya bakın). Oturum 20'de insana daha az "güdümlü/omniscient" hissettirmesi için top takibine gecikme ve tutma kararına reaksiyon süresi eklendi.
 - [x] İnsanın kendi "tut" input'u: Aksiyon topa dokunmadan basılırsa ve gerçek bir şut kendi kalesine geliyorsa (`ball.lastTouchWasShot`, hedefte, menzilde) tutma denemesi yapılıyor — Özellik'le birlikte basılırsa ve bar varsa power tutuş.
-- [ ] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali — gerçek rakip artık var, ama lig/kademe yapısı (farklı zorluk/karakter havuzları, ilerleme) henüz kurulmadı
+- [x] Lig/hikaye akışı: mahalle → şehir → kıta → dünya finali — M9.2'de yapıldı (Oturum 54)
 - [x] Ses efektleri (sentezlenmiş: şut/gol/düdük), seyirci tepkileri (tribünde placeholder noktalar, golde zıplayıp parlıyor) — sürekli kalabalık gürültüsü (sessizlik→uğultu→tezahürat) henüz yok
 - [x] Mobil dokunmatik kontrollerin son ayarı — çoklu dokunuş açığı bulunup düzeltildi (`input.activePointers`), joystick+zıpla artık aynı anda çalışıyor
 
@@ -145,7 +145,7 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [x] Çentik/kenar güvenli alanı (safe-area): HUD ve tuşlar kamera deliğinin altına girmesin
 - [x] Yükleme ekranı (Boot'ta ilerleme çubuğu), ilk açılış süresi ölçümü
 - [ ] Gerçek orta seviye Android'de 60 FPS testi, gerekirse efekt kalitesi ayarı
-- [x] Kayıt sürümleme: profil şeması değişince eski kaydı taşıma (`pf.profile.v1` → v2)
+- [x] Kayıt sürümleme: profil şeması değişince eski kaydı taşıma (`pf.profile.v1` → v2 → v3)
 - [ ] Hata/çökme raporlama (Sentry ücretsiz katman ya da Firebase Crashlytics) **(Sami)**
 
 ### M9.2 İçerik ve cila
@@ -153,7 +153,7 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [x] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil — dil satırı TÜRKÇE'de sabit, EN aşağıdaki "Dil" maddesiyle açılacak
 - [x] İlk açılışta eğitim: hareket, şut/power, tut/parry, lob, falso, rövaşata (adım adım mini görevler) — 9 adım, Ayarlar > EĞİTİM ile tekrar
 - [x] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG) — `config/difficulty.ts`, saha seçiminde RAKİP: KOLAY/ORTA/ZOR
-- [ ] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali
+- [x] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali — ana menüde **LİG**, 7 maçlık merdiven `config/league.ts`
 - [ ] Altın/elmasın harcanacağı yer: karakter açma, kostüm/forma, top efekti **(Sami)**
 - [ ] Arjantin ve Kenya'yı açmak (sprite + denge) — v1 için şart değil **(Sami)**
 - [ ] Dil: Türkçe + İngilizce (metinleri tek dosyada topla)
