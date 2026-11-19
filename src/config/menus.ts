@@ -24,9 +24,15 @@ export const LAST_STADIUM_KEY = 'pf.lastStadium';
 
 /** Stadium cards (2×2 grid). */
 export const STADIUM_CARD_W = 420;
-export const STADIUM_CARD_H = 170;
-export const STADIUM_CARD_GAP = 20;
-export const STADIUM_GRID_TOP = 90;
+export const STADIUM_CARD_H = 124;
+export const STADIUM_CARD_GAP = 14;
+/** The standard pitch: one wide, short card above the themed 2×2 grid. */
+export const STADIUM_WIDE_CARD_H = 84;
+/** Inner padding of the pitch swatch on a stadium card. */
+export const STADIUM_CARD_PAD = 12;
+/** Wide card: x offset of the description from the name column. */
+export const STADIUM_WIDE_DESC_DX = 260;
+export const STADIUM_GRID_TOP = 78;
 
 
 // --- M8 hub ("pixel modern": rounded, glossy panels over a pixel stadium) -----
@@ -82,6 +88,11 @@ export const HUB_PLAY_COLOR = 0x2f9ae0;
 export const HUB_CHAR_BTN_X = 250;
 export const HUB_CHAR_BTN_W = 300;
 export const HUB_CHAR_BTN_COLOR = 0x6a4ac0;
+/** EKİPMAN button in the hub's top bar (between account level and gold). */
+export const HUB_EQUIP_BTN_X = 335;
+export const HUB_EQUIP_BTN_W = 170;
+export const HUB_EQUIP_BTN_H = 44;
+export const HUB_EQUIP_BTN_COLOR = 0xc06a2a;
 
 // --- Fancy (pixel-modern) button ----------------------------------------------
 export const FANCY_RADIUS = 14;

@@ -142,10 +142,10 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [ ] GitHub Actions'ta otomatik APK/AAB üretimi; imza anahtarı (keystore) GitHub Secrets'ta, yedeği Sami'de **(şart)** — imzasız debug APK CI'ı hazır (`android.yml`), imzalı AAB keystore bekliyor (Sami)
 - [x] Android geri tuşu: maçta duraklat, menüde bir önceki ekran, ana menüde "çıkılsın mı?"
 - [x] Uygulama arka plana gidince maçı duraklat, sesi kapat (`visibilitychange` / Capacitor `appStateChange`)
-- [ ] Çentik/kenar güvenli alanı (safe-area): HUD ve tuşlar kamera deliğinin altına girmesin
-- [ ] Yükleme ekranı (Boot'ta ilerleme çubuğu), ilk açılış süresi ölçümü
+- [x] Çentik/kenar güvenli alanı (safe-area): HUD ve tuşlar kamera deliğinin altına girmesin
+- [x] Yükleme ekranı (Boot'ta ilerleme çubuğu), ilk açılış süresi ölçümü
 - [ ] Gerçek orta seviye Android'de 60 FPS testi, gerekirse efekt kalitesi ayarı
-- [ ] Kayıt sürümleme: profil şeması değişince eski kaydı taşıma (`pf.profile.v1` → v2)
+- [x] Kayıt sürümleme: profil şeması değişince eski kaydı taşıma (`pf.profile.v1` → v2)
 - [ ] Hata/çökme raporlama (Sentry ücretsiz katman ya da Firebase Crashlytics) **(Sami)**
 
 ### M9.2 İçerik ve cila

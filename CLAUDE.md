@@ -112,6 +112,7 @@ Sanal joystick (sol) + 4 tuş (sağ):
 
 - Tutma tuşuna basılmazsa güç 0.
 - **Mükemmel parry:** temastan önceki ~6 karede tutma = çatışmada +1, ayrıca +1 enerji.
+- **Gövde bloğu (18.11.2026):** Tut'a basmayan oyuncuya çarpan şut artık içinden geçmez: normal şut gövdeden seker ve önünde başıboş kalır; power şut oyuncuyu düşürür (~0.6 sn ÷ GÜÇ) ve biraz yavaşlayıp yoluna devam eder. Ayarlar `config/keeper.ts` (`BODY_BLOCK_*`).
 
 **Kazanım:** pasif +1 / ~5 sn, enerji içeceği (~12 sn'de bir iki sahada ayna konumda, +1; nadiren altın +2), mükemmel parry +1, gol yiyen +1. Ayrı doldurma tuşu yok.
 
@@ -138,6 +139,12 @@ Mevcut arketipler (hızlı elektrik, güçlü iri, vurunca alevli, beyzbol sopal
 
 **Kadro şimdilik 2 kişi: Brezilya (hızlı) ve Kongo (güçlü)** — `CHARACTER_ORDER`. Arjantin/Kenya verisi duruyor, sonra açılacak.
 
+**İsimler (18.11.2026, Sami):** ülke = takım (Sokak Dünya Kupası), karakterin kendi adı var: **Tiago** (Brezilya, BRA), **Nico** (Arjantin, ARG), **Baraka** (Kenya, KEN), **Kiala** (Kongo, COD). Skor tabelasında takım kodu görünür.
+
+**Statlar:** HIZ = koşu hızı, ŞUT = şut hızı, GÜÇ = gövde gücü (düşme süresi kısalır, gövdeden seken top daha uzağa gider).
+
+**Ekipman (18.11.2026):** pabuç / kol bandı / saç bandı, altınla alınır, tüm karakterlerde ortak (`config/equipment.ts`, menüde EKİPMAN). Her parça küçük bir takas (ör. Koşu Pabucu hız +%6, şut −%4) — parayla maç kazanılmasın diye.
+
 **Sprite pipeline (16.11 güncel): grafikleri Claude üretir.** `tools/pixelart/gen_sprites.py` prosedürel pixel art üretir (1 sprite pikseli = 2 ekran pikseli, front pozu tam 35px). Karakter görünümü (renkler, şapka vb.) scriptteki `LOOKS` listesinde. Değişiklik yapınca scripti çalıştır, `docs/sprite_sheet.png` önizlemesine bak. Eski Midjourney görselleri `assets/characters/_legacy_midjourney/` altında.
 
 ---
@@ -151,6 +158,8 @@ Her saha görsel + mekanik olarak farklı:
 - Kongo: müzikli sokak, ritim görsele yansır
 
 Saha etkileri `src/config/stadiums.ts` içinde veri olarak tanımlansın, kod içine gömülmesin.
+
+**Standart Saha (18.11.2026, Sami):** efektsiz çim saha, varsayılan. PvP ve ileride 2v2 hep burada (`PVP_STADIUM`). Temalı sahalar AI'ya karşı / lig için; efektleri yumuşatıldı (Kenya çamuru 2.6 → 1.6).
 
 ---
 

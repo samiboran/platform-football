@@ -9,7 +9,7 @@
  * until Oturum 20 (only a near-invisible 0.06-alpha tint overlay did).
  */
 
-export type StadiumId = 'brazil' | 'argentina' | 'kenya' | 'congo';
+export type StadiumId = 'standard' | 'brazil' | 'argentina' | 'kenya' | 'congo';
 
 export interface StadiumDef {
   id: StadiumId;
@@ -43,11 +43,29 @@ export interface StadiumDef {
 }
 
 export const STADIUMS: Record<StadiumId, StadiumDef> = {
+  // 18.11.2026 (Sami): a neutral pitch with no effects — the default, and
+  // the only pitch for PvP / future 2v2 (PVP_STADIUM). Themed pitches are
+  // flavour for AI / league matches.
+  standard: {
+    id: 'standard',
+    name: 'Standart — Çim Saha',
+    description: 'Efektsiz saha, PvP ve 2v2 sahası.',
+    bounceMultiplier: 1.0,
+    frictionMultiplier: 1.0,
+    speedMultiplier: 1.0,
+    windX: 0,
+    windZ: 0,
+    groundLight: 0x4caf50,
+    groundDark: 0x43a047,
+    tintColor: 0x2e7d32,
+    rhythmVisual: false,
+    muddy: false,
+  },
   brazil: {
     id: 'brazil',
     name: 'Brezilya — Kum Sahil',
     description: 'Kum saha, top daha az seker.',
-    bounceMultiplier: 0.6,
+    bounceMultiplier: 0.75,
     frictionMultiplier: 1.1,
     speedMultiplier: 1.0,
     windX: 0,
@@ -63,8 +81,8 @@ export const STADIUMS: Record<StadiumId, StadiumDef> = {
     name: 'Arjantin — Potrero',
     description: 'Engebeli toprak, dar alan hissi.',
     bounceMultiplier: 0.9,
-    frictionMultiplier: 1.2,
-    speedMultiplier: 0.9,
+    frictionMultiplier: 1.15,
+    speedMultiplier: 0.95,
     windX: 0,
     windZ: 0,
     groundLight: 0xa9784c,
@@ -76,16 +94,14 @@ export const STADIUMS: Record<StadiumId, StadiumDef> = {
   kenya: {
     id: 'kenya',
     name: 'Kenya — Toprak Saha',
-    description: 'Toprak saha, rüzgar topu etkiler — ıslak/çamurlu zeminde top yere değince sert yavaşlar.',
+    description: 'Toprak saha, rüzgar topu etkiler — çamurda top yerde çabuk yavaşlar.',
     bounceMultiplier: 0.7,
-    // Well above every other stadium (and the global default) on purpose —
-    // this IS the stadium's distinguishing physical identity: a shot keeps
-    // its speed in the air same as anywhere else, but the instant it's
-    // rolling on this ground it bleeds speed much faster than normal,
-    // reading as mud/wet dirt rather than a firm pitch.
-    frictionMultiplier: 2.6,
+    // Still the muddiest pitch, but softened 18.11.2026 (Sami: 2.6 made the
+    // ball crawl): a rolling ball bleeds speed faster than elsewhere
+    // without dying on the spot.
+    frictionMultiplier: 1.6,
     speedMultiplier: 1.0,
-    windX: 35,
+    windX: 20,
     windZ: 0,
     groundLight: 0xc98a4a,
     groundDark: 0x9c6530,
@@ -110,4 +126,8 @@ export const STADIUMS: Record<StadiumId, StadiumDef> = {
   },
 };
 
-export const STADIUM_ORDER: StadiumId[] = ['brazil', 'argentina', 'kenya', 'congo'];
+export const STADIUM_ORDER: StadiumId[] = ['standard', 'brazil', 'argentina', 'kenya', 'congo'];
+/** Default pitch (no saved choice yet). */
+export const DEFAULT_STADIUM: StadiumId = 'standard';
+/** PvP and the future 2v2 always play here — no pitch effects. */
+export const PVP_STADIUM: StadiumId = 'standard';

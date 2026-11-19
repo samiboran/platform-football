@@ -84,7 +84,7 @@ export class AIOpponent {
   private trackedBallX: number;
   private trackedBallZ: number;
 
-  constructor(scene: Phaser.Scene, def: CharacterDef) {
+  constructor(scene: Phaser.Scene, def: CharacterDef, pitchSpeedMultiplier = 1) {
     this.def = def;
     // Same reach as the human (whose bounds run to its own goal line): a
     // character-width margin here left a ball resting against the AI's end
@@ -94,7 +94,8 @@ export class AIOpponent {
     this.homeZ = DEPTH_BAND_HEIGHT / 2;
     this.trackedBallX = this.homeX;
     this.trackedBallZ = this.homeZ;
-    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier, def.id);
+    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier * pitchSpeedMultiplier, def.id);
+    this.character.bodyStrength = def.powerMultiplier;
   }
 
   update(delta: number, ball: Ball, rival?: RivalView): void {

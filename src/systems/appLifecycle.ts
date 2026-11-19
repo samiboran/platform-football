@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, SystemBars } from '@capacitor/core';
 import { APP_BACKGROUND_EVENT, APP_FOREGROUND_EVENT, BACK_TARGETS } from '../config/lifecycle';
 import { soundFX } from './SoundFX';
 
@@ -23,9 +23,17 @@ function hasBackHandler(scene: Phaser.Scene): scene is Phaser.Scene & BackHandle
 
 let backgrounded = false;
 
+/** Immersive play: hide status + navigation bars (native only; they come
+ * back on a swipe and Android re-shows them after the app resumes). */
+function hideSystemBars(): void {
+  if (!Capacitor.isNativePlatform()) return;
+  void SystemBars.hide().catch(() => undefined);
+}
+
 function setBackground(game: Phaser.Game, hidden: boolean): void {
   if (hidden === backgrounded) return;
   backgrounded = hidden;
+  if (!hidden) hideSystemBars();
   soundFX.setSuspended(hidden);
   game.sound.mute = hidden;
   game.events.emit(hidden ? APP_BACKGROUND_EVENT : APP_FOREGROUND_EVENT);
@@ -47,12 +55,14 @@ export function handleBackButton(game: Phaser.Game): void {
 /** Closes the app (native only; no-op in the browser). */
 export function exitApp(): void {
   if (!Capacitor.isNativePlatform()) return;
+  hideSystemBars();
   void import('@capacitor/app').then(({ App }) => App.exitApp());
 }
 
 export function installAppLifecycle(game: Phaser.Game): void {
   document.addEventListener('visibilitychange', () => setBackground(game, document.visibilityState === 'hidden'));
   if (!Capacitor.isNativePlatform()) return;
+  hideSystemBars();
   void import('@capacitor/app').then(({ App }) => {
     void App.addListener('appStateChange', ({ isActive }) => setBackground(game, !isActive));
     // Registering a listener replaces Capacitor's default (WebView history

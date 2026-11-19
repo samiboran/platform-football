@@ -44,7 +44,7 @@ export class CharactersScene extends Phaser.Scene {
     if (!this.textures.exists(portraitTextureKey(id))) portrait.setVisible(false);
     if (!open) portrait.setTint(0x202030);
     this.add.bitmapText(x - 18, y - 14, HUD.PIXEL_FONT_KEY, HUD.toHudText(def.name)).setScale(2).setOrigin(0, 0.5);
-    const sub = open ? `LV ${levelInfo(progressOf(id).xp).level}` : M.CHARS_COMING_SOON;
+    const sub = open ? `${def.teamCode} LV ${levelInfo(progressOf(id).xp).level}` : M.CHARS_COMING_SOON;
     this.add
       .bitmapText(x - 18, y + 14, HUD.PIXEL_FONT_KEY, HUD.toHudText(sub))
       .setScale(2)
@@ -74,7 +74,7 @@ export class CharactersScene extends Phaser.Scene {
     this.add.ellipse(left + 90, top + 192, 120, 26, 0x000000, 0.35).setDepth(-1);
     const lvl = levelInfo(progressOf(id).xp);
     this.add.bitmapText(left + 90, top + 222, HUD.PIXEL_FONT_KEY, HUD.toHudText(def.name)).setScale(3).setOrigin(0.5);
-    this.add.bitmapText(left + 90, top + 252, HUD.PIXEL_FONT_KEY, `LV ${lvl.level}`).setScale(3).setOrigin(0.5).setTint(HUD.UI_TITLE_COLOR);
+    this.add.bitmapText(left + 90, top + 252, HUD.PIXEL_FONT_KEY, HUD.toHudText(`${def.teamCode} LV ${lvl.level}`)).setScale(3).setOrigin(0.5).setTint(HUD.UI_TITLE_COLOR);
     progressBar(this, left + 20, top + 280, 140, 12, elementColor(def.element, 2))(lvl.need > 0 ? lvl.into / lvl.need : 1);
     this.add
       .bitmapText(left + 90, top + 302, HUD.PIXEL_FONT_KEY, lvl.need > 0 ? `${lvl.into}/${lvl.need} XP` : 'MAX')

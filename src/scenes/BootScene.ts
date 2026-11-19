@@ -15,12 +15,33 @@ import {
   PIXEL_FONT_PER_ROW,
 } from '../config/hud';
 
+import { GAME_HEIGHT, GAME_WIDTH } from '../config/arena';
+import * as B from '../config/boot';
+
 export class BootScene extends Phaser.Scene {
   constructor() {
     super('Boot');
   }
 
+  /** M9.1: progress bar + a rolling ball while the sprites load. */
+  private drawLoadingBar(): void {
+    document.getElementById('boot-loading')?.remove();
+    const cx = GAME_WIDTH / 2;
+    const cy = GAME_HEIGHT / 2 + 30;
+    const left = cx - B.BOOT_BAR_W / 2;
+    this.add.rectangle(cx, cy, B.BOOT_BAR_W + 6, B.BOOT_BAR_H + 6, B.BOOT_BAR_BG).setStrokeStyle(3, B.BOOT_BAR_BORDER);
+    const fill = this.add.rectangle(left, cy, 0, B.BOOT_BAR_H, B.BOOT_BAR_FILL).setOrigin(0, 0.5);
+    const ball = this.add.circle(left, cy - B.BOOT_BAR_H - B.BOOT_BALL_RADIUS, B.BOOT_BALL_RADIUS, 0xffffff).setStrokeStyle(3, 0x222222);
+    const seam = this.add.rectangle(left, ball.y, B.BOOT_BALL_RADIUS * 2, 3, 0x222222);
+    this.tweens.add({ targets: seam, angle: 360, duration: B.BOOT_BALL_SPIN_MS, repeat: -1 });
+    this.load.on(Phaser.Loader.Events.PROGRESS, (v: number) => {
+      fill.width = B.BOOT_BAR_W * v;
+      ball.x = seam.x = left + B.BOOT_BAR_W * v;
+    });
+  }
+
   preload(): void {
+    this.drawLoadingBar();
     for (const id of CHARACTER_ORDER) {
       for (const pose of CHARACTER_POSES) {
         this.load.image(characterSpriteKey(id, pose), `characters/${id}/${pose}.png`);
@@ -60,6 +81,14 @@ export class BootScene extends Phaser.Scene {
       lineSpacing: 0,
     });
     this.cache.bitmapFont.add(PIXEL_FONT_KEY, fontEntry);
+    // M9.1 cold-start measurement (page start → menu).
+    const bootMs = Math.round(performance.now());
+    console.info(`[boot] ready in ${bootMs} ms`);
+    try {
+      window.localStorage.setItem(B.BOOT_TIME_STORAGE_KEY, String(bootMs));
+    } catch {
+      /* storage unavailable */
+    }
     this.scene.start('Menu');
   }
 }

@@ -1,5 +1,6 @@
 import { CHARACTER_ORDER, type CharacterId } from '../config/characters';
 import * as P from '../config/progression';
+import { DEFAULT_EQUIPMENT, EQUIPMENT, equipById, type EquipSlot } from '../config/equipment';
 
 /**
  * Player profile (M8): currencies, account XP, selected character, and each
@@ -12,11 +13,16 @@ export interface CharacterProgress {
 }
 
 export interface Profile {
+  /** Save schema version (config/progression.ts PROFILE_VERSION). */
+  version: number;
   gold: number;
   gems: number;
   accountXp: number;
   selected: CharacterId;
   characters: Partial<Record<CharacterId, CharacterProgress>>;
+  /** Equipment ids bought (price-0 starters are always owned). */
+  owned: string[];
+  equipped: Record<EquipSlot, string>;
 }
 
 export interface MatchRewards {
@@ -31,21 +37,98 @@ export interface MatchRewards {
 let cache: Profile | null = null;
 
 function fresh(): Profile {
-  return { gold: 0, gems: 0, accountXp: 0, selected: P.DEFAULT_CHARACTER, characters: {} };
+  return {
+    version: P.PROFILE_VERSION,
+    gold: 0,
+    gems: 0,
+    accountXp: 0,
+    selected: P.DEFAULT_CHARACTER,
+    characters: {},
+    owned: [],
+    equipped: { ...DEFAULT_EQUIPMENT },
+  };
+}
+
+type RawSave = Record<string, unknown> & { version?: number };
+
+/** One step per schema bump: MIGRATIONS[n] turns a v(n) save into v(n+1).
+ * v1 saves have no `version` field. */
+const MIGRATIONS: Record<number, (s: RawSave) => RawSave> = {
+  1: (s) => ({ ...s, version: 2, owned: [], equipped: { ...DEFAULT_EQUIPMENT } }),
+};
+
+export function migrateSave(raw: RawSave): RawSave {
+  let s = raw;
+  let v = typeof s.version === 'number' ? s.version : 1;
+  while (v < P.PROFILE_VERSION && MIGRATIONS[v]) {
+    s = MIGRATIONS[v](s);
+    v = typeof s.version === 'number' ? s.version : v + 1;
+  }
+  return s;
+}
+
+function readSave(): RawSave | null {
+  for (const key of [P.PROFILE_STORAGE_KEY, ...P.LEGACY_PROFILE_KEYS]) {
+    const raw = window.localStorage.getItem(key);
+    if (raw) return JSON.parse(raw) as RawSave;
+  }
+  return null;
 }
 
 export function loadProfile(): Profile {
   if (cache) return cache;
   let p = fresh();
+  let migrated = false;
   try {
-    const raw = window.localStorage.getItem(P.PROFILE_STORAGE_KEY);
-    if (raw) p = { ...p, ...JSON.parse(raw) };
+    const saved = readSave();
+    if (saved) {
+      const before = saved.version ?? 1;
+      p = { ...p, ...migrateSave(saved) } as Profile;
+      migrated = before < P.PROFILE_VERSION;
+    }
   } catch {
     /* corrupted or unavailable — start fresh */
   }
   if (!CHARACTER_ORDER.includes(p.selected)) p.selected = CHARACTER_ORDER[0];
+  // Drop gear that no longer exists (renamed/removed items).
+  p.owned = (p.owned ?? []).filter((id) => equipById(id));
+  p.equipped = { ...DEFAULT_EQUIPMENT, ...(p.equipped ?? {}) };
+  for (const slot of Object.keys(DEFAULT_EQUIPMENT) as EquipSlot[]) {
+    const item = equipById(p.equipped[slot]);
+    if (!item || item.slot !== slot || !ownsItem(p, item.id)) p.equipped[slot] = DEFAULT_EQUIPMENT[slot];
+  }
   cache = p;
+  if (migrated) saveProfile();
   return p;
+}
+
+function ownsItem(p: Profile, id: string): boolean {
+  const item = equipById(id);
+  return !!item && (item.price === 0 || p.owned.includes(id));
+}
+
+export function owns(id: string): boolean {
+  return ownsItem(loadProfile(), id);
+}
+
+/** Buy (if needed and affordable) and equip an item. False = not enough gold. */
+export function buyOrEquip(id: string): boolean {
+  const p = loadProfile();
+  const item = equipById(id);
+  if (!item) return false;
+  if (!ownsItem(p, id)) {
+    if (p.gold < item.price) return false;
+    p.gold -= item.price;
+    p.owned = [...p.owned, id];
+  }
+  p.equipped[item.slot] = id;
+  saveProfile();
+  return true;
+}
+
+/** Ids of the equipped items, one per slot. */
+export function equippedItems(): string[] {
+  return Object.values(loadProfile().equipped).filter((id) => EQUIPMENT.some((e) => e.id === id));
 }
 
 export function saveProfile(): void {

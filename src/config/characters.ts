@@ -14,20 +14,24 @@ export type CharacterId = 'brazil' | 'argentina' | 'kenya' | 'congo';
 
 export interface CharacterDef {
   id: CharacterId;
+  /** The kid's own name (18.11.2026, Sami: characters aren't "Kenya",
+   * "Kongo" — the country is the team they play for). */
   name: string;
+  /** National team (Sokak Dünya Kupası, like a UEFA/FIFA cup). */
+  team: string;
+  /** 3-letter team code for the scoreboard (FIFA style). */
+  teamCode: string;
   origin: string;
   archetype: string;
   special: string;
   /** Ground move speed multiplier (x/z). */
   speedMultiplier: number;
-  /** Ball-touch push strength multiplier. */
+  /** GÜÇ — body strength: divides how long this kid stays down when
+   * stunned/knocked over, and multiplies how far a normal shot bounces off
+   * their body (systems/catchMatrix.ts applyBodyBlock). */
   powerMultiplier: number;
-  /** Placeholder for the M3 shot-power stat — how hard a "power şut" lands. */
+  /** ŞUT — multiplies every shot's speed. */
   shotPowerMultiplier: number;
-  /** Placeholder for the M3 catch-chance stat (goalkeeping). */
-  catchChance: number;
-  /** Catch cooldown in seconds (CLAUDE.md: ~5-8s, per character). */
-  cooldownSeconds: number;
   /** Kenya's plastic-bag ball wobbles unpredictably in the air — a small
    * random jitter added whenever this character touches the ball. */
   chaosTouch: boolean;
@@ -40,60 +44,60 @@ export interface CharacterDef {
 export const CHARACTERS: Record<CharacterId, CharacterDef> = {
   brazil: {
     id: 'brazil',
-    name: 'Brezilya',
+    name: 'Tiago',
+    team: 'Brezilya',
+    teamCode: 'BRA',
     origin: 'Favela/plaj çocuğu',
     archetype: 'Hızlı / elektrik',
     special: 'Capoeira ters vuruşu (ginga çalımı)',
     speedMultiplier: 1.25,
     powerMultiplier: 0.9,
     shotPowerMultiplier: 0.95,
-    catchChance: 0.9,
-    cooldownSeconds: 5,
     chaosTouch: false,
     element: 'lightning',
     color: 0xf1c40f,
   },
   argentina: {
     id: 'argentina',
-    name: 'Arjantin',
+    name: 'Nico',
+    team: 'Arjantin',
+    teamCode: 'ARG',
     origin: 'Potrero (toprak arsa) çocuğu',
     archetype: 'Dengeli',
     special: 'Gambeta — dar alanda top kontrolü',
     speedMultiplier: 1.0,
     powerMultiplier: 1.0,
     shotPowerMultiplier: 1.0,
-    catchChance: 1.0,
-    cooldownSeconds: 6.5,
     chaosTouch: false,
     element: 'earth',
     color: 0x6fa8dc,
   },
   kenya: {
     id: 'kenya',
-    name: 'Kenya',
+    name: 'Baraka',
+    team: 'Kenya',
+    teamCode: 'KEN',
     origin: 'Topunu poşetten yapan çocuk',
     archetype: 'Zayıf şut, kaotik',
     special: 'Poşet top — havada öngörülemez sapar',
     speedMultiplier: 0.95,
     powerMultiplier: 0.75,
     shotPowerMultiplier: 0.7,
-    catchChance: 0.85,
-    cooldownSeconds: 7,
     chaosTouch: true,
     element: 'wind',
     color: 0xe67e22,
   },
   congo: {
     id: 'congo',
-    name: 'Kongo',
+    name: 'Kiala',
+    team: 'Kongo',
+    teamCode: 'COD',
     origin: 'Kinşasa, sapeur/rumba kültürü',
     archetype: 'Güçlü / iri',
     special: 'Ritimli zamanlama — doğru anda basınca power bonusu',
     speedMultiplier: 0.8,
     powerMultiplier: 1.3,
     shotPowerMultiplier: 1.25,
-    catchChance: 1.1,
-    cooldownSeconds: 8,
     chaosTouch: false,
     element: 'fire',
     color: 0x9b59b6,

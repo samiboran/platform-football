@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '../config/arena';
-import { STADIUMS, STADIUM_ORDER, type StadiumId, type StadiumDef } from '../config/stadiums';
+import { DEFAULT_STADIUM, STADIUMS, STADIUM_ORDER, type StadiumId, type StadiumDef } from '../config/stadiums';
 import type { CharacterId } from '../config/characters';
 import * as M from '../config/menus';
 import * as HUD from '../config/hud';
@@ -32,11 +32,15 @@ export class StadiumSelectScene extends Phaser.Scene {
     drawHubBackdrop(this);
     pixelText(this, GAME_WIDTH / 2, M.SELECT_TITLE_Y, 'SAHAYI SEÇ', M.SELECT_TITLE_SCALE, HUD.UI_TITLE_COLOR);
 
-    STADIUM_ORDER.forEach((id, i) => {
+    // Standard pitch: one wide card on top; the themed ones in a 2×2 grid.
+    const wideW = M.STADIUM_CARD_W * 2 + M.STADIUM_CARD_GAP;
+    this.drawCard(GAME_WIDTH / 2, M.STADIUM_GRID_TOP + M.STADIUM_WIDE_CARD_H / 2, STADIUMS[DEFAULT_STADIUM], wideW, M.STADIUM_WIDE_CARD_H);
+    const gridTop = M.STADIUM_GRID_TOP + M.STADIUM_WIDE_CARD_H + M.STADIUM_CARD_GAP;
+    STADIUM_ORDER.filter((id) => id !== DEFAULT_STADIUM).forEach((id, i) => {
       const col = i % 2;
       const row = Math.floor(i / 2);
       const x = GAME_WIDTH / 2 + (col === 0 ? -1 : 1) * (M.STADIUM_CARD_W / 2 + M.STADIUM_CARD_GAP / 2);
-      const y = M.STADIUM_GRID_TOP + M.STADIUM_CARD_H / 2 + row * (M.STADIUM_CARD_H + M.STADIUM_CARD_GAP);
+      const y = gridTop + M.STADIUM_CARD_H / 2 + row * (M.STADIUM_CARD_H + M.STADIUM_CARD_GAP);
       this.drawCard(x, y, STADIUMS[id]);
     });
 
@@ -62,37 +66,43 @@ export class StadiumSelectScene extends Phaser.Scene {
     const last = loadPref(M.LAST_STADIUM_KEY) as StadiumId | null;
     this.selected = null;
     this.next.setEnabled(false);
-    if (last && STADIUM_ORDER.includes(last)) this.select(last);
+    this.select(last && STADIUM_ORDER.includes(last) ? last : DEFAULT_STADIUM);
   }
 
-  private drawCard(x: number, y: number, def: StadiumDef): void {
-    const w = M.STADIUM_CARD_W;
-    const h = M.STADIUM_CARD_H;
+  private drawCard(x: number, y: number, def: StadiumDef, w = M.STADIUM_CARD_W, h = M.STADIUM_CARD_H): void {
     const left = x - w / 2;
     const top = y - h / 2;
     const bg = this.add.rectangle(x, y, w, h, M.SELECT_CARD_BG, 0.92).setInteractive({ useHandCursor: true });
     // Surface swatch with stripes, like the real pitch.
     const sw = 120;
-    this.add.rectangle(left + 16 + sw / 2, y, sw, h - 32, def.tintColor);
+    const pad = M.STADIUM_CARD_PAD;
+    this.add.rectangle(left + 16 + sw / 2, y, sw, h - pad * 2, def.groundLight);
     for (let i = 0; i < 4; i += 2) {
-      this.add.rectangle(left + 16 + (i + 0.5) * (sw / 4), y, sw / 4, h - 32, 0xffffff, 0.12);
+      this.add.rectangle(left + 16 + (i + 0.5) * (sw / 4), y, sw / 4, h - pad * 2, def.groundDark);
     }
     const border = this.add.rectangle(x, y, w, h).setStrokeStyle(3, M.SELECT_CARD_BORDER);
     this.borders.set(def.id, border);
     const tx = left + sw + 32;
     const [country, place] = def.name.split('—').map((t) => t.trim());
-    this.add.bitmapText(tx, top + 30, HUD.PIXEL_FONT_KEY, HUD.toHudText(country)).setScale(3).setOrigin(0, 0.5);
+    // The short wide card (standard pitch) puts its description beside the name.
+    const wide = h < M.STADIUM_CARD_H;
+    this.add.bitmapText(tx, top + 24, HUD.PIXEL_FONT_KEY, HUD.toHudText(country)).setScale(3).setOrigin(0, 0.5);
     if (place) {
       this.add
-        .bitmapText(tx, top + 60, HUD.PIXEL_FONT_KEY, HUD.toHudText(place))
+        .bitmapText(tx, top + 52, HUD.PIXEL_FONT_KEY, HUD.toHudText(place))
         .setScale(2)
         .setOrigin(0, 0.5)
         .setTint(HUD.UI_TITLE_COLOR);
     }
     this.add
-      .bitmapText(tx, top + 82, HUD.PIXEL_FONT_KEY, HUD.toHudText(def.description.split(/[.—]/)[0].trim()))
+      .bitmapText(
+        wide ? tx + M.STADIUM_WIDE_DESC_DX : tx,
+        wide ? top + 24 : top + 70,
+        HUD.PIXEL_FONT_KEY,
+        HUD.toHudText(def.description.split(/[.—]/)[0].trim()),
+      )
       .setScale(2)
-      .setMaxWidth((w - sw - 48) / 2)
+      .setMaxWidth(wide ? w : (w - sw - 48) / 2)
       .setTint(HUD.UI_DIM_TEXT_COLOR);
     bg.on('pointerup', () => this.select(def.id));
   }

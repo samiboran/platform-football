@@ -234,7 +234,11 @@ export class Character {
   /** Knocked down/stunned for `seconds` (M6.3): stunned pose, slowed to
    * STUN_MOVE_MULTIPLIER, no dash or jump; the scene/AI also block
    * shooting and catching while `isStunned`. Cancels a running dash. */
+  /** GÜÇ (CharacterDef.powerMultiplier): stronger kids get up sooner. */
+  bodyStrength = 1;
+
   playStunned(seconds: number): void {
+    seconds /= this.bodyStrength;
     this.stunRemaining = Math.max(this.stunRemaining, seconds);
     this.dashTimeRemaining = 0;
     this.playPose('stunned', seconds);

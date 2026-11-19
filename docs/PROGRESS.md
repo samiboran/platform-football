@@ -1150,3 +1150,14 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi.
 - **Kalan (M9.1):** safe-area, yükleme ekranı, kayıt sürümleme.
 
+## Oturum 49 — Sami'nin geri bildirimi: standart saha, gövde bloğu, isimler, GÜÇ, ekipman + M9.1 Android kalanları (19.11.2026)
+- **Standart Saha:** efektsiz çim saha eklendi, varsayılan ve PvP/2v2 sahası (`DEFAULT_STADIUM`, `PVP_STADIUM`). Saha seçiminde üstte geniş kart. Temalı sahalar yumuşatıldı: Kenya sürtünme 2.6→1.6, rüzgar 35→20; Brezilya sekme 0.6→0.75; Arjantin sürtünme 1.2→1.15. Arjantin'in "dar alan" yavaşlaması tanımlıydı ama uygulanmıyordu → artık uygulanıyor (0.95).
+- **Gövde bloğu (Sami'nin "içinden geçiyor" hissi gerçekti):** Tut'a basmayınca hızlı şut gövdeden geçiyordu (bakış yönü fark etmiyordu). Şimdi normal şut seker, power şut düşürüp geçer. Tut'a basmak her zaman daha iyi. Hızlı şut "tünellemesin" diye kare boyunca süpürülerek kontrol ediliyor.
+- **Statlar gözden geçirildi:** HIZ ve ŞUT çalışıyordu; **GÜÇ ekranda vardı ama hiçbir şey yapmıyordu** → artık gövde gücü (düşme süresi ÷ GÜÇ, gövdeden sekme × GÜÇ). Kullanılmayan `catchChance` ve `cooldownSeconds` silindi. 4 özellik (perk) çalışıyor; sadece oyuncuda.
+- **İsimler:** Tiago (BRA), Nico (ARG), Baraka (KEN), Kiala (COD). Tabela takım kodunu, menü/kart/gol bandı karakter adını gösteriyor.
+- **Ekipman:** `config/equipment.ts` + `EquipmentScene` (menüde EKİPMAN). 3 yuva, 10 parça, altınla alınır, hepsi takaslı (±3–12%). Maçta HIZ/ŞUT/GÜÇ/dash beklemesi/falso'ya çarpılıyor. Fonta `%` ve `,` eklendi (`gen_sprites.py`).
+- **M9.1 kalanlar:** kayıt sürümleme (`pf.profile.v2`, v1 kaydı otomatik taşınıyor, `MIGRATIONS` zinciri); yükleme ekranı (HTML "YÜKLENİYOR" + Boot'ta ilerleme çubuğu, açılış süresi `localStorage['pf.bootMs']`); safe-area (`#app` env/--safe-area-inset dolgusu, Capacitor SystemBars `insetsHandling: css`, uygulamada durum/gezinme çubukları gizli). Bu sırada eski bir hata da düzeldi: canvas iki kez ortalanıyordu (geniş ekranda sağa kayık).
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** v1 kaydı → v2 (altın/karakter korunur, varsayılan ekipman); 400 altınla Kaptan Bandı alındı (50 kaldı), 400'lük Golcü Bandı alınamadı; maçta GÜÇ 0.9×1.12=1.008; varsayılan saha standard; normal şut gövdeden sekti (sonra oyuncu topu aldı), seviye 2 power şut oyuncuyu düşürüp devam etti; safe-area 80 px sol boşlukta canvas 110 px'ten başlıyor; açılış ~570 ms (masaüstü). Konsol hatası yok; build ve build:android temiz.
+- **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS + çentikli ekran + geri tuşu testi.
+- **Bilinen:** ekipman sprite'ta görünmüyor (renk kutusu); AI'da perk/ekipman yok (BACKLOG).
+

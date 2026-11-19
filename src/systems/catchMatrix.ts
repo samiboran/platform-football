@@ -17,6 +17,13 @@ import {
   CLASH_GOAL_SPEED_KEEP,
   PARRY_CLASH_BONUS,
   PARRY_ENERGY_GAIN,
+  BODY_BLOCK_REACH_X,
+  BODY_BLOCK_REACH_Z,
+  BODY_BLOCK_DEFLECT_SPEED,
+  BODY_BLOCK_DEFLECT_VY,
+  BODY_BLOCK_DEPTH_SPREAD,
+  BODY_BLOCK_POWER_SPEED_KEEP,
+  BODY_BLOCK_KNOCKDOWN_SECONDS,
 } from '../config/keeper';
 import type { Ball } from '../entities/Ball';
 import type { Character } from '../entities/Character';
@@ -138,3 +145,44 @@ export function applyCatchAttempt(ball: Ball, side: GoalSide, catcher: Character
   }
   return result;
 }
+
+/** Does a live shot at `side`'s goal hit `player`'s body during the next
+ * `dt` seconds? Swept along x so a fast shot can't tunnel through. */
+export function isBodyBlock(ball: Ball, side: GoalSide, player: Character, dt: number): boolean {
+  if (!ball.lastTouchWasShot || ball.clashResolved || ball.controller !== null) return false;
+  const towardOwnGoal = side === 'left' ? ball.vx < 0 : ball.vx > 0;
+  if (!towardOwnGoal) return false;
+  if (Math.abs(ball.z - player.z) > BODY_BLOCK_REACH_Z) return false;
+  if (ball.y > player.y + CATCH_MAX_HEIGHT_ABOVE_FEET || ball.y + 1 < player.y) return false;
+  const x0 = ball.x;
+  const x1 = ball.x + ball.vx * dt;
+  const lo = Math.min(x0, x1) - BODY_BLOCK_REACH_X;
+  const hi = Math.max(x0, x1) + BODY_BLOCK_REACH_X;
+  return player.x >= lo && player.x <= hi;
+}
+
+/** Shot hit the body without Tut: normal shot bounces off and stays loose,
+ * power shot knocks the player down and carries on. */
+export function applyBodyBlock(ball: Ball, side: GoalSide, player: Character): 'deflect' | 'knockdown' {
+  ball.clashResolved = true;
+  ball.spin = 0;
+  const away = side === 'left' ? 1 : -1;
+  if (ball.powerLevel > 0) {
+    ball.vx *= BODY_BLOCK_POWER_SPEED_KEEP;
+    ball.vz *= BODY_BLOCK_POWER_SPEED_KEEP;
+    player.playStunned(BODY_BLOCK_KNOCKDOWN_SECONDS);
+    emitImpact('clash');
+    return 'knockdown';
+  }
+  ball.x = player.x + away * BODY_BLOCK_REACH_X;
+  ball.vx = away * BODY_BLOCK_DEFLECT_SPEED * player.bodyStrength;
+  ball.vz = (Math.random() - 0.5) * BODY_BLOCK_DEPTH_SPREAD;
+  ball.vy = BODY_BLOCK_DEFLECT_VY;
+  ball.lastTouchWasShot = false;
+  ball.lastShotWasPower = false;
+  ball.lastShotWasSuper = false;
+  ball.powerLevel = 0;
+  emitImpact('normal');
+  return 'deflect';
+}
+

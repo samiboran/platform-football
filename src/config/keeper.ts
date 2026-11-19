@@ -60,3 +60,22 @@ export const PARRY_FLASH_ALPHA = 0.55;
 /** Stunned state (M6.3): while stunned the character moves at this
  * fraction of normal speed and can't dash, jump, shoot or catch. */
 export const STUN_MOVE_MULTIPLIER = 0.3;
+
+// --- Body block (18.11.2026, Sami) ---------------------------------------------
+// A live shot that hits a player who is NOT pressing Tut used to pass
+// straight through the body. Now: a normal shot bounces off the body and
+// stays loose in front of them; a power shot knocks them down and carries
+// on (still a little slower). Pressing Tut is always at least as good.
+/** Body hitbox half-widths: x in world px, z in depth units (z tolerance
+ * wider than x, CLAUDE.md §3). Tighter than the Tut reach on purpose. */
+export const BODY_BLOCK_REACH_X = 16;
+export const BODY_BLOCK_REACH_Z = 20;
+/** Normal shot off the body: bounce-back speed (px/s, away from own goal),
+ * pop-up and random depth spread. */
+export const BODY_BLOCK_DEFLECT_SPEED = 160;
+export const BODY_BLOCK_DEFLECT_VY = 180;
+export const BODY_BLOCK_DEPTH_SPREAD = 200;
+/** Power shot through the body: speed kept, and how long the player is down. */
+export const BODY_BLOCK_POWER_SPEED_KEEP = 0.85;
+export const BODY_BLOCK_KNOCKDOWN_SECONDS = 0.6;
+

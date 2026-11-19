@@ -11,6 +11,7 @@ export const APP_FOREGROUND_EVENT = 'pf-app-foreground';
 /** Back-button routing for scenes without their own handler (scene key → target key). */
 export const BACK_TARGETS: Record<string, string> = {
   Characters: 'Menu',
+  Equipment: 'Menu',
   StadiumSelect: 'Menu',
   Result: 'Menu',
 };

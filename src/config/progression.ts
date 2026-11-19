@@ -79,4 +79,10 @@ export function perkMods(perks: PerkId[]): PerkMods {
 }
 
 export const DEFAULT_CHARACTER: CharacterId = 'brazil';
-export const PROFILE_STORAGE_KEY = 'pf.profile.v1';
+/** Save schema (M9.1 kayıt sürümleme). Bump PROFILE_VERSION and add a step
+ * to systems/profile.ts MIGRATIONS whenever the profile's shape changes.
+ * v1 → v2 (18.11.2026): equipment (owned + equipped). */
+export const PROFILE_VERSION = 2;
+export const PROFILE_STORAGE_KEY = 'pf.profile.v2';
+/** Older save keys, newest first — read once and migrated forward. */
+export const LEGACY_PROFILE_KEYS = ['pf.profile.v1'];

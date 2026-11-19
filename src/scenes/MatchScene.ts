@@ -16,7 +16,8 @@ import {
 } from '../config/arena';
 import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/match';
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
-import { STADIUMS, type StadiumId } from '../config/stadiums';
+import { DEFAULT_STADIUM, STADIUMS, type StadiumId } from '../config/stadiums';
+import { equipMods, type EquipMods } from '../config/equipment';
 import {
   CATCH_ARM_SECONDS,
   CATCH_WHIFF_COOLDOWN_SECONDS,
@@ -58,13 +59,13 @@ import { soundFX } from '../systems/SoundFX';
 import { CrowdBand } from '../systems/CrowdBand';
 import { EnergyDrinks } from '../systems/EnergyDrinks';
 import * as HUD from '../config/hud';
-import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
+import { applyBodyBlock, applyCatchAttempt, isBodyBlock, isCatchableShot } from '../systems/catchMatrix';
 import { strikeBall, curvedAim } from '../systems/shotKinds';
 import { setImpactListener, emitImpact } from '../systems/impactFeel';
 import { playPowerCutIn } from '../systems/PowerCutIn';
 import { playGoalBand, ReplayRecorder } from '../systems/GoalCelebration';
 import { isTouchDevice } from '../systems/mobileShell';
-import { equippedPerks, grantMatchRewards } from '../systems/profile';
+import { equippedPerks, grantMatchRewards, equippedItems } from '../systems/profile';
 import { perkMods } from '../config/progression';
 import { vibrateImpact, vibrateGoal } from '../systems/haptics';
 import { BUTTON_RING_TAP_COLOR } from '../config/controls';
@@ -182,14 +183,23 @@ export class MatchScene extends Phaser.Scene {
 
   init(data: MatchData): void {
     this.character = CHARACTERS[data.characterId ?? 'argentina'];
-    this.stadium = STADIUMS[data.stadiumId ?? 'argentina'];
+    this.stadium = STADIUMS[data.stadiumId ?? DEFAULT_STADIUM];
     // The computer picks a different character than the human's, purely
     // for variety — there's no AI character-select screen (out of scope).
     const pool = CHARACTER_ORDER.filter((id) => id !== this.character.id);
     this.opponentCharacter = CHARACTERS[Phaser.Utils.Array.GetRandom(pool)];
   }
 
+  /** 18.11.2026 equipment multipliers for the human (config/equipment.ts). */
+  private equip!: EquipMods;
+
+  /** ŞUT of the human: character stat × equipment. */
+  private get shotMult(): number {
+    return this.character.shotPowerMultiplier * this.equip.shotSpeed;
+  }
+
   create(): void {
+    this.equip = equipMods(equippedItems());
     // Fixed camera — no zoom, no follow, no pan (CLAUDE.md section 10).
     this.cameras.main.setZoom(1);
     this.cameras.main.centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
@@ -222,11 +232,13 @@ export class MatchScene extends Phaser.Scene {
       DEPTH_BAND_HEIGHT / 2,
       bounds,
       this.character.color,
-      this.character.speedMultiplier,
+      this.character.speedMultiplier * this.stadium.speedMultiplier * this.equip.moveSpeed,
       this.character.id,
     );
     // M8: the player's equipped perks (profile, per character).
-    this.player.mods = perkMods(equippedPerks(this.character.id));
+    this.player.bodyStrength = this.character.powerMultiplier * this.equip.body;
+    const perks = perkMods(equippedPerks(this.character.id));
+    this.player.mods = { ...perks, dashCooldownMultiplier: perks.dashCooldownMultiplier * this.equip.dashCooldown };
     this.player.gainPower(this.player.mods.startEnergy);
     this.depthSortRef = new Character(this, leftHalfX, DEPTH_BAND_HEIGHT * 0.85, bounds, 0xe74c3c);
     this.depthSortRef.setVisible(false);
@@ -240,7 +252,7 @@ export class MatchScene extends Phaser.Scene {
 
     // Each side always shoots its own element (config/elements.ts).
     this.ball.elementBySide = { left: this.character.element, right: this.opponentCharacter.element };
-    this.opponent = new AIOpponent(this, this.opponentCharacter);
+    this.opponent = new AIOpponent(this, this.opponentCharacter, this.stadium.speedMultiplier);
     this.opponent.onPerfectParry = () => this.flashParry();
     this.opponent.onPowerShot = (level) => this.startCutIn('right', this.opponentCharacter, level);
     this.hitstopRemaining = 0;
@@ -451,6 +463,7 @@ export class MatchScene extends Phaser.Scene {
     this.updatePowerBar();
     this.updateButtonFeedback();
 
+    this.updateBodyBlocks(dtSec);
     const scored = this.ball.update(delta);
     this.replay.capture(dtSec);
     if (scored) this.onGoal(scored);
@@ -529,6 +542,19 @@ export class MatchScene extends Phaser.Scene {
     if (this.catchArmRemaining <= 0) this.catchWhiffCooldown = CATCH_WHIFF_COOLDOWN_SECONDS;
   }
 
+  /** 18.11.2026: a shot no longer passes through a player who isn't
+   * pressing Tut (systems/catchMatrix.ts applyBodyBlock). */
+  private updateBodyBlocks(dt: number): void {
+    const checks: ['left' | 'right', Character][] = [];
+    if (this.catchArmRemaining <= 0) checks.push(['left', this.player]);
+    checks.push(['right', this.opponent.character]);
+    for (const [side, who] of checks) {
+      if (!isBodyBlock(this.ball, side, who, dt)) continue;
+      if (applyBodyBlock(this.ball, side, who) === 'deflect') soundFX.bounce();
+      return;
+    }
+  }
+
   /** An impact landed (strike / clash). During a cut-in the strongest one
    * waits until the portrait is gone, so the kick "lands" after it. */
   private onImpact(kind: ImpactKind): void {
@@ -568,7 +594,7 @@ export class MatchScene extends Phaser.Scene {
   private fireShot(level: number): void {
     if (level > 0 && !this.player.spendPower(level)) level = 0;
     if (level > 0) this.startCutIn('left', this.character, level);
-    const strike = { level, shotPowerMultiplier: this.character.shotPowerMultiplier, element: this.character.element };
+    const strike = { level, shotPowerMultiplier: this.shotMult, element: this.character.element };
     // Left side attacks +x, so "back" = stick pointing left.
     if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) {
       const w = screenDirToWorld(LOB_FORWARD_WEIGHT, this.liveMove.z);
@@ -595,14 +621,14 @@ export class MatchScene extends Phaser.Scene {
     const aimX = hasStick ? this.liveMove.x : 1;
     const aimZ = hasStick ? this.liveMove.z : 0;
     const w = screenDirToWorld(aimX, aimZ);
-    const curve = this.player.airCurveSide;
+    const curve = this.player.airCurveSide * this.equip.curve;
     this.player.airCurveSide = 0;
     this.airCarry = false;
     if (curve !== 0) this.popText(FALSO_TEXT, FALSO_TEXT_COLOR);
     strikeBall(this.ball, 'volley', w.x, w.z, {
       level: 0,
       curve,
-      shotPowerMultiplier: this.character.shotPowerMultiplier,
+      shotPowerMultiplier: this.shotMult,
       element: this.character.element,
       speedScale: w.speedScale,
       chaos: this.character.chaosTouch,
@@ -625,13 +651,13 @@ export class MatchScene extends Phaser.Scene {
     if (!this.player.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
     const hasStick = this.liveMove.x !== 0 || this.liveMove.z !== 0;
     const w = screenDirToWorld(hasStick ? this.liveMove.x : 1, hasStick ? this.liveMove.z : 0);
-    const curve = this.player.airCurveSide;
+    const curve = this.player.airCurveSide * this.equip.curve;
     this.player.airCurveSide = 0;
     this.airCarry = false;
     const aim = curvedAim(w.x, w.z, curve);
     const level = SHOT_SPEED_BY_POWER_LEVEL.length - 1;
     const speed =
-      SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * w.speedScale * SHOT_SPEED_BY_POWER_LEVEL[level] * BICYCLE_SPEED_MULTIPLIER;
+      SHOT_SPEED_NORMAL * this.shotMult * w.speedScale * SHOT_SPEED_BY_POWER_LEVEL[level] * BICYCLE_SPEED_MULTIPLIER;
     this.startCutIn('left', this.character, level, BICYCLE_TITLE);
     this.ball.element = this.character.element;
     this.ball.shoot(aim.x, aim.z, speed, false, true, true, 1, level, 0, 0);
@@ -671,7 +697,7 @@ export class MatchScene extends Phaser.Scene {
     const aim = screenDirToWorld(this.player.facingX, this.player.facingZ);
     const aimX = aim.x;
     const aimZ = aim.z;
-    const baseSpeed = SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * aim.speedScale;
+    const baseSpeed = SHOT_SPEED_NORMAL * this.shotMult * aim.speedScale;
     this.startCutIn('left', this.character, BALL_POWER_LEVEL_MAX, CUTIN_SUPER_TITLE);
     this.ball.element = this.character.element;
     emitImpact('power');
@@ -689,7 +715,7 @@ export class MatchScene extends Phaser.Scene {
           RIGHT_GOAL_LINE_X - this.player.x,
           DEPTH_BAND_HEIGHT / 2 - this.player.z,
           // World-space aim at a world point — no screen conversion.
-          SHOT_SPEED_NORMAL * this.character.shotPowerMultiplier * SUPER_CONTROL_SPEED_MULTIPLIER,
+          SHOT_SPEED_NORMAL * this.shotMult * SUPER_CONTROL_SPEED_MULTIPLIER,
           false,
           true,
           true,
@@ -728,7 +754,7 @@ export class MatchScene extends Phaser.Scene {
       .setDepth(10000);
     const boardLeft = board.x - board.displayWidth / 2;
     const midY = HUD.SCOREBOARD_Y + (HUD.SCOREBOARD_HEIGHT * s) / 2;
-    const code = (def: CharacterDef) => HUD.toHudText(def.name).slice(0, HUD.TEAM_CODE_LENGTH);
+    const code = (def: CharacterDef) => HUD.toHudText(def.teamCode).slice(0, HUD.TEAM_CODE_LENGTH);
     this.add
       .bitmapText(boardLeft + HUD.SCOREBOARD_SLOT_LEFT_X * s, midY, HUD.PIXEL_FONT_KEY, code(this.character))
       .setScale(HUD.TEAM_CODE_FONT_SCALE)

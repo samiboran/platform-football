@@ -6,6 +6,7 @@ import { CharactersScene } from './scenes/CharactersScene';
 import { StadiumSelectScene } from './scenes/StadiumSelectScene';
 import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
+import { EquipmentScene } from './scenes/EquipmentScene';
 import { installAutoFullscreen } from './systems/mobileShell';
 import { registerOfflineCache } from './systems/offline';
 import { installAppLifecycle } from './systems/appLifecycle';
@@ -15,7 +16,7 @@ registerOfflineCache();
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
-  parent: 'app',
+  parent: 'game',
   width: GAME_WIDTH,
   height: GAME_HEIGHT,
   backgroundColor: '#0b0f14',
@@ -38,7 +39,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, CharactersScene, StadiumSelectScene, MatchScene, ResultScene],
+  scene: [BootScene, MenuScene, CharactersScene, EquipmentScene, StadiumSelectScene, MatchScene, ResultScene],
 });
 
 installAppLifecycle(game);

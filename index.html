@@ -19,12 +19,36 @@
         height: 100%;
       }
       #app {
-        display: flex;
-        align-items: center;
-        justify-content: center;
         width: 100%;
         height: 100vh;
         height: 100dvh;
+        box-sizing: border-box;
+        /* M9.1 safe area: keep the whole game (HUD + touch buttons) out of
+           the notch / camera hole / gesture bar. env() works in browsers and
+           newer Android WebViews; Capacitor's SystemBars plugin injects the
+           --safe-area-inset-* variables for older ones. */
+        padding:
+          max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px))
+          max(env(safe-area-inset-right, 0px), var(--safe-area-inset-right, 0px))
+          max(env(safe-area-inset-bottom, 0px), var(--safe-area-inset-bottom, 0px))
+          max(env(safe-area-inset-left, 0px), var(--safe-area-inset-left, 0px));
+      }
+      /* Phaser (Scale.FIT + CENTER_BOTH) centres the canvas inside this box
+         itself — no flex centring here, or it gets offset twice. */
+      #game {
+        width: 100%;
+        height: 100%;
+      }
+      /* Shown until the JS bundle runs (BootScene draws its own bar). */
+      #boot-loading {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #ffe066;
+        font: bold 20px monospace;
+        pointer-events: none;
       }
       /* M7.1: the game is landscape-only — on a phone held upright, cover
          it with a "turn your phone" hint (the game keeps running behind). */
@@ -71,7 +95,8 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app"><div id="game"></div></div>
+    <div id="boot-loading">YÜKLENİYOR…</div>
     <div id="rotate"><div class="phone"></div>TELEFONU YAN ÇEVİR</div>
     <script type="module" src="/src/main.ts"></script>
   </body>

@@ -53,7 +53,7 @@ export class MenuScene extends Phaser.Scene {
     panel(this, px, M.HUB_NAMEPLATE_Y, M.HUB_NAMEPLATE_W, 52, M.HUB_CARD_COLOR, M.HUB_CARD_ALPHA, 14);
     this.add.bitmapText(px - M.HUB_NAMEPLATE_W / 2 + 16, M.HUB_NAMEPLATE_Y - 10, HUD.PIXEL_FONT_KEY, HUD.toHudText(def.name)).setScale(3).setOrigin(0, 0.5);
     this.add
-      .bitmapText(px + M.HUB_NAMEPLATE_W / 2 - 16, M.HUB_NAMEPLATE_Y - 10, HUD.PIXEL_FONT_KEY, `LV ${lvl.level}`)
+      .bitmapText(px + M.HUB_NAMEPLATE_W / 2 - 16, M.HUB_NAMEPLATE_Y - 10, HUD.PIXEL_FONT_KEY, HUD.toHudText(`${def.teamCode} LV ${lvl.level}`))
       .setScale(3)
       .setOrigin(1, 0.5)
       .setTint(HUD.UI_TITLE_COLOR);
@@ -133,6 +133,9 @@ export class MenuScene extends Phaser.Scene {
     this.add.image(ax + 20, y, 'icon_star').setScale(5);
     this.add.bitmapText(ax + 21, y + 3, HUD.PIXEL_FONT_KEY, `${acc.level}`).setScale(2).setOrigin(0.5);
 
+    makeFancyButton(this, M.HUB_EQUIP_BTN_X, y + 2, M.HUB_EQUIP_BTN_W, M.HUB_EQUIP_BTN_H, 'EKİPMAN', M.HUB_EQUIP_BTN_COLOR, () =>
+      this.scene.start('Equipment'),
+    { labelScale: 3 });
     this.currencyPill(M.HUB_GOLD_X, y, 'icon_coin', gold);
     this.currencyPill(M.HUB_GEM_X, y, 'icon_gem', gems);
 

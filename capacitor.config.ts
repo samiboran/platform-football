@@ -13,6 +13,14 @@ const config: CapacitorConfig = {
     allowMixedContent: false,
     captureInput: true,
   },
+  plugins: {
+    // M9.1 safe area: edge-to-edge (Android 15+), insets reach the page as
+    // env(safe-area-inset-*) / --safe-area-inset-* (index.html pads #app).
+    SystemBars: {
+      insetsHandling: 'css',
+      initialViewportFitValueHint: 'cover',
+    },
+  },
 };
 
 export default config;

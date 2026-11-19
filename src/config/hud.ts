@@ -11,7 +11,7 @@ export const HUD_PIXEL_SCALE = 2;
 // --- Bitmap font ----------------------------------------------------------
 export const PIXEL_FONT_KEY = 'pixel_font';
 /** Must match FONT_CHARS order in gen_sprites.py exactly. */
-export const PIXEL_FONT_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :-.!?/()=+|ÇŞĞİÖÜ';
+export const PIXEL_FONT_CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 :-.!?/()=+|%,ÇŞĞİÖÜ';
 export const PIXEL_FONT_CELL_W = 4;
 export const PIXEL_FONT_CELL_H = 8;
 export const PIXEL_FONT_PER_ROW = 16;
