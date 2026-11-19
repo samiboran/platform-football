@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { VirtualJoystick } from './VirtualJoystick';
 import * as C from '../config/controls';
 import { PIXEL_FONT_KEY, toHudText } from '../config/hud';
+import { touchLayout } from './settings';
 
 /** One on-screen circular button: tracks held state + edge-triggered press. */
 class TouchButton {
@@ -15,7 +16,11 @@ class TouchButton {
   private available = true;
   private glow = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, radius: number, label: string) {
+  /** Overall control opacity from Ayarlar (multiplies every alpha). */
+  private readonly opacity: number;
+
+  constructor(scene: Phaser.Scene, x: number, y: number, radius: number, label: string, opacity = 1) {
+    this.opacity = opacity;
     // Hit area is a bit larger than the drawn circle (BUTTON_HIT_SCALE) —
     // a thumb rarely lands dead center.
     const hitR = radius * C.BUTTON_HIT_SCALE;
@@ -35,6 +40,7 @@ class TouchButton {
       .setDepth(10001);
     this.ring = scene.add.graphics().setDepth(10002).setPosition(x, y);
     this.radius = radius;
+    this.refreshFill();
 
     // Track the pointer that pressed this button. Release is detected on a
     // scene-wide pointerup for that pointer, NOT on pointerout — a thumb
@@ -87,7 +93,7 @@ class TouchButton {
   setRing(fraction: number, color: number): void {
     this.ring.clear();
     if (fraction <= 0) return;
-    this.ring.lineStyle(C.BUTTON_RING_WIDTH, color, 1);
+    this.ring.lineStyle(C.BUTTON_RING_WIDTH, color, this.opacity);
     this.ring.beginPath();
     this.ring.arc(0, 0, this.radius + C.BUTTON_RING_GAP, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, fraction));
     this.ring.strokePath();
@@ -98,7 +104,7 @@ class TouchButton {
       this.glow ? C.BUTTON_ACTIVE_COLOR : C.BUTTON_FILL_COLOR,
       this.glow ? C.BUTTON_ACTIVE_ALPHA : C.BUTTON_FILL_ALPHA,
     );
-    const a = this.available ? 1 : C.BUTTON_UNAVAILABLE_ALPHA;
+    const a = (this.available ? 1 : C.BUTTON_UNAVAILABLE_ALPHA) * this.opacity;
     this.circle.setAlpha(a);
     this.label.setAlpha(a);
   }
@@ -154,7 +160,9 @@ export class InputController {
   private actionUsedDuringSpecialHold = false;
 
   constructor(scene: Phaser.Scene) {
-    this.joystick = new VirtualJoystick(scene);
+    // M9.2: size / opacity / left-hand layout from the Ayarlar screen.
+    const layout = touchLayout();
+    this.joystick = new VirtualJoystick(scene, layout);
 
     const keyboard = scene.input.keyboard!;
     this.cursors = keyboard.createCursorKeys();
@@ -195,13 +203,16 @@ export class InputController {
     scene.input.on('pointerupoutside', onUp);
 
     // Diamond cluster: Zıpla (N), Özellik (E), Aksiyon (S, biggest/primary), Dash (W).
-    const cx = C.BUTTON_CLUSTER_X;
-    const cy = C.BUTTON_CLUSTER_Y;
-    const r = C.BUTTON_SPACING;
-    this.jumpBtn = new TouchButton(scene, cx, cy - r, C.BUTTON_RADIUS, 'Zıpla');
-    this.specialBtn = new TouchButton(scene, cx + r, cy, C.BUTTON_RADIUS, 'Özel');
-    this.actionBtn = new TouchButton(scene, cx, cy + r, C.BUTTON_ACTION_RADIUS, 'Aksiyon');
-    this.dashBtn = new TouchButton(scene, cx - r, cy, C.BUTTON_RADIUS, 'Dash');
+    // Left-handed layout mirrors the cluster (Özel stays on the outer edge).
+    const cx = layout.clusterX;
+    const cy = layout.clusterY;
+    const r = layout.spacing;
+    const outer = layout.leftHanded ? -r : r;
+    const a = layout.alpha;
+    this.jumpBtn = new TouchButton(scene, cx, cy - r, layout.buttonRadius, 'Zıpla', a);
+    this.specialBtn = new TouchButton(scene, cx + outer, cy, layout.buttonRadius, 'Özel', a);
+    this.actionBtn = new TouchButton(scene, cx, cy + r, layout.actionRadius, 'Aksiyon', a);
+    this.dashBtn = new TouchButton(scene, cx - outer, cy, layout.buttonRadius, 'Dash', a);
   }
 
   getMoveVector(): { x: number; z: number } {

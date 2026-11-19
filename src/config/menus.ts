@@ -56,7 +56,7 @@ export const HUB_PILL_ALPHA = 0.8;
 export const HUB_ACCOUNT_X = 24;
 export const HUB_ACCOUNT_BAR_W = 150;
 export const HUB_GOLD_X = 520;
-export const HUB_GEM_X = 700;
+export const HUB_GEM_X = 690;
 export const HUB_PILL_W = 150;
 
 export const HUB_CHAR_X = 480;
@@ -93,6 +93,10 @@ export const HUB_EQUIP_BTN_X = 335;
 export const HUB_EQUIP_BTN_W = 170;
 export const HUB_EQUIP_BTN_H = 44;
 export const HUB_EQUIP_BTN_COLOR = 0xc06a2a;
+/** AYAR (settings) button in the hub's top bar, right of the gem pill. */
+export const HUB_SETTINGS_BTN_X = 808;
+export const HUB_SETTINGS_BTN_W = 76;
+export const HUB_SETTINGS_BTN_COLOR = 0x34495e;
 
 // --- Fancy (pixel-modern) button ----------------------------------------------
 export const FANCY_RADIUS = 14;

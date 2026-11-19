@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import * as C from '../config/controls';
+import type { TouchLayout } from './settings';
 
 export interface JoystickVector {
   x: number; // -1..1, screen right is positive
@@ -18,18 +19,23 @@ export class VirtualJoystick {
   private readonly scene: Phaser.Scene;
   private readonly base: Phaser.GameObjects.Arc;
   private readonly knob: Phaser.GameObjects.Arc;
-  private baseX = C.JOYSTICK_REST_X;
-  private baseY = C.JOYSTICK_REST_Y;
+  private readonly layout: TouchLayout;
+  private baseX: number;
+  private baseY: number;
   private pointerId: number | null = null;
   private vector: JoystickVector = { x: 0, z: 0 };
 
-  constructor(scene: Phaser.Scene) {
+  /** `layout` comes from the Ayarlar screen (size, opacity, left/right hand). */
+  constructor(scene: Phaser.Scene, layout: TouchLayout) {
     this.scene = scene;
+    this.layout = layout;
+    this.baseX = layout.joyRestX;
+    this.baseY = layout.joyRestY;
     this.base = scene.add
-      .circle(this.baseX, this.baseY, C.JOYSTICK_RADIUS, 0xffffff, 0.15)
+      .circle(this.baseX, this.baseY, layout.joyRadius, 0xffffff, 0.15)
       .setStrokeStyle(2, 0xffffff, 0.5)
       .setDepth(10000);
-    this.knob = scene.add.circle(this.baseX, this.baseY, C.JOYSTICK_RADIUS * 0.45, 0xffffff, 0.35).setDepth(10001);
+    this.knob = scene.add.circle(this.baseX, this.baseY, layout.joyRadius * 0.45, 0xffffff, 0.35).setDepth(10001);
     this.setActiveLook(false);
 
     scene.input.on('pointerdown', this.onPointerDown, this);
@@ -39,19 +45,19 @@ export class VirtualJoystick {
   }
 
   /** True if a screen point belongs to the joystick zone. */
-  static inZone(x: number, y: number): boolean {
-    return x < GAME_WIDTH * C.JOYSTICK_ZONE_WIDTH_FRACTION && y > C.JOYSTICK_ZONE_TOP && y < GAME_HEIGHT;
+  inZone(x: number, y: number): boolean {
+    return x >= this.layout.zoneMinX && x < this.layout.zoneMaxX && y > C.JOYSTICK_ZONE_TOP && y < GAME_HEIGHT;
   }
 
   private setActiveLook(active: boolean): void {
-    const a = active ? C.JOYSTICK_ACTIVE_ALPHA : C.JOYSTICK_IDLE_ALPHA;
+    const a = (active ? C.JOYSTICK_ACTIVE_ALPHA : C.JOYSTICK_IDLE_ALPHA) * this.layout.alpha;
     this.base.setAlpha(a);
     this.knob.setAlpha(a);
   }
 
   private placeBase(x: number, y: number): void {
     // Keep the whole stick on screen.
-    const r = C.JOYSTICK_RADIUS;
+    const r = this.layout.joyRadius;
     this.baseX = Phaser.Math.Clamp(x, r, GAME_WIDTH - r);
     this.baseY = Phaser.Math.Clamp(y, r, GAME_HEIGHT - r);
     this.base.setPosition(this.baseX, this.baseY);
@@ -60,7 +66,7 @@ export class VirtualJoystick {
   private onPointerDown(pointer: Phaser.Input.Pointer): void {
     if (!pointer.wasTouch) return; // mouse = Aksiyon/Özel on PC, not the stick
     if (this.pointerId !== null) return;
-    if (!VirtualJoystick.inZone(pointer.x, pointer.y)) return;
+    if (!this.inZone(pointer.x, pointer.y)) return;
     this.pointerId = pointer.id;
     this.placeBase(pointer.x, pointer.y);
     this.setActiveLook(true);
@@ -76,13 +82,13 @@ export class VirtualJoystick {
     if (pointer.id !== this.pointerId) return;
     this.pointerId = null;
     this.vector = { x: 0, z: 0 };
-    this.placeBase(C.JOYSTICK_REST_X, C.JOYSTICK_REST_Y);
+    this.placeBase(this.layout.joyRestX, this.layout.joyRestY);
     this.knob.setPosition(this.baseX, this.baseY);
     this.setActiveLook(false);
   }
 
   private updateFromPointer(pointer: Phaser.Input.Pointer): void {
-    const r = C.JOYSTICK_RADIUS;
+    const r = this.layout.joyRadius;
     let dx = pointer.x - this.baseX;
     let dy = pointer.y - this.baseY;
     let dist = Math.hypot(dx, dy);

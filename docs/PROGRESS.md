@@ -1172,3 +1172,15 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Kalan (M9.2):** ayarlar ekranı (sıradaki), eğitim, AI zorluk, lig, TR/EN dil, denge turu.
 - **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; seslerin kulağa hoş gelip gelmediği (ayarlar `config/audio.ts`).
 - **Bilinen:** sesler sentez — "gerçek kayıt" kalitesinde değil; istenirse ileride lisanssız örneklerle değiştirilebilir (çağrı noktaları aynı kalır).
+
+## Oturum 51 — M9.2: Ayarlar ekranı (19.11.2026, zamanlanmış)
+- **AYARLAR** (`src/scenes/SettingsScene.ts`, ayarlar `src/config/settings.ts`, kayıt `src/systems/settings.ts` → `localStorage['pf.settings.v1']`). Ana menüde üst barda **AYAR** düğmesi (elmas hapı biraz sola kaydı). Android geri tuşu → ana menü.
+  - Ses efektleri / müzik aç-kapa (SoundFX'in mevcut `pf.audio.*` tercihleri), titreşim aç-kapa (açınca kısa örnek titreşim; `haptics.ts` artık ayara bakıyor).
+  - Tuş boyutu KÜÇÜK / ORTA / BÜYÜK (×0.85 / 1 / 1.18 — joystick dahil, küme köşeye orantılı yaklaşıyor, BÜYÜK de ekrana sığıyor), şeffaflık %40 / %70 / %100.
+  - El düzeni SAĞ EL / SOL EL: sol elde tuş kümesi sola, joystick bölgesi sağ yarıya geçiyor (ayna).
+  - Dil: TÜRKÇE (YAKINDA etiketi) — İngilizce, M9.2 "Dil" maddesiyle açılacak.
+  - Sağda canlı önizleme (mini maç ekranında tuşların yeri/boyu/şeffaflığı), altta VARSAYILAN.
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** menüden AYAR → Ayarlar açıldı; titreşim/boyut/şeffaflık/el/müzik değişip kaydedildi; dil satırı değişmedi; SOL EL + BÜYÜK maçta tuşlar solda, sağ yarıya dokunup sürükleyince oyuncu yürüdü (x 295→365), sol yarı joystick olmadı; VARSAYILAN her şeyi geri aldı, maç varsayılan düzende. Konsol hatası yok, build temiz.
+- **Kalan (M9.2):** ilk açılış eğitimi (sıradaki), AI zorluk seviyeleri, lig modu, TR/EN dil, denge turu.
+- **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; altın/elmas harcama yeri ve Arjantin/Kenya kararı.
+- **Bilinen:** ayar değişikliği açık bir maça değil, bir sonraki maça uygulanır (duraklatma menüsünde Ayarlar yok).

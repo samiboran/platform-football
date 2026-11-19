@@ -7,6 +7,7 @@ import { StadiumSelectScene } from './scenes/StadiumSelectScene';
 import { MatchScene } from './scenes/MatchScene';
 import { ResultScene } from './scenes/ResultScene';
 import { EquipmentScene } from './scenes/EquipmentScene';
+import { SettingsScene } from './scenes/SettingsScene';
 import { installAutoFullscreen } from './systems/mobileShell';
 import { registerOfflineCache } from './systems/offline';
 import { installAppLifecycle } from './systems/appLifecycle';
@@ -40,7 +41,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, MenuScene, CharactersScene, EquipmentScene, StadiumSelectScene, MatchScene, ResultScene],
+  scene: [BootScene, MenuScene, CharactersScene, EquipmentScene, SettingsScene, StadiumSelectScene, MatchScene, ResultScene],
 });
 
 installAppLifecycle(game);

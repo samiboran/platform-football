@@ -141,6 +141,9 @@ export class MenuScene extends Phaser.Scene {
     makeFancyButton(this, M.HUB_EQUIP_BTN_X, y + 2, M.HUB_EQUIP_BTN_W, M.HUB_EQUIP_BTN_H, 'EKİPMAN', M.HUB_EQUIP_BTN_COLOR, () =>
       this.scene.start('Equipment'),
     { labelScale: 3 });
+    makeFancyButton(this, M.HUB_SETTINGS_BTN_X, y + 2, M.HUB_SETTINGS_BTN_W, M.HUB_EQUIP_BTN_H, 'AYAR', M.HUB_SETTINGS_BTN_COLOR, () =>
+      this.scene.start('Settings'),
+    { labelScale: 2 });
     this.currencyPill(M.HUB_GOLD_X, y, 'icon_coin', gold);
     this.currencyPill(M.HUB_GEM_X, y, 'icon_gem', gems);
 

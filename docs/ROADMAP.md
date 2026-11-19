@@ -150,7 +150,7 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 
 ### M9.2 İçerik ve cila
 - [x] Gerçek ses efektleri + menü/maç müziği (lisanssız/üretilmiş), seyirci sesi
-- [ ] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil
+- [x] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil — dil satırı TÜRKÇE'de sabit, EN aşağıdaki "Dil" maddesiyle açılacak
 - [ ] İlk açılışta eğitim: hareket, şut/power, tut/parry, lob, falso, rövaşata (adım adım mini görevler)
 - [ ] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG)
 - [ ] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali
