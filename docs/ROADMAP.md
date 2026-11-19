@@ -152,7 +152,7 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [x] Gerçek ses efektleri + menü/maç müziği (lisanssız/üretilmiş), seyirci sesi
 - [x] Ayarlar ekranı: ses, müzik, titreşim aç/kapa, tuş boyutu/şeffaflığı, sol-sağ el düzeni, dil — dil satırı TÜRKÇE'de sabit, EN aşağıdaki "Dil" maddesiyle açılacak
 - [x] İlk açılışta eğitim: hareket, şut/power, tut/parry, lob, falso, rövaşata (adım adım mini görevler) — 9 adım, Ayarlar > EĞİTİM ile tekrar
-- [ ] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG)
+- [x] AI zorluk seviyeleri (kolay/orta/zor) + AI'ın falso ve rövaşata kullanması (BACKLOG) — `config/difficulty.ts`, saha seçiminde RAKİP: KOLAY/ORTA/ZOR
 - [ ] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali
 - [ ] Altın/elmasın harcanacağı yer: karakter açma, kostüm/forma, top efekti **(Sami)**
 - [ ] Arjantin ve Kenya'yı açmak (sprite + denge) — v1 için şart değil **(Sami)**

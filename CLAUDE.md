@@ -120,6 +120,8 @@ Sanal joystick (sol) + 4 tuş (sağ):
 
 **Hava kombosu (17.11.2026):** zıpla → havada yukarı/aşağı dash → Aksiyon (vole) = **falso**: top önce ters tarafa çıkar, sonra dash yönüne kıvrılır (yukarı dash = sola/yukarı falso, aşağı = sağa/aşağı). Topla zıplanırsa top hava dash'inde oyuncuyla gelir. **Rövaşata:** havadaki topa zıplayıp **Özel** = havada süper (tam bar, seviye 3, kendi elementi, ters takla); öncesinde hava dash'i varsa falsolu. Ayarlar `config/power.ts` (`CURVE_*`, `BICYCLE_*`).
 
+**AI zorluk (19.11.2026):** KOLAY / ORTA / ZOR saha seçiminde seçilir (`config/difficulty.ts`). ORTA = eski AI. ORTA/ZOR AI falso ve rövaşata da kullanır; ödül çarpanı ×0.75 / 1 / 1.35.
+
 **Kamera:** 3/4 eğik üstten kalıyor (yan görünüm yok). Dikeylik toptan gelir (alçak şut / lob). Zıplama sadece lob karşılamak ve vole için.
 
 **His:** vuruşta hitstop (4 kare, power 8, çatışma 12), giriş tamponu ~8 kare.

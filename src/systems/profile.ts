@@ -198,13 +198,18 @@ export function equippedPerks(id: CharacterId): P.PerkId[] {
 }
 
 /** Pay out a finished match to the character that played it. */
-export function grantMatchRewards(id: CharacterId, goalsFor: number, goalsAgainst: number): MatchRewards {
+export function grantMatchRewards(
+  id: CharacterId,
+  goalsFor: number,
+  goalsAgainst: number,
+  rewardMultiplier = 1,
+): MatchRewards {
   const p = loadProfile();
   const prog = progressOf(id);
   const win = goalsFor > goalsAgainst;
   const draw = goalsFor === goalsAgainst;
-  const xp = P.REWARD_XP.base + (win ? P.REWARD_XP.win : draw ? P.REWARD_XP.draw : 0) + goalsFor * P.REWARD_XP.perGoal;
-  const gold = (win ? P.REWARD_GOLD.win : draw ? P.REWARD_GOLD.draw : P.REWARD_GOLD.loss) + goalsFor * P.REWARD_GOLD.perGoal;
+  const xp = Math.round(rewardMultiplier * (P.REWARD_XP.base + (win ? P.REWARD_XP.win : draw ? P.REWARD_XP.draw : 0) + goalsFor * P.REWARD_XP.perGoal));
+  const gold = Math.round(rewardMultiplier * ((win ? P.REWARD_GOLD.win : draw ? P.REWARD_GOLD.draw : P.REWARD_GOLD.loss) + goalsFor * P.REWARD_GOLD.perGoal));
   const levelBefore = levelInfo(prog.xp).level;
   prog.xp += xp;
   const levelAfter = levelInfo(prog.xp).level;

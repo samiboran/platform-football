@@ -11,36 +11,44 @@ import {
 } from '../config/arena';
 import { BALL_GRAVITY, BALL_TRAP_MAX_HEIGHT } from '../config/ball';
 import {
-  OPPONENT_SHOT_COOLDOWN_SECONDS,
-  OPPONENT_SHOT_CHANCE_PER_TOUCH,
-  OPPONENT_POWER_SHOT_CHANCE,
-  OPPONENT_POWER_SHOT_CHANCE_FULL_BAR,
   OPPONENT_CHARGE_SECONDS_MIN,
   OPPONENT_CHARGE_SECONDS_MAX,
   OPPONENT_LOB_CHANCE,
   OPPONENT_LOB_CHANCE_RIVAL_ADVANCED,
   OPPONENT_LOB_RIVAL_ADVANCED_X,
-  OPPONENT_INTERCEPT_Z_ERROR,
   OPPONENT_JUMP_LEAD_SECONDS,
   OPPONENT_JUMP_MIN_BALL_HEIGHT,
   OPPONENT_JUMP_MAX_BALL_HEIGHT,
   OPPONENT_JUMP_LANE_Z,
-  OPPONENT_AIM_WOBBLE,
   OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER,
   OPPONENT_MOVE_DEADZONE,
   OPPONENT_BALL_CHASE_DEADZONE,
-  OPPONENT_TRACKING_LERP_SPEED,
-  OPPONENT_CATCH_REACTION_SECONDS,
-  OPPONENT_PERFECT_PARRY_CHANCE,
+  OPPONENT_AERIAL_RESTRIKE_SECONDS,
 } from '../config/opponent';
+import {
+  DIFFICULTIES,
+  DEFAULT_DIFFICULTY,
+  AI_FALSO_DASH_DELAY_SECONDS,
+  type DifficultyDef,
+} from '../config/difficulty';
+import { SUPER_MOVE_SEGMENT_COST } from '../config/super';
+import {
+  BICYCLE_SPEED_MULTIPLIER,
+  CURVE_ACCEL,
+  DASH_ENERGY_COST,
+  SHOT_SPEED_NORMAL,
+  SHOT_SPEED_BY_POWER_LEVEL,
+} from '../config/power';
+import { emitImpact } from '../systems/impactFeel';
 import { POWER_MAX_SEGMENTS } from '../config/power';
 import { applyCatchAttempt, isCatchableShot } from '../systems/catchMatrix';
 import { canStrikeAerial } from '../systems/aerialStrike';
 import { computeDribbleTarget } from '../systems/dribbleControl';
-import { strikeBall, type ShotKind } from '../systems/shotKinds';
+import { strikeBall, curvedAim, type ShotKind } from '../systems/shotKinds';
 import { Character } from './Character';
 import { Ball } from './Ball';
 import { soundFX } from '../systems/SoundFX';
+import { BICYCLE_TITLE } from '../config/feel';
 import type { CharacterDef } from '../config/characters';
 
 /** Minimal view of the human player the AI reads for shot choice. */
@@ -58,7 +66,9 @@ export interface RivalView {
  *  - defends by stepping onto the shot's line after a reaction delay and
  *    holding tut; the clash itself is the shared difference table
  *    (systems/catchMatrix.ts).
- * Doesn't use its 3-segment super move (deliberate scope cut).
+ *  - M9.2: plays at a difficulty level (config/difficulty.ts) and uses the
+ *    air combos — air-dash falso volleys and the rövaşata (airborne super).
+ * Doesn't use its ground 3-segment super move (deliberate scope cut).
  */
 export class AIOpponent {
   readonly character: Character;
@@ -74,18 +84,36 @@ export class AIOpponent {
   private perfectParry = false;
   /** Called when the AI lands a perfect parry (scene flash). */
   onPerfectParry?: () => void;
-  /** Called right before the AI releases a power shot (portrait cut-in). */
-  onPowerShot?: (level: number) => void;
+  /** Called right before the AI releases a power shot (portrait cut-in);
+   * caption is set for the rövaşata. */
+  onPowerShot?: (level: number, caption?: string) => void;
+  /** Called when the AI strikes a falso (curving) volley. */
+  onFalso?: () => void;
+  private readonly diff: DifficultyDef;
+  /** Air combo plan for the current jump: air-dash for a falso, and the
+   * time spent airborne so far. */
+  private plannedFalso = false;
+  private airTime = 0;
+  /** Rövaşata decision rolled once per airborne strike chance. */
+  private bicycleRolled: boolean | null = null;
+  /** Seconds before the AI may strike a high ball again. */
+  private aerialLockout = 0;
   /** Power-shot charge in progress: seconds left before release, or null. */
   private chargeRemaining: number | null = null;
   private chargeKind: ShotKind = 'ground';
   /** The AI's "perceived" ball position — lags the real one
-   * (OPPONENT_TRACKING_LERP_SPEED) so chasing doesn't look omniscient. */
+   * (difficulty trackingLerpSpeed) so chasing doesn't look omniscient. */
   private trackedBallX: number;
   private trackedBallZ: number;
 
-  constructor(scene: Phaser.Scene, def: CharacterDef, pitchSpeedMultiplier = 1) {
+  constructor(
+    scene: Phaser.Scene,
+    def: CharacterDef,
+    pitchSpeedMultiplier = 1,
+    difficulty: DifficultyDef = DIFFICULTIES[DEFAULT_DIFFICULTY],
+  ) {
     this.def = def;
+    this.diff = difficulty;
     // Same reach as the human (whose bounds run to its own goal line): a
     // character-width margin here left a ball resting against the AI's end
     // wall out of control range forever — the AI stood still, game stuck.
@@ -94,25 +122,26 @@ export class AIOpponent {
     this.homeZ = DEPTH_BAND_HEIGHT / 2;
     this.trackedBallX = this.homeX;
     this.trackedBallZ = this.homeZ;
-    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier * pitchSpeedMultiplier, def.id);
+    this.character = new Character(scene, this.homeX, this.homeZ, bounds, def.color, def.speedMultiplier * pitchSpeedMultiplier * difficulty.speedMultiplier, def.id);
     this.character.bodyStrength = def.powerMultiplier;
   }
 
   update(delta: number, ball: Ball, rival?: RivalView): void {
     const dt = delta / 1000;
     if (this.shotCooldownRemaining > 0) this.shotCooldownRemaining -= dt;
+    if (this.aerialLockout > 0) this.aerialLockout -= dt;
 
-    this.trackedBallX = Phaser.Math.Linear(this.trackedBallX, ball.x, OPPONENT_TRACKING_LERP_SPEED * dt);
-    this.trackedBallZ = Phaser.Math.Linear(this.trackedBallZ, ball.z, OPPONENT_TRACKING_LERP_SPEED * dt);
+    this.trackedBallX = Phaser.Math.Linear(this.trackedBallX, ball.x, this.diff.trackingLerpSpeed * dt);
+    this.trackedBallZ = Phaser.Math.Linear(this.trackedBallZ, ball.z, this.diff.trackingLerpSpeed * dt);
 
     // --- Incoming shot: reaction delay, then step onto its line + tut.
     const shotIncoming = ball.lastTouchWasShot && !ball.clashResolved && ball.controller === null && ball.vx > 0;
     if (!shotIncoming) {
       this.shotReactionRemaining = null;
     } else if (this.shotReactionRemaining === null) {
-      this.shotReactionRemaining = OPPONENT_CATCH_REACTION_SECONDS;
-      this.interceptZError = (Math.random() * 2 - 1) * OPPONENT_INTERCEPT_Z_ERROR;
-      this.perfectParry = Math.random() < OPPONENT_PERFECT_PARRY_CHANCE;
+      this.shotReactionRemaining = this.diff.catchReactionSeconds;
+      this.interceptZError = (Math.random() * 2 - 1) * this.diff.interceptZError;
+      this.perfectParry = Math.random() < this.diff.perfectParryChance;
     } else if (this.shotReactionRemaining > 0) {
       this.shotReactionRemaining -= dt;
     }
@@ -127,7 +156,40 @@ export class AIOpponent {
     const deadzone = chasingLooseBall ? OPPONENT_BALL_CHASE_DEADZONE : OPPONENT_MOVE_DEADZONE;
     const moveX = Math.abs(dx) > deadzone ? Math.sign(dx) : 0;
     const moveZ = Math.abs(dz) > deadzone ? Math.sign(dz) : 0;
-    this.character.update(delta, { moveX, moveZ, jumpPressed: this.wantsJump(ball), dashPressed: false });
+    const jump = !stunned && this.wantsJump(ball);
+    if (jump) {
+      this.plannedFalso =
+        this.diff.falsoChance > 0 &&
+        this.character.powerSegments >= DASH_ENERGY_COST &&
+        Math.random() < this.diff.falsoChance;
+      this.airTime = 0;
+    }
+    // Falso set-up: shortly after take-off, air-dash up/down toward the
+    // ball's depth side (Character turns that into airCurveSide).
+    let dash = false;
+    let dashX = moveX;
+    let dashZ = moveZ;
+    if (this.character.y > 0) {
+      this.airTime += dt;
+      if (this.plannedFalso && (ball.controller !== null || ball.y <= BALL_TRAP_MAX_HEIGHT)) {
+        // The high ball is gone — don't burn energy on a pointless dash.
+        this.plannedFalso = false;
+      } else if (this.plannedFalso && this.airTime >= AI_FALSO_DASH_DELAY_SECONDS) {
+        this.plannedFalso = false;
+        dash = true;
+        dashX = -1;
+        dashZ = Math.abs(ball.z - this.character.z) > 2 ? Math.sign(ball.z - this.character.z) : Math.random() < 0.5 ? -1 : 1;
+      }
+    } else if (!jump) {
+      this.plannedFalso = false;
+      this.bicycleRolled = null;
+    }
+    this.character.update(delta, {
+      moveX: dash ? dashX : moveX,
+      moveZ: dash ? dashZ : moveZ,
+      jumpPressed: jump,
+      dashPressed: dash,
+    });
 
     if (holdingTut && isCatchableShot(ball, 'right', this.character)) {
       const { outcome, perfect } = applyCatchAttempt(ball, 'right', this.character, this.perfectParry);
@@ -138,10 +200,26 @@ export class AIOpponent {
     }
 
     // --- Header / volley on a high free ball.
-    if (!stunned && canStrikeAerial(ball, ball.controller !== null, this.character)) {
+    if (!stunned && this.aerialLockout <= 0 && canStrikeAerial(ball, ball.controller !== null, this.character)) {
+      // Falso planned: hold the strike until the air dash has gone out.
+      if (this.plannedFalso && this.character.y > 0) return;
+      this.aerialLockout = OPPONENT_AERIAL_RESTRIKE_SECONDS;
+      if (this.character.y > 0 && this.bicycleRolled === null) {
+        this.bicycleRolled =
+          this.character.powerSegments >= SUPER_MOVE_SEGMENT_COST && Math.random() < this.diff.bicycleChance;
+      }
+      if (this.bicycleRolled) {
+        this.bicycleRolled = false;
+        this.performBicycleKick(ball);
+        return;
+      }
       const aim = this.aimAtGoal();
+      const curve = this.character.y > 0 ? this.character.airCurveSide : 0;
+      this.character.airCurveSide = 0;
+      if (curve !== 0) this.onFalso?.();
       strikeBall(ball, 'volley', aim.x, aim.z, {
         level: 0,
+        curve,
         shotPowerMultiplier: this.def.shotPowerMultiplier,
         element: this.def.element,
         chaos: true,
@@ -200,14 +278,14 @@ export class AIOpponent {
     }
 
     if (stunned) return;
-    if (this.shotCooldownRemaining > 0 || Math.random() >= OPPONENT_SHOT_CHANCE_PER_TOUCH) return;
-    this.shotCooldownRemaining = OPPONENT_SHOT_COOLDOWN_SECONDS;
+    if (this.shotCooldownRemaining > 0 || Math.random() >= this.diff.shotChancePerTouch) return;
+    this.shotCooldownRemaining = this.diff.shotCooldownSeconds;
 
     const rivalAdvanced = rival !== undefined && rival.x - LEFT_GOAL_LINE_X > OPPONENT_LOB_RIVAL_ADVANCED_X;
     const kind: ShotKind =
       Math.random() < (rivalAdvanced ? OPPONENT_LOB_CHANCE_RIVAL_ADVANCED : OPPONENT_LOB_CHANCE) ? 'lob' : 'ground';
     const energy = this.energyLevel();
-    const powerChance = energy >= POWER_MAX_SEGMENTS ? OPPONENT_POWER_SHOT_CHANCE_FULL_BAR : OPPONENT_POWER_SHOT_CHANCE;
+    const powerChance = energy >= POWER_MAX_SEGMENTS ? this.diff.powerShotChanceFullBar : this.diff.powerShotChance;
     if (energy > 0 && Math.random() < powerChance) {
       this.chargeKind = kind;
       this.chargeRemaining = Phaser.Math.FloatBetween(OPPONENT_CHARGE_SECONDS_MIN, OPPONENT_CHARGE_SECONDS_MAX);
@@ -263,6 +341,25 @@ export class AIOpponent {
     soundFX.kick();
   }
 
+  /** Rövaşata (same rules as the human's, MatchScene.performBicycleKick):
+   * full bar, level-3 shot of our element, curving if we air-dashed. */
+  private performBicycleKick(ball: Ball): void {
+    if (!this.character.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
+    const curve = this.character.airCurveSide;
+    this.character.airCurveSide = 0;
+    const goal = this.aimAtGoal();
+    const aim = curvedAim(goal.x, goal.z, curve);
+    const level = SHOT_SPEED_BY_POWER_LEVEL.length - 1;
+    const speed = SHOT_SPEED_NORMAL * this.def.shotPowerMultiplier * SHOT_SPEED_BY_POWER_LEVEL[level] * BICYCLE_SPEED_MULTIPLIER;
+    this.onPowerShot?.(level, BICYCLE_TITLE);
+    ball.element = this.def.element;
+    ball.shoot(aim.x, aim.z, speed, false, true, true, 1, level, 0, 0);
+    if (curve !== 0) ball.spin = curve * CURVE_ACCEL;
+    emitImpact('power');
+    this.character.playBicycle();
+    soundFX.kick();
+  }
+
   /** World direction at a random point inside the human's goal mouth — no
    * laser aim (CLAUDE.md: no auto-aim; the AI must be beatable). */
   private aimAtGoal(): { x: number; z: number } {
@@ -271,7 +368,7 @@ export class AIOpponent {
   }
 
   private wobble(): number {
-    return OPPONENT_AIM_WOBBLE * (this.def.chaosTouch ? OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER : 1);
+    return this.diff.aimWobble * (this.def.chaosTouch ? OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER : 1);
   }
 
   private energyLevel(): number {

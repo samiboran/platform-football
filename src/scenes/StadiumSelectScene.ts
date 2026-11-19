@@ -8,6 +8,8 @@ import { makeFancyButton, pixelText, type UiButton } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { loadPref, savePref } from '../systems/prefs';
 import { soundFX } from '../systems/SoundFX';
+import * as D from '../config/difficulty';
+import { loadDifficulty, saveDifficulty } from '../systems/difficulty';
 
 interface StadiumSelectData {
   characterId: CharacterId;
@@ -19,6 +21,8 @@ export class StadiumSelectScene extends Phaser.Scene {
   private selected: StadiumId | null = null;
   private borders = new Map<StadiumId, Phaser.GameObjects.Rectangle>();
   private next!: UiButton;
+  private difficulty: D.DifficultyId = D.DEFAULT_DIFFICULTY;
+  private pills = new Map<D.DifficultyId, Phaser.GameObjects.Container>();
 
   constructor() {
     super('StadiumSelect');
@@ -60,10 +64,13 @@ export class StadiumSelectScene extends Phaser.Scene {
       () => {
         if (!this.selected) return;
         savePref(M.LAST_STADIUM_KEY, this.selected);
-        this.scene.start('Match', { characterId: this.characterId, stadiumId: this.selected });
+        saveDifficulty(this.difficulty);
+        this.scene.start('Match', { characterId: this.characterId, stadiumId: this.selected, difficulty: this.difficulty });
       },
       { icon: 'icon_whistle', labelScale: 3 },
     );
+
+    this.drawDifficultyRow();
 
     const last = loadPref(M.LAST_STADIUM_KEY) as StadiumId | null;
     this.selected = null;
@@ -109,6 +116,42 @@ export class StadiumSelectScene extends Phaser.Scene {
     bg.on('pointerup', () => {
       soundFX.click();
       this.select(def.id);
+    });
+  }
+
+  /** M9.2: KOLAY / ORTA / ZOR pills between GERİ and MAÇA BAŞLA. */
+  private drawDifficultyRow(): void {
+    this.pills.clear();
+    this.difficulty = loadDifficulty();
+    const cx = GAME_WIDTH / 2 + D.DIFFICULTY_ROW_DX;
+    const n = D.DIFFICULTY_ORDER.length;
+    const rowW = n * D.DIFFICULTY_PILL_W + (n - 1) * D.DIFFICULTY_PILL_GAP;
+    pixelText(this, cx, M.SELECT_BOTTOM_Y + D.DIFFICULTY_CAPTION_DY, 'RAKİP', 2, HUD.UI_DIM_TEXT_COLOR);
+    D.DIFFICULTY_ORDER.forEach((id, i) => {
+      const def = D.DIFFICULTIES[id];
+      const x = cx - rowW / 2 + D.DIFFICULTY_PILL_W / 2 + i * (D.DIFFICULTY_PILL_W + D.DIFFICULTY_PILL_GAP);
+      const bg = this.add
+        .rectangle(0, 0, D.DIFFICULTY_PILL_W, D.DIFFICULTY_PILL_H, def.color)
+        .setStrokeStyle(3, M.SELECT_CARD_SELECTED_BORDER)
+        .setInteractive({ useHandCursor: true });
+      const label = pixelText(this, 0, 0, def.label, D.DIFFICULTY_PILL_LABEL_SCALE, HUD.UI_TEXT_COLOR);
+      const pill = this.add.container(x, M.SELECT_BOTTOM_Y, [bg, label]);
+      bg.on('pointerup', () => {
+        soundFX.click();
+        this.selectDifficulty(id);
+      });
+      this.pills.set(id, pill);
+    });
+    this.selectDifficulty(this.difficulty);
+  }
+
+  private selectDifficulty(id: D.DifficultyId): void {
+    this.difficulty = id;
+    this.pills.forEach((pill, pid) => {
+      const on = pid === id;
+      pill.setAlpha(on ? 1 : D.DIFFICULTY_UNSELECTED_ALPHA);
+      const bg = pill.list[0] as Phaser.GameObjects.Rectangle;
+      bg.setStrokeStyle(on ? M.SELECT_CARD_SELECTED_WIDTH : 0, M.SELECT_CARD_SELECTED_BORDER);
     });
   }
 

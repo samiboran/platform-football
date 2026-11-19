@@ -22,7 +22,7 @@ Sami seçene kadar yapılmayacak; öncelik tahmini parantez içinde.
 - **Çalım hareketi / feint (düşük):** şarjı iptal edip yön değiştirme (Tsubasa feint). Rakip AI'ın tut zamanlamasını bozar.
 
 ## Hava kombosu — AI tarafı (17.11.2026)
-- AI rakip henüz falso (hava dash + vole) ve rövaşata kullanmıyor; sadece oyuncu yapabiliyor. Denge oturunca AI'a da öğretilecek.
+- ~~AI rakip falso ve rövaşata kullanmıyor~~ — yapıldı 19.11.2026 (M9.2 zorluk seviyeleri: ORTA/ZOR kullanıyor, KOLAY kullanmıyor).
 
 ## Ekipman (18.11.2026)
 - Ekipman şu an sadece renk kutusu; karakter sprite'ında görünmüyor (pabuç rengi, kol bandı, saç bandı `gen_sprites.py`'ye katman olarak eklenebilir).

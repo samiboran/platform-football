@@ -5,22 +5,11 @@
  * The opponent otherwise reuses its assigned character's own stats
  * (speed, power, shot power, chaos) straight from characters.ts — this
  * file only holds the tuning that's specific to being a computer player.
+ * M9.2: reaction, aim, defending error, shot eagerness and power-shot
+ * chances moved to config/difficulty.ts (per difficulty level; ORTA keeps
+ * the old values).
  */
 
-/** Minimum gap between the opponent's shot attempts once it's on the ball,
- * so it doesn't fire every single frame while standing on top of it. */
-export const OPPONENT_SHOT_COOLDOWN_SECONDS = 1.1;
-
-/** Per-touch chance to shoot instead of just dribble-nudging the ball
- * forward — keeps the AI from blasting the instant it arrives. */
-export const OPPONENT_SHOT_CHANCE_PER_TOUCH = 0.5;
-
-/** Chance to go for a hold-to-charge power shot (spends the WHOLE bar,
- * level = whole segments, same as the human — M6.2) when it has at least
- * one segment. */
-export const OPPONENT_POWER_SHOT_CHANCE = 0.35;
-/** With a full bar it's more eager to cash it in. */
-export const OPPONENT_POWER_SHOT_CHANCE_FULL_BAR = 0.6;
 /** The AI visibly "holds" a power shot (growing aura on the ball) for a
  * random time in this range before releasing — a readable tell the human
  * can react to, instead of an instant unannounced rocket. */
@@ -35,10 +24,6 @@ export const OPPONENT_LOB_CHANCE = 0.15;
 export const OPPONENT_LOB_CHANCE_RIVAL_ADVANCED = 0.25;
 export const OPPONENT_LOB_RIVAL_ADVANCED_X = 160;
 
-/** Defending a shot: the AI aims to stand on the shot's line at its own x,
- * give or take this much depth error (world z), so it isn't a perfect wall. */
-export const OPPONENT_INTERCEPT_Z_ERROR = 14;
-
 /** Jumping for high balls (lobs, volleys). The AI jumps when a free ball
  * will reach it within OPPONENT_JUMP_LEAD_SECONDS at a height between
  * these two values (px above ground) and is roughly in its depth lane. */
@@ -47,10 +32,7 @@ export const OPPONENT_JUMP_MIN_BALL_HEIGHT = 60;
 export const OPPONENT_JUMP_MAX_BALL_HEIGHT = 150;
 export const OPPONENT_JUMP_LANE_Z = 24;
 
-/** Base aim wobble applied to every AI shot — CLAUDE.md gives the human no
- * auto-aim, so the AI shouldn't get laser-guided aim either; it needs to be
- * beatable. Characters with chaosTouch (Kenya) wobble extra on top. */
-export const OPPONENT_AIM_WOBBLE = 0.5;
+/** Kenya (chaosTouch) wobbles extra on top of the difficulty aimWobble. */
 export const OPPONENT_CHAOS_CHARACTER_WOBBLE_MULTIPLIER = 1.6;
 
 /** Distance (world units) inside which the opponent stops nudging toward
@@ -64,19 +46,8 @@ export const OPPONENT_MOVE_DEADZONE = 12;
  * stopping 12 short left the AI standing next to the ball forever. */
 export const OPPONENT_BALL_CHASE_DEADZONE = 5;
 
-/** Lerp rate (1/s) for the AI's *perceived* ball position, which it chases
- * instead of the ball's true position every frame. Without this the AI
- * read as omniscient — always exactly where the ball currently is with
- * zero latency, "biliyormuş gibi" per Sami. A human-scale reaction lag on
- * top of that (not a perfect readout) makes it feel like it's actually
- * watching the ball rather than being fed its coordinates. */
-export const OPPONENT_TRACKING_LERP_SPEED = 6;
 
-/** Delay (seconds) between a shot being struck toward the AI's goal and
- * the AI reacting to it — moving onto the shot's line and holding tut
- * (M6.3). Without it the AI read the shot before it was struck. A shot
- * that reaches the AI before this elapses beats it outright. */
-export const OPPONENT_CATCH_REACTION_SECONDS = 0.15;
-/** Chance (per incoming shot) that the AI times its tut as a perfect parry
- * (M6.3). Kept low — the human should be the one landing most parries. */
-export const OPPONENT_PERFECT_PARRY_CHANCE = 0.15;
+/** After any AI strike, the AI can't volley/head the ball again for this
+ * long (s). Without it a volley still in reach right after hitstop was hit
+ * a second time — which also wiped a falso's spin (M9.2). */
+export const OPPONENT_AERIAL_RESTRIKE_SECONDS = 0.35;

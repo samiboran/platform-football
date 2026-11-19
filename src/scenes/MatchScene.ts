@@ -98,6 +98,8 @@ import { Character } from '../entities/Character';
 import { Ball } from '../entities/Ball';
 import { BALL_POWER_LEVEL_MAX } from '../config/animation';
 import { AIOpponent } from '../entities/AIOpponent';
+import { DIFFICULTIES, DIFFICULTY_TAG_DY, DIFFICULTY_TAG_SCALE, type DifficultyId } from '../config/difficulty';
+import { loadDifficulty } from '../systems/difficulty';
 import { Tutorial, type TutorialEvent } from '../systems/Tutorial';
 import * as TUT from '../config/tutorial';
 import { PVP_STADIUM } from '../config/stadiums';
@@ -107,6 +109,8 @@ interface MatchData {
   stadiumId?: StadiumId;
   /** M9.2: run the step-by-step tutorial instead of a timed match. */
   tutorial?: boolean;
+  /** M9.2 AI difficulty; defaults to the last one chosen. */
+  difficulty?: DifficultyId;
 }
 
 /**
@@ -187,6 +191,7 @@ export class MatchScene extends Phaser.Scene {
   /** M9.2 tutorial driver, or null in a normal match. */
   private tutorial: Tutorial | null = null;
   private tutorialMode = false;
+  private difficulty: DifficultyId = 'normal';
   /** Seconds the ball has been out of the player's control / on the
    * ground (tutorial ball staging) and until the next practice shot. */
   private tutorialBallIdle = 0;
@@ -199,6 +204,7 @@ export class MatchScene extends Phaser.Scene {
   init(data: MatchData): void {
     this.character = CHARACTERS[data.characterId ?? 'argentina'];
     this.tutorialMode = data.tutorial === true;
+    this.difficulty = data.difficulty && DIFFICULTIES[data.difficulty] ? data.difficulty : loadDifficulty();
     this.stadium = STADIUMS[this.tutorialMode ? PVP_STADIUM : (data.stadiumId ?? DEFAULT_STADIUM)];
     // The computer picks a different character than the human's, purely
     // for variety — there's no AI character-select screen (out of scope).
@@ -331,9 +337,15 @@ export class MatchScene extends Phaser.Scene {
 
     // Each side always shoots its own element (config/elements.ts).
     this.ball.elementBySide = { left: this.character.element, right: this.opponentCharacter.element };
-    this.opponent = new AIOpponent(this, this.opponentCharacter, this.stadium.speedMultiplier);
+    this.opponent = new AIOpponent(
+      this,
+      this.opponentCharacter,
+      this.stadium.speedMultiplier,
+      DIFFICULTIES[this.difficulty],
+    );
     this.opponent.onPerfectParry = () => this.flashParry();
-    this.opponent.onPowerShot = (level) => this.startCutIn('right', this.opponentCharacter, level);
+    this.opponent.onPowerShot = (level, caption) => this.startCutIn('right', this.opponentCharacter, level, caption);
+    this.opponent.onFalso = () => this.popText(FALSO_TEXT, FALSO_TEXT_COLOR, this.opponent.character);
     this.hitstopRemaining = 0;
     this.cutInRemaining = 0;
     this.pendingImpact = null;
@@ -846,8 +858,8 @@ export class MatchScene extends Phaser.Scene {
   }
 
   /** Small rising caption above the player (combo feedback). */
-  private popText(text: string, color: number): void {
-    const p = projectToScreen(this.player.x, this.player.z, this.player.y);
+  private popText(text: string, color: number, who: Character = this.player): void {
+    const p = projectToScreen(who.x, who.z, who.y);
     const t = this.add
       .bitmapText(p.screenX, p.screenY - CHARACTER_HEIGHT - 10, HUD.PIXEL_FONT_KEY, HUD.toHudText(text))
       .setScale(POPUP_TEXT_SCALE)
@@ -956,6 +968,15 @@ export class MatchScene extends Phaser.Scene {
       .setScale(HUD.TIMER_FONT_SCALE)
       .setOrigin(0.5, 0)
       .setDepth(10001);
+    if (!this.tutorialMode) {
+      const d = DIFFICULTIES[this.difficulty];
+      this.add
+        .bitmapText(GAME_WIDTH / 2, this.timeText.y + DIFFICULTY_TAG_DY, HUD.PIXEL_FONT_KEY, HUD.toHudText(d.label))
+        .setScale(DIFFICULTY_TAG_SCALE)
+        .setOrigin(0.5, 0)
+        .setTint(d.color)
+        .setDepth(10001);
+    }
 
     // Energy bars (CLAUDE.md §5) — top corners so no thumb covers them
     // (M7.2). Rival's bar too: the clash table depends on it.
@@ -1120,7 +1141,12 @@ export class MatchScene extends Phaser.Scene {
     if (this.matchOver) return;
     this.matchOver = true;
     soundFX.whistle('end');
-    const rewards = grantMatchRewards(this.character.id, this.scoreLeft, this.scoreRight);
+    const rewards = grantMatchRewards(
+      this.character.id,
+      this.scoreLeft,
+      this.scoreRight,
+      DIFFICULTIES[this.difficulty].rewardMultiplier,
+    );
     this.scene.start('Result', {
       rewards,
       scoreLeft: this.scoreLeft,
