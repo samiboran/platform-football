@@ -1184,3 +1184,12 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Kalan (M9.2):** ilk açılış eğitimi (sıradaki), AI zorluk seviyeleri, lig modu, TR/EN dil, denge turu.
 - **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; altın/elmas harcama yeri ve Arjantin/Kenya kararı.
 - **Bilinen:** ayar değişikliği açık bir maça değil, bir sonraki maça uygulanır (duraklatma menüsünde Ayarlar yok).
+
+## Oturum 50 — Şut açıları, nişan çizgisi, duvardan banko (19.11.2026, Sami'nin isteği)
+- **Sabit açılar:** joystick 45 / 70 / 90 / 110 / 135 dereceye yapışıyor (`config/aim.ts`, `systems/aim.ts`). Yerden şut, vole ve rövaşatada geçerli. Joystick boşken artık her zaman ileri (90°) — eskiden bakış yönüne gidiyordu, geriye bakarken kendi kalesine şut çıkabiliyordu.
+- **Nişan çizgisi:** top ayaktayken kesik çizgi, bir yan duvar sekmesini gösterir; şarj ederken parlaklaşır; lobda gizli. Sadece insan oyuncuda, Ayarlar'da "NİŞAN ÇİZGİSİ" ile kapanır (ayar satırları biraz sıkıştırıldı).
+- **Duvar:** yan duvar sekmesi 0.55 → 0.85, uç duvar 0.55 → 0.6.
+- **Bulunan asıl hata:** yer sürtünmesi x ve z'ye ayrı ayrı uygulanıyordu → çapraz şutta küçük bileşen (z) önce bitiyor, top düzleşip duvara hiç ulaşamıyordu. Artık hız vektörüne uygulanıyor; çapraz şutlar gittiği yöne gidiyor.
+- **Doğrulama (Playwright, geçici hook kaldırıldı):** joystick 30°→45, 79°→70, 117°→110, yukarı→45, geri-aşağı→135. Orta derinlikten 45° normal şut yan duvara çarpıp sekiyor; 45° seviye-2 power şut duvardan sekip **gol** oldu. Ayarlar ekranı 8 satır sığıyor. Konsol hatası yok, build temiz.
+- **Bilinen:** AI açılara yapışmıyor ve bankoyu bilinçli kullanmıyor (kendi nişanı var). Normal şutla uzaktan banko gol zor — bilerek; daha kolay olsun istenirse `BALL_SIDE_WALL_RESTITUTION` ya da açı listesi değiştirilebilir.
+

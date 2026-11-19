@@ -39,6 +39,8 @@ export const LANGUAGES_AVAILABLE: Language[] = ['tr'];
 
 export const DEFAULT_SETTINGS = {
   vibration: true,
+  /** Dashed shot-direction line on the pitch (config/aim.ts). */
+  aimLine: true,
   buttonSizeIndex: 1,
   buttonOpacityIndex: 2,
   handedness: 'right' as Handedness,
@@ -53,12 +55,12 @@ export const SETTINGS_SOON = 'YAKINDA';
 export const SETTINGS_RESET = 'VARSAYILAN';
 export const SETTINGS_ROW_X = 340;
 export const SETTINGS_ROW_W = 600;
-export const SETTINGS_ROW_H = 48;
-export const SETTINGS_ROW_GAP = 8;
+export const SETTINGS_ROW_H = 44;
+export const SETTINGS_ROW_GAP = 6;
 export const SETTINGS_ROWS_TOP = 100;
 export const SETTINGS_LABEL_SCALE = 3;
 export const SETTINGS_VALUE_W = 210;
-export const SETTINGS_VALUE_H = 40;
+export const SETTINGS_VALUE_H = 36;
 export const SETTINGS_ON_COLOR = 0x2fae5a;
 export const SETTINGS_OFF_COLOR = 0x7a3a3a;
 export const SETTINGS_CYCLE_COLOR = 0x2f9ae0;

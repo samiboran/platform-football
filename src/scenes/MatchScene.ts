@@ -18,6 +18,9 @@ import { MATCH_DURATION_SECONDS, GOAL_RESET_FREEZE_SECONDS } from '../config/mat
 import { CHARACTERS, CHARACTER_ORDER, type CharacterId, type CharacterDef } from '../config/characters';
 import { DEFAULT_STADIUM, STADIUMS, type StadiumId } from '../config/stadiums';
 import { equipMods, type EquipMods } from '../config/equipment';
+import * as AIM from '../config/aim';
+import { snapShotAim } from '../systems/aim';
+import { loadSettings } from '../systems/settings';
 import {
   CATCH_ARM_SECONDS,
   CATCH_WHIFF_COOLDOWN_SECONDS,
@@ -190,6 +193,63 @@ export class MatchScene extends Phaser.Scene {
     this.opponentCharacter = CHARACTERS[Phaser.Utils.Array.GetRandom(pool)];
   }
 
+  /** 19.11.2026 dashed shot-direction line (human only, config/aim.ts). */
+  private aimLine!: Phaser.GameObjects.Graphics;
+  private aimLineEnabled = true;
+
+  /** Screen direction a ground shot would take right now: last stick
+   * direction (else forward), snapped to the allowed angles. */
+  private groundShotAim(): { x: number; z: number } {
+    const hasAim = this.lastAimX !== 0 || this.lastAimZ !== 0;
+    return snapShotAim(hasAim ? this.lastAimX : 1, hasAim ? this.lastAimZ : 0);
+  }
+
+  /** Dashed line from the ball along the snapped shot direction, with one
+   * side-wall bounce, so bank shots can be lined up. Hidden for a lob. */
+  private updateAimLine(): void {
+    const g = this.aimLine;
+    g.clear();
+    if (!this.aimLineEnabled || this.ball.controller !== 'left') return;
+    if (this.liveMove.x <= -LOB_STICK_BACK_THRESHOLD) return;
+    const aim = this.groundShotAim();
+    const w = screenDirToWorld(aim.x, aim.z);
+    const len = Math.hypot(w.x, w.z) || 1;
+    let dx = w.x / len;
+    let dz = w.z / len;
+    let x = this.ball.x;
+    let z = this.ball.z;
+    let left = AIM.AIM_LINE_LENGTH;
+    let bounces = 0;
+    let drawOn = true;
+    let segLeft = AIM.AIM_LINE_DASH;
+    const step = 2;
+    const alpha = this.shotChargeSeconds !== null ? AIM.AIM_LINE_ALPHA_CHARGING : AIM.AIM_LINE_ALPHA_IDLE;
+    g.lineStyle(AIM.AIM_LINE_WIDTH, AIM.AIM_LINE_COLOR, alpha);
+    while (left > 0 && x < RIGHT_GOAL_LINE_X) {
+      const nx = x + dx * step;
+      let nz = z + dz * step;
+      if (nz < DEPTH_MIN || nz > DEPTH_MAX) {
+        if (bounces >= AIM.AIM_LINE_MAX_BOUNCES) break;
+        bounces += 1;
+        dz = -dz;
+        nz = Phaser.Math.Clamp(nz, DEPTH_MIN, DEPTH_MAX);
+      }
+      if (drawOn) {
+        const a = projectToScreen(x, z, 0);
+        const b = projectToScreen(nx, nz, 0);
+        g.lineBetween(a.screenX, a.screenY, b.screenX, b.screenY);
+      }
+      x = nx;
+      z = nz;
+      left -= step;
+      segLeft -= step;
+      if (segLeft <= 0) {
+        drawOn = !drawOn;
+        segLeft = drawOn ? AIM.AIM_LINE_DASH : AIM.AIM_LINE_GAP;
+      }
+    }
+  }
+
   /** 18.11.2026 equipment multipliers for the human (config/equipment.ts). */
   private equip!: EquipMods;
 
@@ -277,6 +337,8 @@ export class MatchScene extends Phaser.Scene {
     this.input1 = new InputController(this);
 
     this.debugGraphics = this.add.graphics().setDepth(20000);
+    this.aimLine = this.add.graphics().setDepth(AIM.AIM_LINE_DEPTH);
+    this.aimLineEnabled = loadSettings().aimLine;
 
     this.input.keyboard?.on('keydown-F1', () => {
       this.debugVisible = !this.debugVisible;
@@ -323,6 +385,7 @@ export class MatchScene extends Phaser.Scene {
       // kilitli") — nothing moves, nobody can touch/shoot/catch, the clock
       // doesn't run down either. Crowd/HUD keep going, purely cosmetic.
       this.kickoffFreezeRemaining -= delta / 1000;
+      this.aimLine.clear();
       this.crowd.update(delta);
       if (this.replayStartIn !== null) {
         this.replayStartIn -= delta / 1000;
@@ -470,6 +533,7 @@ export class MatchScene extends Phaser.Scene {
     this.updateButtonFeedback();
 
     this.updateBodyBlocks(dtSec);
+    this.updateAimLine();
     const scored = this.ball.update(delta);
     this.replay.capture(dtSec);
     if (scored) this.onGoal(scored);
@@ -612,9 +676,8 @@ export class MatchScene extends Phaser.Scene {
       soundFX.kick();
       return;
     }
-    const hasAim = this.lastAimX !== 0 || this.lastAimZ !== 0;
-    const aimX = hasAim ? this.lastAimX : this.player.facingX;
-    const aimZ = hasAim ? this.lastAimZ : this.player.facingZ;
+    // 19.11.2026: snapped to the allowed angles (config/aim.ts).
+    const { x: aimX, z: aimZ } = this.groundShotAim();
     // Stick direction is a screen direction — convert so the shot flies
     // at the stick's on-screen angle and speed (config/movement.ts).
     const w = screenDirToWorld(aimX, aimZ);
@@ -627,9 +690,9 @@ export class MatchScene extends Phaser.Scene {
    * (default: forward). Normal power only — no energy involved. */
   private fireVolley(): void {
     const hasStick = this.liveMove.x !== 0 || this.liveMove.z !== 0;
-    const aimX = hasStick ? this.liveMove.x : 1;
-    const aimZ = hasStick ? this.liveMove.z : 0;
-    const w = screenDirToWorld(aimX, aimZ);
+    const snapped = snapShotAim(hasStick ? this.liveMove.x : 1, hasStick ? this.liveMove.z : 0);
+    const aimX = snapped.x;
+    const w = screenDirToWorld(snapped.x, snapped.z);
     const curve = this.player.airCurveSide * this.equip.curve;
     this.player.airCurveSide = 0;
     this.airCarry = false;
@@ -659,7 +722,8 @@ export class MatchScene extends Phaser.Scene {
     if (this.player.powerSegments < SUPER_MOVE_SEGMENT_COST) return;
     if (!this.player.spendPower(SUPER_MOVE_SEGMENT_COST)) return;
     const hasStick = this.liveMove.x !== 0 || this.liveMove.z !== 0;
-    const w = screenDirToWorld(hasStick ? this.liveMove.x : 1, hasStick ? this.liveMove.z : 0);
+    const snapped = snapShotAim(hasStick ? this.liveMove.x : 1, hasStick ? this.liveMove.z : 0);
+    const w = screenDirToWorld(snapped.x, snapped.z);
     const curve = this.player.airCurveSide * this.equip.curve;
     this.player.airCurveSide = 0;
     this.airCarry = false;

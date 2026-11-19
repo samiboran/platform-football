@@ -34,6 +34,7 @@ import {
   BALL_BOUNCE_RESTITUTION,
   BALL_MIN_BOUNCE_VY,
   BALL_WALL_RESTITUTION,
+  BALL_SIDE_WALL_RESTITUTION,
   BALL_GROUND_FRICTION,
   BALL_MAX_SPEED,
   BALL_TRAP_CONTACT_X,
@@ -416,10 +417,17 @@ export class Ball {
 
     // Ground friction while rolling — a bounded decay (dampen()), never an
     // instant stop, so braking always reads as a real slide-to-a-halt.
+    // Applied to the speed (not per axis): per-axis decay killed the
+    // smaller component first, so every diagonal shot flattened out toward
+    // pure x and never reached the side wall (19.11.2026 bank-shot fix).
     if (this.y === 0) {
       const friction = BALL_GROUND_FRICTION * this.tuning.frictionMultiplier;
-      this.vx = dampen(this.vx, friction * dt);
-      this.vz = dampen(this.vz, friction * dt);
+      const v = Math.hypot(this.vx, this.vz);
+      if (v > 0) {
+        const k = dampen(v, friction * dt) / v;
+        this.vx *= k;
+        this.vz *= k;
+      }
     }
 
     // Hard speed cap — stops repeated wall bounces (or wind, over many
@@ -445,10 +453,10 @@ export class Ball {
     // Touchline bounce.
     if (this.z < DEPTH_MIN) {
       this.z = DEPTH_MIN;
-      this.vz = -this.vz * BALL_WALL_RESTITUTION;
+      this.vz = -this.vz * BALL_SIDE_WALL_RESTITUTION;
     } else if (this.z > DEPTH_MAX) {
       this.z = DEPTH_MAX;
-      this.vz = -this.vz * BALL_WALL_RESTITUTION;
+      this.vz = -this.vz * BALL_SIDE_WALL_RESTITUTION;
     }
 
     const inGoalMouth = this.z >= GOAL_MOUTH_Z_MIN && this.z <= GOAL_MOUTH_Z_MAX;

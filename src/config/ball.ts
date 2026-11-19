@@ -18,9 +18,13 @@ export const BALL_BOUNCE_RESTITUTION = 0.45;
 /** Below this vertical speed, stop bouncing and settle on the ground. */
 export const BALL_MIN_BOUNCE_VY = 40;
 /** Fraction of horizontal speed kept after bouncing off a touchline/wall/
- * goal frame. Lowered from an earlier 0.7 — walls should visibly kill some
- * speed, not just mirror it, or the ball reads as "flailing" between them. */
-export const BALL_WALL_RESTITUTION = 0.55;
+ * goal frame. History: 0.7 → 0.55 (ball "flailing" between walls) → 0.8
+ * (19.11.2026, Sami: bank shots off the side wall should be a real way to
+ * score, 0.55 killed them). The side walls (top/bottom) use
+ * BALL_SIDE_WALL_RESTITUTION; end walls / goal frame keep this one. */
+export const BALL_WALL_RESTITUTION = 0.6;
+/** Top/bottom (side) walls — the bank-shot walls. */
+export const BALL_SIDE_WALL_RESTITUTION = 0.85;
 /** px/s² deceleration while the ball is rolling freely on the ground —
  * doubles as the "rolling friction" the dribble-feel task asked for; kept
  * under this one name rather than a duplicate BALL_ROLLING_FRICTION alias.

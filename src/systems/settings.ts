@@ -23,6 +23,7 @@ export function loadSettings(): Settings {
   }
   cache = {
     vibration: typeof raw.vibration === 'boolean' ? raw.vibration : d.vibration,
+    aimLine: typeof raw.aimLine === 'boolean' ? raw.aimLine : d.aimLine,
     buttonSizeIndex: clampIndex(raw.buttonSizeIndex, S.BUTTON_SIZE_OPTIONS.length, d.buttonSizeIndex),
     buttonOpacityIndex: clampIndex(raw.buttonOpacityIndex, S.BUTTON_OPACITY_OPTIONS.length, d.buttonOpacityIndex),
     handedness: raw.handedness === 'left' || raw.handedness === 'right' ? raw.handedness : d.handedness,

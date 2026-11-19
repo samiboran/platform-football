@@ -70,6 +70,12 @@ export class SettingsScene extends Phaser.Scene {
         },
       },
       {
+        label: 'NİŞAN ÇİZGİSİ',
+        value: (v) => onOff(v.aimLine),
+        color: (v) => onOffColor(v.aimLine),
+        onTap: (v) => saveSettings({ aimLine: !v.aimLine }),
+      },
+      {
         label: 'TUŞ BOYUTU',
         value: (v) => S.BUTTON_SIZE_OPTIONS[v.buttonSizeIndex].label,
         color: () => S.SETTINGS_CYCLE_COLOR,

@@ -86,6 +86,8 @@ Sanal joystick (sol) + 4 tuş (sağ):
 - Joystick boşken Dash'e basılırsa karakterin baktığı yöne dash atar.
 - Şut yönü, Aksiyon'a basıldığı andaki joystick yönünden gelir (kaba yönler, serbest nişan yok).
 - Yanlış yön veya kötü zamanlama → direk, auta çıkan top, isabetsiz şut. Otomatik kaleye nişan **yok**.
+- **Şut açıları (19.11.2026, Sami):** joystick sabit açılara yapışır (0° = yukarı, 90° = karşı kale, 180° = aşağı): **45 / 70 / 90 / 110 / 135**. 70/110 kalenin köşeleri, 45/135 yan duvardan banko. Joystick boşsa 90°. Topu ayağında tutan oyuncu sahada kesik bir **nişan çizgisi** görür (bir duvar sekmesiyle, sadece kendisi; Ayarlar'dan kapatılır). Ayarlar `config/aim.ts`.
+- **Duvar sekmesi:** yan duvarlar hızın %85'ini korur (`BALL_SIDE_WALL_RESTITUTION`), uç duvar/direk %60. Yerdeki sürtünme hız vektörüne uygulanır (eskiden eksen eksen uygulanıyordu, çapraz şutlar düzleşip duvara ulaşamıyordu).
 - PC (17.11.2026, Sami): **WASD** hareket (oklar da çalışır), **Space** zıpla, **Shift** dash, **sol tık** Aksiyon (şut/tut, basılı tut = power), **sağ tık** Özel; klavye yedeği J = Aksiyon, E = Özel, P/ESC duraklat. Fare tıkları dokunmatik joystick/tuşları tetiklemez.
 
 ---
