@@ -1256,3 +1256,5 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 - **Kalan (M9, Claude'un yapabileceği):** yok — denge turu gerçek oyuncu geri bildirimi bekliyor; kalan her şey Sami'de.
 - **Sami bekliyor:** keystore + GitHub Secrets (imzalı AAB), hata raporlama servisi, gerçek telefonda 60 FPS testi; altın/elmas harcama yeri, Arjantin/Kenya kararı; Google Play hesabı (25 $), kapalı test (12 kişi/14 gün), IARC/hedef kitle beyanı; **lig adı "Sokak Dünya Kupası" değişsin mi**; Play'e ilk yüklemede sürüm 0.1.0 mı yoksa başka bir numara mı.
 - **Bilinen:** versionCode şemasında MINOR/PATCH 100'ü geçemez (script hata verir).
+
+## Oturum 58 — (20.11.2026, zamanlanmış) Claude'un yapabileceği M9 maddesi kalmadı; iş yapılmadı, kalanlar Sami/gerçek oyuncu geri bildirimi bekliyor (bkz. Oturum 57).
