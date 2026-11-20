@@ -5,6 +5,7 @@ import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import * as HUD from '../config/hud';
 import * as M from '../config/menus';
 import * as S from '../config/settings';
+import * as V from '../config/version';
 import { makeFancyButton, panel } from '../systems/uiKit';
 import { drawHubBackdrop } from '../systems/hubBackdrop';
 import { loadSettings, resetSettings, saveSettings, touchLayout, type Settings } from '../systems/settings';
@@ -119,6 +120,12 @@ export class SettingsScene extends Phaser.Scene {
     { labelScale: 3 });
 
     this.drawPreview(s);
+
+    this.add
+      .bitmapText(V.VERSION_LABEL_X, V.VERSION_LABEL_Y, HUD.PIXEL_FONT_KEY, HUD.toHudText('V' + V.APP_VERSION))
+      .setScale(V.VERSION_LABEL_SCALE)
+      .setOrigin(1, 1)
+      .setTint(HUD.UI_DIM_TEXT_COLOR);
   }
 
   private drawRow(row: Row, i: number, s: Settings): void {

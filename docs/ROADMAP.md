@@ -166,8 +166,9 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [x] Data safety (veri güvenliği) formu: hangi veri toplanıyor (sunucusuz v1'de neredeyse hiç) **(şart)** — cevaplar `docs/store/DATA_SAFETY.md` (toplanan/paylaşılan veri yok; formu Play Console'a Sami girer)
 - [ ] İçerik derecelendirme (IARC anketi) ve hedef kitle beyanı — çocuklara yönelik seçilirse Aileler politikası devreye girer **(şart)(Sami)**
 - [x] Mağaza sayfası: 512×512 ikon, 1024×500 tanıtım görseli, en az 2 ekran görüntüsü, kısa/uzun açıklama (TR/EN) **(şart)** — `docs/store/` (TR/EN 5'er ekran görüntüsü, tanıtım görseli, `LISTING.md`), yeniden üretim `tools/store/`
-- [ ] İsim/marka kontrolü ("Platform Football"), gerçek oyuncu/kulüp adı ve logosu kullanmama
-- [ ] Sürüm numaralama (versionName / versionCode) ve sürüm notları düzeni
+- [x] İsim/marka kontrolü ("Platform Football"), gerçek oyuncu/kulüp adı ve logosu kullanmama — `docs/store/NAME_CHECK.md` (çakışma bulunmadı; oyunda gerçek oyuncu/kulüp/logo yok)
+- [ ] Lig adı "Sokak Dünya Kupası" ("World Cup" FIFA markası) değişsin mi — öneriler `NAME_CHECK.md` **(Sami)**
+- [x] Sürüm numaralama (versionName / versionCode) ve sürüm notları düzeni — tek kaynak `package.json` (versionCode = MAJOR·10000+MINOR·100+PATCH), notlar `docs/store/release-notes/`, `npm run release:check`, Ayarlar köşesinde sürüm (`docs/store/VERSIONING.md`)
 - [ ] (İleride) iOS: Apple Developer hesabı yıllık 99 $, Mac/Xcode gerekir **(₺)(Sami)**
 
 ## M10 — Arka plan (backend) altyapısı

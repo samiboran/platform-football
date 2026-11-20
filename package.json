@@ -9,7 +9,8 @@
     "build": "tsc -b && vite build",
     "build:android": "tsc -b && vite build --base ./ && cap sync android",
     "android:icons": "python3 tools/build/android_assets.py",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release:check": "node tools/build/release_check.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.2",
