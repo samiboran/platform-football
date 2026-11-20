@@ -39,4 +39,6 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- navigator.vibrate() in the WebView needs this (haptics, Settings toggle). -->
+    <uses-permission android:name="android.permission.VIBRATE" />
 </manifest>

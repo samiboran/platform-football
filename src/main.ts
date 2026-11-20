@@ -52,3 +52,7 @@ const game = new Phaser.Game({
 
 installAppLifecycle(game);
 soundFX.installUnlock();
+
+// Dev-server only (stripped from production builds): lets
+// tools/store/capture.cjs drive a match for store screenshots.
+if (import.meta.env.DEV) (window as unknown as { __game: Phaser.Game }).__game = game;

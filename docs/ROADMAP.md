@@ -163,9 +163,9 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [ ] Google Play geliştirici hesabı (tek seferlik 25 $) **(₺)(Sami)(şart)**
 - [ ] Yeni kişisel hesaplarda **kapalı test: en az 12 test kullanıcısı, 14 gün kesintisiz** — sonra üretime başvuru **(şart)**
 - [x] Gizlilik politikası sayfası (GitHub Pages'te barındırılabilir) **(şart)** — `assets/privacy.html` → https://samiboran.github.io/platform-football/privacy.html (TR/EN, iletişim şimdilik GitHub Issues)
-- [ ] Data safety (veri güvenliği) formu: hangi veri toplanıyor (sunucusuz v1'de neredeyse hiç) **(şart)**
+- [x] Data safety (veri güvenliği) formu: hangi veri toplanıyor (sunucusuz v1'de neredeyse hiç) **(şart)** — cevaplar `docs/store/DATA_SAFETY.md` (toplanan/paylaşılan veri yok; formu Play Console'a Sami girer)
 - [ ] İçerik derecelendirme (IARC anketi) ve hedef kitle beyanı — çocuklara yönelik seçilirse Aileler politikası devreye girer **(şart)(Sami)**
-- [ ] Mağaza sayfası: 512×512 ikon, 1024×500 tanıtım görseli, en az 2 ekran görüntüsü, kısa/uzun açıklama (TR/EN) **(şart)**
+- [x] Mağaza sayfası: 512×512 ikon, 1024×500 tanıtım görseli, en az 2 ekran görüntüsü, kısa/uzun açıklama (TR/EN) **(şart)** — `docs/store/` (TR/EN 5'er ekran görüntüsü, tanıtım görseli, `LISTING.md`), yeniden üretim `tools/store/`
 - [ ] İsim/marka kontrolü ("Platform Football"), gerçek oyuncu/kulüp adı ve logosu kullanmama
 - [ ] Sürüm numaralama (versionName / versionCode) ve sürüm notları düzeni
 - [ ] (İleride) iOS: Apple Developer hesabı yıllık 99 $, Mac/Xcode gerekir **(₺)(Sami)**
