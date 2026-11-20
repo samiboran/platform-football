@@ -156,13 +156,13 @@ Etiketler: **(Sami)** = senin kararın, **(₺)** = ücretli servis/hesap, **(ş
 - [x] Lig/hikaye modu (M5'ten açık kalan): mahalle → şehir → kıta → dünya finali — ana menüde **LİG**, 7 maçlık merdiven `config/league.ts`
 - [ ] Altın/elmasın harcanacağı yer: karakter açma, kostüm/forma, top efekti **(Sami)**
 - [ ] Arjantin ve Kenya'yı açmak (sprite + denge) — v1 için şart değil **(Sami)**
-- [ ] Dil: Türkçe + İngilizce (metinleri tek dosyada topla)
+- [x] Dil: Türkçe + İngilizce (metinleri tek dosyada topla) — gettext tarzı: Türkçe metin anahtar, tüm İngilizce `src/i18n/en.ts`; ilk açılışta cihaz dili, Ayarlar > DİL
 - [ ] Denge turu: XP eğrisi, özellikler, AI, lob/falso gücü (gerçek oyunculardan geri bildirimle)
 
 ### M9.3 Mağaza ve yasal (Google Play)
 - [ ] Google Play geliştirici hesabı (tek seferlik 25 $) **(₺)(Sami)(şart)**
 - [ ] Yeni kişisel hesaplarda **kapalı test: en az 12 test kullanıcısı, 14 gün kesintisiz** — sonra üretime başvuru **(şart)**
-- [ ] Gizlilik politikası sayfası (GitHub Pages'te barındırılabilir) **(şart)**
+- [x] Gizlilik politikası sayfası (GitHub Pages'te barındırılabilir) **(şart)** — `assets/privacy.html` → https://samiboran.github.io/platform-football/privacy.html (TR/EN, iletişim şimdilik GitHub Issues)
 - [ ] Data safety (veri güvenliği) formu: hangi veri toplanıyor (sunucusuz v1'de neredeyse hiç) **(şart)**
 - [ ] İçerik derecelendirme (IARC anketi) ve hedef kitle beyanı — çocuklara yönelik seçilirse Aileler politikası devreye girer **(şart)(Sami)**
 - [ ] Mağaza sayfası: 512×512 ikon, 1024×500 tanıtım görseli, en az 2 ekran görüntüsü, kısa/uzun açıklama (TR/EN) **(şart)**

@@ -13,7 +13,12 @@ import { installAutoFullscreen } from './systems/mobileShell';
 import { registerOfflineCache } from './systems/offline';
 import { installAppLifecycle } from './systems/appLifecycle';
 import { soundFX } from './systems/SoundFX';
+import { installTranslation, translateDocument } from './i18n';
+import { loadSettings } from './systems/settings';
 
+installTranslation();
+loadSettings(); // applies the saved / device language before the first text is drawn
+translateDocument();
 installAutoFullscreen();
 registerOfflineCache();
 

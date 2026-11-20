@@ -249,6 +249,7 @@ Sırayla git. Bir milestone bitmeden sonrakine geçme.
 - Sabit kamera kuralını bozma. Zoom, takip, sarsıntı (hafif screen shake hariç) yok.
 - Performans hedefi: orta seviye Android telefonda 60 FPS.
 - Her commit çalışır durumda olsun; yarım bırakılmış build kırıcı kod push etme.
+- **Dil (20.11.2026):** oyunda yeni bir yazı eklersen İngilizcesini `src/i18n/en.ts`'e ekle (anahtar = Türkçe metin). Çeviri BitmapText'te otomatik yapılır; dev'de İngilizce modda eksikler `window.__i18nMissing`'de toplanır.
 - Bir şey ertelendiyse (sopa/taş mekaniği gibi) `docs/BACKLOG.md`'ye yaz, sessizce unutma.
 
 ---

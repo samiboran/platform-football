@@ -1,3 +1,4 @@
+import { formatNumber } from '../i18n';
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '../config/arena';
 import * as HUD from '../config/hud';
@@ -30,7 +31,7 @@ export class EquipmentScene extends Phaser.Scene {
     panel(this, gx, 40, M.HUB_PILL_W, M.HUB_PILL_H, M.HUB_PILL_COLOR, M.HUB_PILL_ALPHA, M.HUB_PILL_H / 2);
     this.add.image(gx - M.HUB_PILL_W / 2 + 6, 40, 'icon_coin').setScale(4);
     this.add
-      .bitmapText(gx + M.HUB_PILL_W / 2 - 16, 41, HUD.PIXEL_FONT_KEY, profile.gold.toLocaleString('tr-TR'))
+      .bitmapText(gx + M.HUB_PILL_W / 2 - 16, 41, HUD.PIXEL_FONT_KEY, formatNumber(profile.gold))
       .setScale(3)
       .setOrigin(1, 0.5);
 

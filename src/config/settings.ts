@@ -8,7 +8,8 @@
 export const SETTINGS_KEY = 'pf.settings.v1';
 
 export type Handedness = 'right' | 'left';
-export type Language = 'tr' | 'en';
+export type { Language } from '../i18n';
+import type { Language } from '../i18n';
 
 /** Touch button size presets. Scales radius, spacing and the cluster's
  * distance from the screen corner so the biggest preset still fits. */
@@ -34,8 +35,8 @@ export const LANGUAGE_LABELS: Record<Language, string> = {
   tr: 'TÜRKÇE',
   en: 'ENGLISH',
 };
-/** Languages that can actually be picked yet (EN arrives with the M9.2 "Dil" item). */
-export const LANGUAGES_AVAILABLE: Language[] = ['tr'];
+/** Languages the DİL row cycles through (translations: src/i18n/en.ts). */
+export const LANGUAGES_AVAILABLE: Language[] = ['tr', 'en'];
 
 export const DEFAULT_SETTINGS = {
   vibration: true,
@@ -44,6 +45,7 @@ export const DEFAULT_SETTINGS = {
   buttonSizeIndex: 1,
   buttonOpacityIndex: 2,
   handedness: 'right' as Handedness,
+  /** Overridden by the device language on first launch (systems/settings.ts). */
   language: 'tr' as Language,
 };
 

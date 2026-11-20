@@ -2,6 +2,7 @@ import * as S from '../config/settings';
 import * as C from '../config/controls';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/arena';
 import { loadPref, savePref } from './prefs';
+import { deviceLanguage, setLanguage } from '../i18n';
 
 export type Settings = typeof S.DEFAULT_SETTINGS;
 
@@ -27,19 +28,22 @@ export function loadSettings(): Settings {
     buttonSizeIndex: clampIndex(raw.buttonSizeIndex, S.BUTTON_SIZE_OPTIONS.length, d.buttonSizeIndex),
     buttonOpacityIndex: clampIndex(raw.buttonOpacityIndex, S.BUTTON_OPACITY_OPTIONS.length, d.buttonOpacityIndex),
     handedness: raw.handedness === 'left' || raw.handedness === 'right' ? raw.handedness : d.handedness,
-    language: S.LANGUAGES_AVAILABLE.includes(raw.language as S.Language) ? (raw.language as S.Language) : d.language,
+    language: S.LANGUAGES_AVAILABLE.includes(raw.language as S.Language) ? (raw.language as S.Language) : deviceLanguage(),
   };
+  setLanguage(cache.language);
   return cache;
 }
 
 export function saveSettings(patch: Partial<Settings>): Settings {
   cache = { ...loadSettings(), ...patch };
+  setLanguage(cache.language);
   savePref(S.SETTINGS_KEY, JSON.stringify(cache));
   return cache;
 }
 
 export function resetSettings(): Settings {
-  cache = { ...S.DEFAULT_SETTINGS };
+  // Reset keeps the language: a player who cannot read the other one must not get stuck in it.
+  cache = { ...S.DEFAULT_SETTINGS, language: loadSettings().language };
   savePref(S.SETTINGS_KEY, JSON.stringify(cache));
   return cache;
 }

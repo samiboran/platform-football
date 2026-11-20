@@ -1,3 +1,4 @@
+import { formatNumber } from '../i18n';
 import Phaser from 'phaser';
 import { GAME_HEIGHT, GAME_WIDTH } from '../config/arena';
 import * as M from '../config/menus';
@@ -165,7 +166,7 @@ export class MenuScene extends Phaser.Scene {
     panel(this, x, y, M.HUB_PILL_W, M.HUB_PILL_H, M.HUB_PILL_COLOR, M.HUB_PILL_ALPHA, M.HUB_PILL_H / 2);
     this.add.image(x - M.HUB_PILL_W / 2 + 6, y, icon).setScale(4);
     this.add
-      .bitmapText(x + M.HUB_PILL_W / 2 - 16, y + 1, HUD.PIXEL_FONT_KEY, value.toLocaleString('tr-TR'))
+      .bitmapText(x + M.HUB_PILL_W / 2 - 16, y + 1, HUD.PIXEL_FONT_KEY, formatNumber(value))
       .setScale(3)
       .setOrigin(1, 0.5);
   }
