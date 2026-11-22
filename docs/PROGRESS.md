@@ -1274,3 +1274,5 @@ Sami Oturum 19'un top hissini oynadı, "daha iyi ama" diyerek beş somut geri bi
 ## Oturum 65 — (22.11.2026, zamanlanmış) Claude'un yapabileceği M9 maddesi yok; değişiklik yapılmadı, kalanlar Sami'yi bekliyor (bkz. Oturum 57).
 
 ## Oturum 66 — (22.11.2026, zamanlanmış) Claude'un yapabileceği M9 maddesi yok; değişiklik yapılmadı, kalanlar Sami'yi bekliyor (bkz. Oturum 57).
+
+## Oturum 67 — (22.11.2026, zamanlanmış) Claude'un yapabileceği M9 maddesi yok; değişiklik yapılmadı, kalanlar Sami'yi bekliyor (bkz. Oturum 57).
